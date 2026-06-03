@@ -1,21 +1,19 @@
 import { useState, useMemo } from 'react';
 import {
   Search, Plus, Download, Eye, Edit2, Trash2,
-  Phone, Mail, MapPin, Calendar, CreditCard, User
+  Phone, Mail, MapPin, Calendar, CreditCard, User, RefreshCw
 } from 'lucide-react';
 import { useApp } from '../store/useStore';
 import type { Member } from '../types';
 import {
   formatDate, getStatusColor, getStatusBg, formatCurrency,
-  searchFilter, paginate, exportToCSV, generateId, generateMemberId,
-  addDays, avatarUrl
+  searchFilter, paginate, exportToCSV, generateId,
+  addDays, avatarUrl, daysUntil
 } from '../utils/helpers';
 import Modal from '../components/ui/Modal';
 
-const PLANS_LIST = ['Monthly Gym Only', 'Monthly Full Access', 'Quarterly Gym', 'Quarterly Full Access', 'Half-Yearly', 'Annual', 'Student Monthly'];
-
 export default function Members() {
-  const { members, addMember, updateMember, deleteMember, addToast, plans } = useApp();
+  const { members, addMember, updateMember, deleteMember, addToast, plans, getNextMemberId, renewMember } = useApp();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [planFilter, setPlanFilter] = useState('All');
@@ -26,12 +24,20 @@ export default function Members() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Partial<Member>>({});
   const [step, setStep] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState<Member | null>(null);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewPlanId, setRenewPlanId] = useState('');
+  const [renewMode, setRenewMode] = useState('Cash');
   const [newMember, setNewMember] = useState({
     name: '', email: '', phone: '', area: '', gender: 'Male',
-    dob: '', planId: 'p2', bloodGroup: 'O+', healthConditions: 'None', emergencyContact: '',
+    dob: '', planId: '', bloodGroup: 'O+', healthConditions: 'None', emergencyContact: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const PER_PAGE = 15;
+
+  // Use live plans for filter dropdown — NOT hardcoded list
+  const planNames = useMemo(() => plans.map(p => p.name), [plans]);
 
   const filtered = useMemo(() => {
     let result = searchFilter(members, query, ['name', 'phone', 'memberId', 'area']);
@@ -51,19 +57,42 @@ export default function Members() {
     addToast('Members exported to CSV', 'success');
   };
 
+  const validateStep0 = () => {
+    const errors: Record<string, string> = {};
+    if (!newMember.name.trim()) errors.name = 'Full name is required';
+    if (!newMember.phone.trim()) errors.phone = 'Phone number is required';
+    if (!newMember.area.trim()) errors.area = 'Area is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    if (!newMember.planId) {
+      addToast('Please select a plan', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (step === 0 && !validateStep0()) return;
+    setStep(s => s + 1);
+  };
+
   const handleAddMember = () => {
+    if (!validateStep2()) return;
     const plan = plans.find(p => p.id === newMember.planId) ?? plans[0];
     const today = new Date().toISOString().split('T')[0];
     const expiryDate = addDays(today, plan.duration);
-    const idx = members.length + 1;
+    const days = daysUntil(expiryDate);
     const member: Member = {
       id: generateId(),
-      memberId: generateMemberId(idx),
-      name: newMember.name,
-      email: newMember.email,
-      phone: newMember.phone,
-      address: newMember.area,
-      area: newMember.area,
+      memberId: getNextMemberId(), // uses persistent counter — no collision
+      name: newMember.name.trim(),
+      email: newMember.email.trim(),
+      phone: newMember.phone.trim(),
+      address: newMember.area.trim(),
+      area: newMember.area.trim(),
       gender: newMember.gender as any,
       dob: newMember.dob,
       joinDate: today,
@@ -75,21 +104,27 @@ export default function Members() {
       bloodGroup: newMember.bloodGroup,
       emergencyContact: newMember.emergencyContact,
       healthConditions: newMember.healthConditions,
-      daysRemaining: plan.duration,
+      daysRemaining: days, // computed dynamically
     };
     addMember(member);
     addToast(`Member ${member.name} added successfully!`, 'success');
     setAddOpen(false);
     setStep(0);
-    setNewMember({ name: '', email: '', phone: '', area: '', gender: 'Male', dob: '', planId: 'p2', bloodGroup: 'O+', healthConditions: 'None', emergencyContact: '' });
+    setFormErrors({});
+    setNewMember({ name: '', email: '', phone: '', area: '', gender: 'Male', dob: '', planId: '', bloodGroup: 'O+', healthConditions: 'None', emergencyContact: '' });
   };
 
   const handleDelete = (m: Member) => {
-    if (confirm(`Delete member ${m.name}?`)) {
-      deleteMember(m.id);
-      addToast(`${m.name} removed`, 'warning');
-      if (selectedMember?.id === m.id) setSelectedMember(null);
-    }
+    // Use custom modal instead of window.confirm()
+    setDeleteConfirm(m);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteMember(deleteConfirm.id);
+    addToast(`${deleteConfirm.name} removed`, 'warning');
+    if (selectedMember?.id === deleteConfirm.id) setSelectedMember(null);
+    setDeleteConfirm(null);
   };
 
   const handleUpdateMember = () => {
@@ -98,6 +133,23 @@ export default function Members() {
       addToast('Member updated', 'success');
       setEditOpen(false);
     }
+  };
+
+  const handleRenew = () => {
+    if (!selectedMember) return;
+    if (!renewPlanId) { addToast('Please select a plan', 'error'); return; }
+    renewMember(selectedMember.id, renewPlanId, renewMode);
+    addToast(`Membership renewed for ${selectedMember.name}!`, 'success');
+    setRenewOpen(false);
+    setSelectedMember(null);
+  };
+
+  // Compute progress bar % using actual plan duration
+  const getProgressPercent = (member: Member): number => {
+    const plan = plans.find(p => p.id === member.planId);
+    const duration = plan?.duration ?? 30;
+    const days = daysUntil(member.expiryDate);
+    return Math.max(0, Math.min(100, (days / duration) * 100));
   };
 
   return (
@@ -138,7 +190,7 @@ export default function Members() {
           </select>
           <select className="select" style={{ width: 180 }} value={planFilter} onChange={e => { setPlanFilter(e.target.value); setPage(1); }}>
             <option value="All">All Plans</option>
-            {PLANS_LIST.map(p => <option key={p}>{p}</option>)}
+            {planNames.map(p => <option key={p}>{p}</option>)}
           </select>
         </div>
       </div>
@@ -213,16 +265,20 @@ export default function Members() {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination — fixed "Showing 1–0 of 0" bug */}
         <div className="pagination">
-          <span>Showing {Math.min((page - 1) * PER_PAGE + 1, total)}–{Math.min(page * PER_PAGE, total)} of {total}</span>
+          <span>
+            {total === 0
+              ? 'No results'
+              : `Showing ${Math.min((page - 1) * PER_PAGE + 1, total)}–${Math.min(page * PER_PAGE, total)} of ${total}`}
+          </span>
           <div className="pagination-controls">
             <button className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹</button>
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
               const pg = i + 1;
               return <button key={pg} className={`page-btn ${page === pg ? 'active' : ''}`} onClick={() => setPage(pg)}>{pg}</button>;
             })}
-            <button className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>›</button>
+            <button className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0}>›</button>
           </div>
         </div>
       </div>
@@ -246,7 +302,7 @@ export default function Members() {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Days Remaining</div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: selectedMember.daysRemaining < 7 ? 'var(--accent-warning)' : 'var(--accent-success)' }}>
-                  {selectedMember.daysRemaining}
+                  {Math.max(0, daysUntil(selectedMember.expiryDate))}
                 </div>
               </div>
             </div>
@@ -283,14 +339,20 @@ export default function Members() {
                     <span className="badge badge-primary">{selectedMember.planName}</span>
                   </div>
                   <div className="progress-bar" style={{ marginBottom: 8 }}>
-                    <div className="progress-bar-fill" style={{ width: `${Math.max(0, Math.min(100, (selectedMember.daysRemaining / 30) * 100))}%` }} />
+                    {/* Fixed: uses actual plan duration, not hardcoded 30 */}
+                    <div className="progress-bar-fill" style={{ width: `${getProgressPercent(selectedMember)}%` }} />
                   </div>
                   <div className="flex justify-between text-secondary text-xs">
                     <span>Joined: {formatDate(selectedMember.joinDate)}</span>
                     <span>Expires: {formatDate(selectedMember.expiryDate)}</span>
                   </div>
                 </div>
-                <button className="btn btn-primary">🔄 Renew Membership</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => { setRenewPlanId(selectedMember.planId || plans[0]?.id || ''); setRenewOpen(true); }}
+                >
+                  <RefreshCw size={15} /> Renew Membership
+                </button>
               </div>
             )}
 
@@ -303,6 +365,45 @@ export default function Members() {
           </div>
         </Modal>
       )}
+
+      {/* Renew Membership Modal */}
+      <Modal
+        open={renewOpen}
+        onClose={() => setRenewOpen(false)}
+        title="Renew Membership"
+        size="sm"
+        footer={<><button className="btn btn-secondary" onClick={() => setRenewOpen(false)}>Cancel</button><button className="btn btn-primary" onClick={handleRenew}><RefreshCw size={14} /> Renew</button></>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label required">Select Plan</label>
+            <select className="select" value={renewPlanId} onChange={e => setRenewPlanId(e.target.value)}>
+              <option value="">-- Select Plan --</option>
+              {plans.map(p => <option key={p.id} value={p.id}>{p.name} — {formatCurrency(p.price + Math.round(p.price * 0.18))} / {p.duration} days</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label required">Payment Mode</label>
+            <select className="select" value={renewMode} onChange={e => setRenewMode(e.target.value)}>
+              {['Cash', 'UPI', 'Card', 'GPay', 'PhonePe'].map(m => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          {renewPlanId && (() => {
+            const plan = plans.find(p => p.id === renewPlanId);
+            if (!plan) return null;
+            const total = plan.price + Math.round(plan.price * 0.18);
+            return (
+              <div style={{ padding: 14, background: 'var(--bg-hover)', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
+                <div className="flex justify-between"><span className="text-secondary">Plan</span><span>{plan.name}</span></div>
+                <div className="flex justify-between"><span className="text-secondary">Duration</span><span>{plan.duration} days</span></div>
+                <div className="flex justify-between font-bold" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--glass-border)' }}>
+                  <span>Total</span><span style={{ color: 'var(--accent-success)' }}>{formatCurrency(total)}</span>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </Modal>
 
       {/* Edit Member Modal */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Member" size="sm"
@@ -324,12 +425,25 @@ export default function Members() {
         </div>
       </Modal>
 
+      {/* Custom Delete Confirmation Modal — replaces window.confirm() */}
+      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Member" size="sm"
+        footer={<><button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button><button className="btn btn-danger" onClick={confirmDelete}>🗑️ Delete</button></>}
+      >
+        <div style={{ textAlign: 'center', padding: '8px 0' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+            Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirm?.name}</strong>?
+            <br /><span style={{ fontSize: 12, color: 'var(--accent-danger)' }}>This action cannot be undone.</span>
+          </p>
+        </div>
+      </Modal>
+
       {/* Add Member Modal */}
-      <Modal open={addOpen} onClose={() => { setAddOpen(false); setStep(0); }} title="Add New Member" size="lg"
+      <Modal open={addOpen} onClose={() => { setAddOpen(false); setStep(0); setFormErrors({}); }} title="Add New Member" size="lg"
         footer={
           <div className="flex items-center gap-2 ml-auto">
             {step > 0 && <button className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>Back</button>}
-            {step < 2 && <button className="btn btn-primary" onClick={() => setStep(s => s + 1)}>Next →</button>}
+            {step < 2 && <button className="btn btn-primary" onClick={handleNextStep}>Next →</button>}
             {step === 2 && <button className="btn btn-primary" onClick={handleAddMember}>✅ Add Member</button>}
           </div>
         }
@@ -354,11 +468,25 @@ export default function Members() {
           <div className="grid grid-2" style={{ gap: 16 }}>
             <div className="form-group">
               <label className="form-label required">Full Name</label>
-              <input className="input" value={newMember.name} onChange={e => setNewMember(p => ({ ...p, name: e.target.value }))} placeholder="Arjun Kumar" />
+              <input
+                className="input"
+                value={newMember.name}
+                onChange={e => { setNewMember(p => ({ ...p, name: e.target.value })); setFormErrors(p => ({ ...p, name: '' })); }}
+                placeholder="Arjun Kumar"
+                style={{ borderColor: formErrors.name ? 'var(--accent-danger)' : undefined }}
+              />
+              {formErrors.name && <span style={{ fontSize: 11, color: 'var(--accent-danger)' }}>{formErrors.name}</span>}
             </div>
             <div className="form-group">
               <label className="form-label required">Phone Number</label>
-              <input className="input" value={newMember.phone} onChange={e => setNewMember(p => ({ ...p, phone: e.target.value }))} placeholder="+91 9876543210" />
+              <input
+                className="input"
+                value={newMember.phone}
+                onChange={e => { setNewMember(p => ({ ...p, phone: e.target.value })); setFormErrors(p => ({ ...p, phone: '' })); }}
+                placeholder="+91 9876543210"
+                style={{ borderColor: formErrors.phone ? 'var(--accent-danger)' : undefined }}
+              />
+              {formErrors.phone && <span style={{ fontSize: 11, color: 'var(--accent-danger)' }}>{formErrors.phone}</span>}
             </div>
             <div className="form-group">
               <label className="form-label">Email</label>
@@ -366,7 +494,14 @@ export default function Members() {
             </div>
             <div className="form-group">
               <label className="form-label required">Area</label>
-              <input className="input" value={newMember.area} onChange={e => setNewMember(p => ({ ...p, area: e.target.value }))} placeholder="Koramangala, Bengaluru" />
+              <input
+                className="input"
+                value={newMember.area}
+                onChange={e => { setNewMember(p => ({ ...p, area: e.target.value })); setFormErrors(p => ({ ...p, area: '' })); }}
+                placeholder="Koramangala, Bengaluru"
+                style={{ borderColor: formErrors.area ? 'var(--accent-danger)' : undefined }}
+              />
+              {formErrors.area && <span style={{ fontSize: 11, color: 'var(--accent-danger)' }}>{formErrors.area}</span>}
             </div>
             <div className="form-group">
               <label className="form-label">Date of Birth</label>

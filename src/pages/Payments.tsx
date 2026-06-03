@@ -18,7 +18,7 @@ const DISCOUNTS = [
 ];
 
 export default function Payments() {
-  const { payments, members, addPayment, currentUser, addToast } = useApp();
+  const { payments, members, addPayment, currentUser, addToast, settings } = useApp();
   const [query, setQuery] = useState('');
   const [modeFilter, setModeFilter] = useState('All');
   const [page, setPage] = useState(1);
@@ -51,6 +51,10 @@ export default function Payments() {
   const memberOptions = members.filter(m =>
     form.memberSearch && m.name.toLowerCase().includes(form.memberSearch.toLowerCase())
   ).slice(0, 5);
+
+  // Close member dropdown when clicking outside
+  const memberSearchRef = useState<HTMLDivElement | null>(null);
+  void memberSearchRef;
 
   const handleCollect = () => {
     if (!form.memberId) { addToast('Please select a member', 'error'); return; }
@@ -169,11 +173,17 @@ export default function Payments() {
           </table>
         </div>
         <div className="pagination">
-          <span>Showing {Math.min((page - 1) * PER_PAGE + 1, total)}–{Math.min(page * PER_PAGE, total)} of {total}</span>
+          <span>
+            {total === 0
+              ? 'No results'
+              : `Showing ${Math.min((page - 1) * PER_PAGE + 1, total)}–${Math.min(page * PER_PAGE, total)} of ${total}`}
+          </span>
           <div className="pagination-controls">
+            <button className="page-btn" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹</button>
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => (
               <button key={i + 1} className={`page-btn ${page === i + 1 ? 'active' : ''}`} onClick={() => setPage(i + 1)}>{i + 1}</button>
             ))}
+            <button className="page-btn" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0}>›</button>
           </div>
         </div>
       </div>
@@ -195,11 +205,12 @@ export default function Payments() {
                 placeholder="Type member name..."
                 value={form.memberSearch}
                 onChange={e => setForm(p => ({ ...p, memberSearch: e.target.value, memberId: '' }))}
+                onBlur={() => setTimeout(() => setForm(p => ({ ...p, memberSearch: p.memberId ? p.memberSearch : p.memberSearch })), 200)}
               />
               {memberOptions.length > 0 && !form.memberId && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--bg-surface)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', overflow: 'hidden' }}>
                   {memberOptions.map(m => (
-                    <div key={m.id} className="dropdown-item" onClick={() => setForm(p => ({ ...p, memberSearch: m.name, memberId: m.id, planName: m.planName, baseAmount: 0 }))}>
+                    <div key={m.id} className="dropdown-item" onMouseDown={e => e.preventDefault()} onClick={() => setForm(p => ({ ...p, memberSearch: m.name, memberId: m.id, planName: m.planName, baseAmount: 0 }))}>
                       <img src={m.photo} style={{ width: 28, height: 28, borderRadius: '50%' }} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</div>
@@ -269,8 +280,8 @@ export default function Payments() {
         >
           <div style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 2 }}>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontFamily: 'Inter', fontSize: 18, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PULSE FITNESS</h3>
-              <div className="text-secondary text-xs">Koramangala, Bengaluru · 080-2553-4567</div>
+              <h3 style={{ fontFamily: 'Inter', fontSize: 18, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{settings.gymName || 'GYM'}</h3>
+              <div className="text-secondary text-xs">{settings.address} · {settings.phone}</div>
             </div>
             <div className="divider" />
             <div className="flex justify-between"><span className="text-muted">Receipt No:</span><span style={{ color: 'var(--accent-primary)' }}>{receipt.receiptNo}</span></div>

@@ -38,7 +38,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
-  const { notifications, logout, isSidebarOpen, toggleSidebar } = useApp();
+  const { notifications, logout, isSidebarOpen, toggleSidebar, settings } = useApp();
   const unreadCount = notifications.filter(n => !n.read).length;
   const collapsed = false; // Forced expanded for the new premium layout
 
@@ -54,7 +54,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       <div className="sidebar-logo pb-8" style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
         {!collapsed && (
           <div className="sidebar-logo-text w-full" style={{ textAlign: 'center' }}>
-            <div className="sidebar-gym-name" style={{ textAlign: 'center', margin: '0 auto' }}>LOGO</div>
+            <div className="sidebar-gym-name" style={{ textAlign: 'center', margin: '0 auto' }}>{settings.gymName || 'My Gym'}</div>
           </div>
         )}
       </div>

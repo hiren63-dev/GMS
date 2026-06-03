@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import ToastContainer from './components/ui/Toast';
+import type { UserRole } from './types';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -41,8 +42,32 @@ const PAGE_NAMES: Record<string, string> = {
   settings: 'Settings',
 };
 
+// Role-based access control — '*' means all pages accessible
+const ALLOWED_PAGES: Record<UserRole, string[] | '*'> = {
+  Owner: '*',
+  Manager: ['dashboard', 'members', 'subscriptions', 'payments', 'attendance', 'trainers', 'pt-sessions', 'manager-calendar', 'body-tracking', 'enquiries', 'reports', 'equipment', 'expenses', 'settings'],
+  Trainer: ['dashboard', 'trainer-portal', 'pt-sessions', 'body-tracking', 'attendance', 'manager-calendar'],
+  Receptionist: ['dashboard', 'members', 'subscriptions', 'payments', 'attendance', 'enquiries'],
+};
+
+function canAccess(role: UserRole, page: string): boolean {
+  const allowed = ALLOWED_PAGES[role];
+  if (allowed === '*') return true;
+  return allowed.includes(page);
+}
+
+function AccessDenied() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 16, textAlign: 'center' }}>
+      <div style={{ fontSize: 48 }}>🔒</div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>Access Restricted</h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>You don't have permission to view this page.<br />Contact your gym owner to request access.</p>
+    </div>
+  );
+}
+
 function AppContent() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, currentUser } = useApp();
   const [activePage, setActivePage] = useState('dashboard');
 
   if (!isAuthenticated) {
@@ -54,7 +79,10 @@ function AppContent() {
     );
   }
 
+  const role = currentUser?.role ?? 'Receptionist';
+
   const renderPage = () => {
+    if (!canAccess(role, activePage)) return <AccessDenied />;
     switch (activePage) {
       case 'dashboard': return <Dashboard />;
       case 'members': return <Members />;

@@ -51,4 +51,5 @@ export const GYM_SETTINGS = {
   logo: '',
   primaryColor: '#5A32FA',
   theme: 'light' as 'dark' | 'light',
+  receiptFooter: 'Thank you for choosing us! Stay fit, stay healthy.',
 };

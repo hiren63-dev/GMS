@@ -88,7 +88,7 @@ export const getBMICategory = (bmi: number): { label: string; color: string } =>
 
 /** Generate unique ID */
 export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
 /** Generate member ID (GMS-XXXX) */
@@ -206,17 +206,26 @@ export const paginate = <T>(items: T[], page: number, perPage: number): { items:
   };
 };
 
+/** Sanitize CSV cell value to prevent formula injection attacks */
+const sanitizeCSVCell = (val: unknown): string => {
+  const str = String(val ?? '');
+  // Prefix dangerous characters that Excel/Sheets treat as formula starters
+  if (/^[=+\-@\t\r]/.test(str)) return `'${str}`;
+  // Wrap in quotes if contains comma, quote, or newline
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
 /** Export to CSV */
 export const exportToCSV = (data: Record<string, any>[], filename: string): void => {
   if (data.length === 0) return;
   const headers = Object.keys(data[0]);
   const csvContent = [
-    headers.join(','),
+    headers.map(h => sanitizeCSVCell(h)).join(','),
     ...data.map(row =>
-      headers.map(h => {
-        const val = row[h];
-        return typeof val === 'string' && val.includes(',') ? `"${val}"` : val;
-      }).join(',')
+      headers.map(h => sanitizeCSVCell(row[h])).join(',')
     ),
   ].join('\n');
   

@@ -132,9 +132,6 @@ export default function Login() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 20 }}>
-          Demo password for all accounts: <strong style={{ color: 'var(--text-secondary)' }}>demo123</strong>
-        </p>
       </div>
     </div>
   );

@@ -4,7 +4,8 @@ import { useApp } from '../store/useStore';
 
 export default function Settings() {
   const { settings, updateSettings, addToast, theme, toggleTheme } = useApp();
-  const [form, setForm] = useState({ ...settings });
+  // Include receiptFooter in form state (may not be in old settings, so default to '')
+  const [form, setForm] = useState({ ...settings, receiptFooter: (settings as any).receiptFooter ?? '' });
   const [tab, setTab] = useState('gym');
 
   const handleSave = () => {
@@ -74,7 +75,12 @@ export default function Settings() {
             </div>
             <div className="form-group" style={{ gridColumn: '1/-1' }}>
               <label className="form-label">Receipt Footer Note</label>
-              <input className="input" placeholder="Thank you for choosing Pulse Fitness!" />
+              <input
+                className="input"
+                placeholder="Thank you for choosing us!"
+                value={form.receiptFooter ?? ''}
+                onChange={e => setForm(p => ({ ...p, receiptFooter: e.target.value }))}
+              />
             </div>
           </div>
         </div>
