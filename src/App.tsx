@@ -18,7 +18,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Equipment from './pages/Equipment';
 import Expenses from './pages/Expenses';
-import BodyTracking from './pages/BodyTracking';
+
 import PTSessions from './pages/PTSessions';
 import ManagerCalendar from './pages/ManagerCalendar';
 import TrainerPortal from './pages/TrainerPortal';
@@ -34,7 +34,7 @@ const PAGE_NAMES: Record<string, string> = {
   'pt-sessions': 'PT Sessions',
   'manager-calendar': 'Trainer Calendar',
   'trainer-portal': 'Trainer Portal',
-  'body-tracking': 'Body Tracking',
+
   enquiries: 'Enquiries & Leads',
   reports: 'Reports',
   equipment: 'Equipment',
@@ -45,8 +45,8 @@ const PAGE_NAMES: Record<string, string> = {
 // Role-based access control — '*' means all pages accessible
 const ALLOWED_PAGES: Record<UserRole, string[] | '*'> = {
   Owner: '*',
-  Manager: ['dashboard', 'members', 'subscriptions', 'payments', 'attendance', 'trainers', 'pt-sessions', 'manager-calendar', 'body-tracking', 'enquiries', 'reports', 'equipment', 'expenses', 'settings'],
-  Trainer: ['dashboard', 'trainer-portal', 'pt-sessions', 'body-tracking', 'attendance', 'manager-calendar'],
+  Manager: ['dashboard', 'members', 'subscriptions', 'payments', 'attendance', 'trainers', 'pt-sessions', 'manager-calendar', 'enquiries', 'reports', 'equipment', 'expenses', 'settings'],
+  Trainer: ['dashboard', 'trainer-portal', 'pt-sessions', 'attendance', 'manager-calendar'],
   Receptionist: ['dashboard', 'members', 'subscriptions', 'payments', 'attendance', 'enquiries'],
 };
 
@@ -93,7 +93,7 @@ function AppContent() {
       case 'pt-sessions': return <PTSessions />;
       case 'manager-calendar': return <ManagerCalendar />;
       case 'trainer-portal': return <TrainerPortal />;
-      case 'body-tracking': return <BodyTracking />;
+
       case 'enquiries': return <Enquiries />;
       case 'reports': return <Reports />;
       case 'equipment': return <Equipment />;

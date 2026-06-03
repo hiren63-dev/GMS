@@ -18,6 +18,7 @@ export default function Header({ pageName, onSearch }: HeaderProps) {
 
   const unread = notifications.filter(n => !n.read);
 
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
@@ -120,17 +121,32 @@ export default function Header({ pageName, onSearch }: HeaderProps) {
             onClick={() => setProfileOpen(!profileOpen)}
             style={{ gap: 8, padding: '0 8px' }}
           >
-            <img
-              src={currentUser?.photo}
-              alt={currentUser?.name}
-              style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }}
-            />
+            <div style={{ position: 'relative' }}>
+              {currentUser?.photo ? (
+                <img
+                  src={currentUser.photo}
+                  alt={currentUser.name}
+                  style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div style={{
+                  width: 30, height: 30, borderRadius: '50%',
+                  background: 'var(--accent-primary)', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 800,
+                }}>
+                  {(currentUser?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                </div>
+              )}
+            </div>
             <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
               <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{currentUser?.name?.split(' ')[0]}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser?.role}</div>
             </div>
             <ChevronDown size={14} color="var(--text-muted)" />
           </button>
+
 
           {profileOpen && (
             <div className="dropdown-menu" style={{ width: 200 }}>

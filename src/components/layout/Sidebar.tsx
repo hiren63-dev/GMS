@@ -1,7 +1,7 @@
 
 import {
   LayoutDashboard, Users, CreditCard, DollarSign, Calendar, Dumbbell,
-  Target, TrendingUp, MessageSquare, BarChart3, Wrench, Receipt,
+  Target, MessageSquare, BarChart3, Wrench, Receipt,
   Settings, LogOut, CalendarDays, BookOpen
 } from 'lucide-react';
 import { useApp } from '../../store/useStore';
@@ -24,7 +24,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'pt-sessions', label: 'PT Sessions', icon: <Target size={18} />, section: 'OPERATIONS' },
   { id: 'manager-calendar', label: 'Trainer Calendar', icon: <CalendarDays size={18} />, section: 'OPERATIONS' },
   { id: 'trainer-portal', label: 'Trainer Portal', icon: <BookOpen size={18} />, section: 'OPERATIONS' },
-  { id: 'body-tracking', label: 'Body Tracking', icon: <TrendingUp size={18} />, section: 'OPERATIONS' },
   { id: 'enquiries', label: 'Enquiries', icon: <MessageSquare size={18} />, section: 'BUSINESS' },
   { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} />, section: 'BUSINESS' },
   { id: 'equipment', label: 'Equipment', icon: <Wrench size={18} />, section: 'MANAGEMENT' },

@@ -18,12 +18,29 @@ const STAGE_COLORS: Record<Lead['status'], string> = {
 const SOURCES = ['Walk-in', 'Instagram', 'Google', 'JustDial', 'Referral', 'Other'];
 
 export default function Enquiries() {
-  const { leads, addLead, updateLead } = useApp();
+  const { leads, addLead, updateLead, plans, trainers, addToast } = useApp();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', source: 'Walk-in', interestedPlan: '', assignedTo: '', followUpDate: '', notes: '' });
   const [dragging, setDragging] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Staff list for "Assigned To" dropdown
+  const staffNames = trainers.map(t => t.name);
+
+  const validateForm = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim() || form.name.trim().length < 2) errs.name = 'Name is required (min 2 chars)';
+    if (!form.phone.trim()) errs.phone = 'Phone is required';
+    else if (!/^\+?[\d\s()-]{7,15}$/.test(form.phone.trim())) errs.phone = 'Enter a valid phone number';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleAdd = () => {
+    if (!validateForm()) {
+      addToast('Please fix the errors in the form', 'error');
+      return;
+    }
     const lead: Lead = {
       id: generateId(),
       ...form,
@@ -32,8 +49,10 @@ export default function Enquiries() {
       enquiryDate: new Date().toISOString().split('T')[0],
     };
     addLead(lead);
+    addToast(`Lead "${form.name}" added successfully!`, 'success');
     setAddOpen(false);
     setForm({ name: '', phone: '', source: 'Walk-in', interestedPlan: '', assignedTo: '', followUpDate: '', notes: '' });
+    setErrors({});
   };
 
   const handleDrop = (stage: Lead['status'], leadId: string) => {
@@ -44,14 +63,15 @@ export default function Enquiries() {
   const today = new Date().toISOString().split('T')[0];
   const overdueFollowUps = leads.filter(l => l.followUpDate < today && l.status !== 'Converted' && l.status !== 'Lost').length;
   const todayFollowUps = leads.filter(l => l.followUpDate === today).length;
-  const conversionRate = Math.round(leads.filter(l => l.status === 'Converted').length / leads.length * 100);
+  const totalLeads = leads.length;
+  const conversionRate = totalLeads > 0 ? Math.round(leads.filter(l => l.status === 'Converted').length / totalLeads * 100) : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="page-header">
         <div>
           <p className="page-subtitle" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-            {leads.length} total enquiries · {conversionRate}% conversion rate
+            {totalLeads} total enquiries · {conversionRate}% conversion rate
           </p>
         </div>
         <div className="page-header-actions">
@@ -61,7 +81,7 @@ export default function Enquiries() {
 
       {/* Stats */}
       <div className="grid grid-4">
-        <div className="card card-sm"><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent-primary)' }}>{leads.length}</div><div className="text-muted text-xs mt-1">Total Leads</div></div>
+        <div className="card card-sm"><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent-primary)' }}>{totalLeads}</div><div className="text-muted text-xs mt-1">Total Leads</div></div>
         <div className="card card-sm"><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent-danger)' }}>{overdueFollowUps}</div><div className="text-muted text-xs mt-1">Overdue Follow-ups</div></div>
         <div className="card card-sm"><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent-warning)' }}>{todayFollowUps}</div><div className="text-muted text-xs mt-1">Today's Follow-ups</div></div>
         <div className="card card-sm"><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent-success)' }}>{conversionRate}%</div><div className="text-muted text-xs mt-1">Conversion Rate</div></div>
@@ -137,7 +157,7 @@ export default function Enquiries() {
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Lead Sources</h3>
           {SOURCES.map(source => {
             const count = leads.filter(l => l.source === source).length;
-            const pct = Math.round(count / leads.length * 100);
+            const pct = totalLeads > 0 ? Math.round(count / totalLeads * 100) : 0;
             return (
               <div key={source} style={{ marginBottom: 12 }}>
                 <div className="flex justify-between mb-1">
@@ -164,40 +184,71 @@ export default function Enquiries() {
         </div>
       </div>
 
-      {/* Add Lead Modal */}
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add New Lead"
+      {/* Add Lead Modal — VALIDATED + DROPDOWNS */}
+      <Modal open={addOpen} onClose={() => { setAddOpen(false); setErrors({}); }} title="Add New Lead"
         footer={<>
-          <button className="btn btn-secondary" onClick={() => setAddOpen(false)}>Cancel</button>
+          <button className="btn btn-secondary" onClick={() => { setAddOpen(false); setErrors({}); }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleAdd}>Add Lead</button>
         </>}
       >
         <div className="grid grid-2" style={{ gap: 14 }}>
+          {/* Name — REQUIRED with validation */}
           <div className="form-group">
             <label className="form-label required">Name</label>
-            <input className="input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Full name" />
+            <input
+              className={`input ${errors.name ? 'input-error' : ''}`}
+              value={form.name}
+              onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors(e2 => ({ ...e2, name: '' })); }}
+              placeholder="Full name"
+            />
+            {errors.name && <span style={{ color: 'var(--accent-danger)', fontSize: 11, marginTop: 4 }}>{errors.name}</span>}
           </div>
+
+          {/* Phone — REQUIRED with validation */}
           <div className="form-group">
             <label className="form-label required">Phone</label>
-            <input className="input" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+91 9876543210" />
+            <input
+              className={`input ${errors.phone ? 'input-error' : ''}`}
+              value={form.phone}
+              onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(e2 => ({ ...e2, phone: '' })); }}
+              placeholder="+91 9876543210"
+            />
+            {errors.phone && <span style={{ color: 'var(--accent-danger)', fontSize: 11, marginTop: 4 }}>{errors.phone}</span>}
           </div>
+
+          {/* Source — dropdown */}
           <div className="form-group">
             <label className="form-label">Source</label>
             <select className="select" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}>
               {SOURCES.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
+
+          {/* Interested Plan — DROPDOWN from live plans */}
           <div className="form-group">
             <label className="form-label">Interested Plan</label>
-            <input className="input" value={form.interestedPlan} onChange={e => setForm(p => ({ ...p, interestedPlan: e.target.value }))} placeholder="Monthly, Annual..." />
+            <select className="select" value={form.interestedPlan} onChange={e => setForm(p => ({ ...p, interestedPlan: e.target.value }))}>
+              <option value="">-- Select Plan --</option>
+              {plans.map(p => <option key={p.id} value={p.name}>{p.name} (₹{p.price})</option>)}
+            </select>
           </div>
+
+          {/* Assigned To — DROPDOWN from staff/trainers */}
           <div className="form-group">
             <label className="form-label">Assigned To</label>
-            <input className="input" value={form.assignedTo} onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))} placeholder="Staff name" />
+            <select className="select" value={form.assignedTo} onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))}>
+              <option value="">-- Select Staff --</option>
+              {staffNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
           </div>
+
+          {/* Follow-up Date */}
           <div className="form-group">
             <label className="form-label">Follow-up Date</label>
-            <input className="input" type="date" value={form.followUpDate} onChange={e => setForm(p => ({ ...p, followUpDate: e.target.value }))} />
+            <input className="input" type="date" value={form.followUpDate} min={today} onChange={e => setForm(p => ({ ...p, followUpDate: e.target.value }))} />
           </div>
+
+          {/* Notes */}
           <div className="form-group" style={{ gridColumn: '1/-1' }}>
             <label className="form-label">Notes</label>
             <textarea className="textarea" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Any notes..." style={{ minHeight: 60 }} />

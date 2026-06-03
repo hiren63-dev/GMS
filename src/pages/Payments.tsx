@@ -296,6 +296,25 @@ export default function Payments() {
             <div className="flex justify-between font-bold" style={{ fontSize: 16 }}><span>TOTAL:</span><span style={{ color: 'var(--accent-success)' }}>{formatCurrency(receipt.totalAmount)}</span></div>
             <div className="flex justify-between text-muted text-xs mt-2"><span>Payment Mode:</span><span>{receipt.paymentMode}</span></div>
             {receipt.transactionId && <div className="flex justify-between text-muted text-xs"><span>Txn ID:</span><span>{receipt.transactionId}</span></div>}
+
+            {/* Signature & Stamp from settings */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 16, minHeight: 50 }}>
+              <div style={{ textAlign: 'center' }}>
+                {(settings as any).signature && <img src={(settings as any).signature} alt="Signature" style={{ maxHeight: 36, maxWidth: 80, objectFit: 'contain' }} />}
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: 3, marginTop: 3 }}>Auth. Signature</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                {(settings as any).stamp && <img src={(settings as any).stamp} alt="Stamp" style={{ maxHeight: 44, maxWidth: 60, objectFit: 'contain' }} />}
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: 3, marginTop: 3 }}>Gym Stamp</div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            {(settings as any).receiptFooter && (
+              <div style={{ textAlign: 'center', marginTop: 12, fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {(settings as any).receiptFooter}
+              </div>
+            )}
           </div>
         </Modal>
       )}
