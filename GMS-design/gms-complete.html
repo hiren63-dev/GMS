@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMS – Gym Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── DESIGN TOKENS (extracted from live app) ─── */
+:root {
+  --bg-primary:   #09090b;
+  --bg-secondary: #18181b;
+  --bg-card:      #18181b;
+  --bg-hover:     #27272a;
+  --text-primary: #fafafa;
+  --text-secondary:#a1a1aa;
+  --text-muted:   #52525b;
+  --accent-primary:#0A84FF;
+  --accent-success:#32d74b;
+  --accent-warning:#ffd60a;
+  --accent-danger: #ff453a;
+  --accent-purple: #8b5cf6;
+  --accent-pink:   #ec4899;
+  --border-color: #27272a;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --sidebar-width: 260px;
+  --header-height: 64px;
+}
+
+/* ─── RESET ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+
+/* ─── LAYOUT ─── */
+.app-layout { display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar-width); min-height: 100vh; background: #101010; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; position: fixed; left:0; top:0; bottom:0; z-index:100; }
+.main-wrapper { margin-left: var(--sidebar-width); flex:1; display: flex; flex-direction: column; min-height:100vh; }
+.header { height: var(--header-height); background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between; padding: 0 28px; position: sticky; top:0; z-index:50; }
+.page-content { padding: 28px; flex:1; }
+
+/* ─── SIDEBAR ─── */
+.sidebar-logo { padding: 20px 20px 16px; font-size: 18px; font-weight: 800; color: var(--text-primary); border-bottom: 1px solid var(--border-color); }
+.sidebar-nav { flex:1; padding: 12px 8px; overflow-y:auto; }
+.nav-item { display:flex; align-items:center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-lg); cursor:pointer; font-size:13.5px; color: var(--text-secondary); font-weight:500; margin-bottom:2px; transition: all 0.15s; text-decoration:none; }
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active { background: var(--accent-primary); color: #fff; font-weight:600; }
+.nav-item .nav-icon { width:16px; height:16px; opacity:0.7; flex-shrink:0; }
+.nav-item.active .nav-icon { opacity:1; }
+.sidebar-footer { padding: 12px 8px 16px; border-top: 1px solid var(--border-color); }
+.logout-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding: 11px; background: var(--accent-primary); color:#fff; border:none; border-radius: var(--radius-lg); font-size:13.5px; font-weight:700; cursor:pointer; letter-spacing:0.03em; }
+
+/* ─── HEADER ─── */
+.header-title { font-size: 15px; font-weight:600; color: var(--text-secondary); }
+.header-right { display:flex; align-items:center; gap:16px; }
+.avatar-circle { width:36px; height:36px; border-radius:50%; background: var(--accent-purple); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+.header-user { text-align:right; }
+.header-user-name { font-size:13.5px; font-weight:600; color: var(--text-primary); }
+.header-user-role { font-size:11.5px; color: var(--text-secondary); }
+.bell-btn { width:36px; height:36px; border-radius:50%; background: var(--bg-hover); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+/* ─── CARDS ─── */
+.card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 20px; }
+.card-grid-3 { display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.card-grid-2 { display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-bottom:20px; }
+
+/* ─── STAT CARDS ─── */
+.stat-card { display:flex; align-items:center; gap:16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 20px; }
+.stat-card.blue-bg { background: var(--accent-primary); border-color: transparent; }
+.stat-icon { width:44px; height:44px; border-radius: var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.stat-icon.dark-blue { background: rgba(10,132,255,0.15); }
+.stat-icon.green { background: rgba(50,215,75,0.15); }
+.stat-icon.white { background: rgba(255,255,255,0.2); }
+.stat-text .label { font-size:12px; color: var(--text-secondary); font-weight:500; margin-bottom:4px; }
+.stat-text .value { font-size:28px; font-weight:800; color: var(--text-primary); line-height:1; }
+.stat-text .sub { font-size:11.5px; color: var(--accent-warning); margin-top:4px; }
+.stat-card.blue-bg .label,
+.stat-card.blue-bg .sub { color: rgba(255,255,255,0.75); }
+.stat-card.blue-bg .value { color:#fff; }
+
+/* ─── BUTTONS ─── */
+.btn { display:inline-flex; align-items:center; gap:6px; padding: 8px 16px; border-radius: var(--radius-md); font-size:13.5px; font-weight:600; cursor:pointer; border: 1px solid transparent; transition: all 0.15s; }
+.btn-primary { background: var(--accent-primary); color:#fff; border-color: var(--accent-primary); }
+.btn-primary:hover { opacity:0.9; }
+.btn-secondary { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-color); }
+.btn-secondary:hover { background: #333; }
+.btn-danger { background: rgba(255,69,58,0.15); color: var(--accent-danger); border-color: rgba(255,69,58,0.3); }
+.btn-sm { padding: 6px 12px; font-size:12px; }
+.btn-lg { padding: 12px 24px; font-size:14px; }
+.btn-full { width:100%; justify-content:center; }
+
+/* ─── TABLE ─── */
+.table-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); overflow:hidden; }
+.table { width:100%; border-collapse: collapse; }
+.table thead th { background: var(--bg-hover); padding: 12px 16px; text-align:left; font-size:11px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; border-bottom: 1px solid var(--border-color); }
+.table tbody tr { border-bottom: 1px solid var(--border-color); transition: background 0.1s; }
+.table tbody tr:last-child { border-bottom:none; }
+.table tbody tr:hover { background: var(--bg-hover); }
+.table tbody td { padding: 14px 16px; font-size:13.5px; color: var(--text-primary); vertical-align: middle; }
+.table-empty { text-align:center; padding: 60px; color: var(--text-muted); font-size:14px; }
+
+/* ─── BADGES ─── */
+.badge { display:inline-flex; align-items:center; padding: 3px 10px; border-radius: 20px; font-size:12px; font-weight:600; }
+.badge-active { background: rgba(50,215,75,0.12); color: var(--accent-success); }
+.badge-expired { background: rgba(255,69,58,0.12); color: var(--accent-danger); }
+.badge-expiring { background: rgba(255,214,10,0.12); color: var(--accent-warning); }
+.badge-frozen { background: rgba(10,132,255,0.12); color: var(--accent-primary); }
+
+/* ─── SEARCH / FILTERS ─── */
+.search-bar { width:100%; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 11px 16px 11px 42px; font-size:13.5px; color: var(--text-primary); outline:none; }
+.search-bar::placeholder { color: var(--text-muted); }
+.search-wrapper { position:relative; }
+.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color: var(--text-muted); font-size:14px; }
+.filter-bar { display:flex; gap:10px; align-items:center; margin-bottom:16px; }
+.filter-select { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 9px 14px; font-size:13px; color: var(--text-primary); cursor:pointer; outline:none; }
+
+/* ─── MEMBER AVATAR ─── */
+.member-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; flex-shrink:0; }
+.member-name-cell { display:flex; align-items:center; gap:12px; }
+.member-name { font-weight:600; font-size:13.5px; }
+.member-sub { font-size:11.5px; color: var(--text-muted); margin-top:2px; }
+
+/* ─── PAGE HEADER ─── */
+.page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; }
+.page-title { font-size:24px; font-weight:800; color: var(--text-primary); }
+.page-subtitle { font-size:13px; color: var(--text-muted); margin-top:4px; }
+
+/* ─── MODAL ─── */
+.modal-overlay { position:fixed; inset:0; background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:200; backdrop-filter:blur(4px); }
+.modal { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); width: 100%; max-width: 600px; max-height:90vh; overflow-y:auto; padding: 28px; position:relative; }
+.modal-sm { max-width: 480px; }
+.modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+.modal-title { font-size:18px; font-weight:700; }
+.modal-close { width:32px; height:32px; border-radius: var(--radius-md); background: var(--bg-hover); border:none; cursor:pointer; color: var(--text-secondary); display:flex; align-items:center; justify-content:center; font-size:18px; }
+
+/* ─── FORM ─── */
+.form-group { margin-bottom:16px; }
+.form-label { display:block; font-size:12.5px; font-weight:600; color: var(--text-secondary); margin-bottom:6px; }
+.form-label .required { color: var(--accent-danger); }
+.input { width:100%; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 14px; font-size:13.5px; color: var(--text-primary); outline:none; font-family:inherit; }
+.input:focus { border-color: var(--accent-primary); }
+.input::placeholder { color: var(--text-muted); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+select.input { cursor:pointer; }
+
+/* ─── STEPPER ─── */
+.stepper { display:flex; align-items:center; gap:8px; margin-bottom:24px; }
+.step-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+.step-circle.active { background: var(--accent-primary); color:#fff; }
+.step-circle.done { background: var(--accent-success); color:#fff; }
+.step-circle.inactive { background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border-color); }
+.step-label { font-size:12px; color: var(--text-muted); margin-top:4px; text-align:center; }
+.step-line { flex:1; height:2px; background: var(--border-color); }
+.step-line.done { background: var(--accent-success); }
+.stepper-item { display:flex; flex-direction:column; align-items:center; }
+
+/* ─── PLAN CARD ─── */
+.plan-card { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px 20px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; margin-bottom:10px; }
+.plan-card:hover { border-color: var(--accent-primary); }
+.plan-card.selected { border-color: var(--accent-primary); background: rgba(10,132,255,0.08); }
+.plan-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.plan-name { font-weight:600; font-size:14px; }
+.plan-price { font-size:14px; font-weight:700; text-align:right; }
+.plan-duration { font-size:12px; color: var(--text-muted); }
+.plan-popular { background: rgba(139,92,246,0.15); color: var(--accent-purple); font-size:11px; font-weight:600; padding: 2px 8px; border-radius: 20px; margin-left:8px; }
+
+/* ─── CHART PLACEHOLDERS ─── */
+.chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 20px; }
+.chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.chart-title { font-size:15px; font-weight:700; }
+.chart-badge { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 5px 12px; font-size:12px; color: var(--text-secondary); }
+
+/* ─── DONUT ─── */
+.donut-wrapper { display:flex; align-items:center; gap:24px; }
+.donut-svg { width:120px; height:120px; flex-shrink:0; }
+.donut-legend { display:flex; flex-direction:column; gap:10px; }
+.legend-item { display:flex; align-items:center; gap:8px; font-size:13px; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.legend-count { font-weight:700; margin-left:auto; padding-left:20px; }
+
+/* ─── TABS ─── */
+.tabs { display:flex; border-bottom: 1px solid var(--border-color); margin-bottom:20px; }
+.tab { padding: 10px 0; margin-right:24px; font-size:13.5px; font-weight:500; color: var(--text-muted); cursor:pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); font-weight:600; }
+.tab:hover { color: var(--text-secondary); }
+
+/* ─── PAYMENT STAT CARDS ─── */
+.payment-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.payment-stat { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 18px; }
+.payment-stat-emoji { font-size:24px; margin-bottom:10px; }
+.payment-stat-value { font-size:22px; font-weight:800; }
+.payment-stat-label { font-size:12px; color: var(--text-secondary); margin-top:4px; }
+.color-purple { color: var(--accent-purple); }
+.color-green { color: var(--accent-success); }
+.color-blue { color: var(--accent-primary); }
+.color-yellow { color: var(--accent-warning); }
+
+/* ─── ICON ACTIONS ─── */
+.action-icons { display:flex; gap:8px; align-items:center; }
+.icon-btn { width:30px; height:30px; border-radius: var(--radius-md); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background: transparent; color: var(--text-muted); font-size:14px; transition: all 0.15s; }
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.icon-btn.danger:hover { background: rgba(255,69,58,0.12); color: var(--accent-danger); }
+
+/* ─── EXPIRY DOT ─── */
+.expiry-cell { display:flex; align-items:center; gap:6px; }
+.expiry-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* ─── PAGINATION ─── */
+.pagination { display:flex; align-items:center; gap:8px; justify-content:flex-end; padding: 12px 16px; }
+.page-btn { width:28px; height:28px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; }
+.page-btn.active { background: var(--accent-primary); color:#fff; border-color: var(--accent-primary); }
+.showing-text { font-size:12px; color: var(--text-muted); margin-right:auto; padding-left:16px; }
+
+/* ─── MEMBER DETAIL ─── */
+.member-detail-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; padding-bottom:20px; border-bottom: 1px solid var(--border-color); }
+.member-detail-avatar { width:64px; height:64px; border-radius:50%; font-size:22px; font-weight:800; display:flex; align-items:center; justify-content:center; color:#fff; margin-right:16px; }
+.member-detail-info h2 { font-size:20px; font-weight:700; }
+.member-detail-badges { display:flex; gap:8px; margin-top:8px; }
+.mid-badge { background: rgba(10,132,255,0.12); color: var(--accent-primary); font-size:12px; font-weight:600; padding: 3px 10px; border-radius: 20px; }
+.days-remaining { text-align:right; }
+.days-remaining-label { font-size:12px; color: var(--text-secondary); }
+.days-remaining-value { font-size:36px; font-weight:800; color: var(--accent-success); }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.detail-field { padding: 16px 0; border-bottom: 1px solid var(--border-color); }
+.detail-field:last-child, .detail-field:nth-last-child(2) { border-bottom:none; }
+.detail-field-label { font-size:11.5px; color: var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+.detail-field-value { font-size:14px; font-weight:600; color: var(--text-primary); }
+
+/* ─── LOGIN ─── */
+.login-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background: var(--bg-primary); }
+.login-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 32px; width:100%; max-width: 420px; }
+.login-logo { width:64px; height:64px; border-radius:20px; background: linear-gradient(135deg, #8b5cf6, #ec4899); display:flex; align-items:center; justify-content:center; margin: 0 auto 16px; font-size:28px; }
+.login-title { font-size:24px; font-weight:800; background: linear-gradient(135deg, #8b5cf6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align:center; }
+.login-sub { font-size:13px; color: var(--text-muted); text-align:center; margin-top:4px; margin-bottom:20px; }
+.demo-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:20px; }
+.demo-btn { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 9px 12px; font-size:12px; font-weight:600; color: var(--text-primary); cursor:pointer; display:flex; align-items:center; gap:6px; }
+.demo-btn:hover { border-color: var(--accent-primary); }
+.divider { height:1px; background: var(--border-color); margin: 16px 0; position:relative; }
+.divider span { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background: var(--bg-secondary); padding: 0 12px; color: var(--text-muted); font-size:11px; }
+.input-with-icon { position:relative; }
+.input-with-icon .i-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color: var(--text-muted); font-size:14px; }
+.input-with-icon .input { padding-left:36px; }
+
+/* ─── CALENDAR ─── */
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.cal-day { background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 8px; text-align:center; min-height:64px; }
+.cal-day.today { background: rgba(10,132,255,0.15); border-color: var(--accent-primary); }
+.cal-day-name { font-size:10px; color: var(--text-muted); font-weight:600; text-transform:uppercase; margin-bottom:4px; }
+.cal-day-num { font-size:16px; font-weight:700; }
+.cal-day-count { font-size:11px; color: var(--text-muted); margin-top:2px; }
+
+/* ─── SCROLL ─── */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius:4px; }
+
+/* ─── NAV SECTIONS ─── */
+.nav-section-label { font-size:10px; font-weight:700; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; padding: 12px 12px 6px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ PAGE SELECTOR (top-level nav) ══════════════ -->
+<div id="page-nav" style="position:fixed;top:0;left:0;right:0;z-index:999;background:#000;border-bottom:1px solid #27272a;display:flex;gap:0;overflow-x:auto;padding:0 8px;">
+  <button onclick="showPage('dashboard')" class="pnav-btn active" id="pnav-dashboard">Dashboard</button>
+  <button onclick="showPage('members')"   class="pnav-btn" id="pnav-members">Members</button>
+  <button onclick="showPage('add-member')" class="pnav-btn" id="pnav-add-member">Add Member (Modal)</button>
+  <button onclick="showPage('member-detail')" class="pnav-btn" id="pnav-member-detail">Member Detail</button>
+  <button onclick="showPage('payments')"  class="pnav-btn" id="pnav-payments">Payments</button>
+  <button onclick="showPage('collect-payment')" class="pnav-btn" id="pnav-collect-payment">Collect Payment (Modal)</button>
+  <button onclick="showPage('login')"     class="pnav-btn" id="pnav-login">Login</button>
+</div>
+<style>
+.pnav-btn { background:none; border:none; border-bottom:2px solid transparent; color:#a1a1aa; padding:10px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; transition:all 0.15s; font-family:inherit; }
+.pnav-btn:hover { color:#fff; }
+.pnav-btn.active { color:#0A84FF; border-bottom-color:#0A84FF; }
+</style>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: DASHBOARD                                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-dashboard" class="app-layout" style="padding-top:40px;">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">My Gym</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Members
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Subscriptions
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Payments
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Attendance
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Trainers
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        PT Sessions
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Trainer Calendar
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Trainer Portal
+      </a>
+      <a class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        Enquiries
+      </a>
+      <a class="nav-item">🏋️ Equipment</a>
+      <a class="nav-item">💰 Expenses</a>
+      <a class="nav-item">📊 Reports</a>
+      <a class="nav-item">⚙️ Settings</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn">→ LOGOUT</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-wrapper">
+    <header class="header">
+      <span class="header-title">Dashboard</span>
+      <div class="header-right">
+        <button class="bell-btn">🔔</button>
+        <div class="avatar-circle">OW</div>
+        <div class="header-user">
+          <div class="header-user-name">Gym Owner</div>
+          <div class="header-user-role">Owner</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Greeting -->
+      <div style="font-size:22px;font-weight:800;margin-bottom:20px;">Hii Gym 👋</div>
+
+      <!-- Stat Cards -->
+      <div class="card-grid-3">
+        <div class="stat-card">
+          <div class="stat-icon dark-blue">👥</div>
+          <div class="stat-text">
+            <div class="label">Active Members</div>
+            <div class="value">3</div>
+            <div class="sub">0 expiring soon</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-text">
+            <div class="label">Today's Check-ins</div>
+            <div class="value">0</div>
+            <div class="sub" style="color:var(--text-secondary);">Live attendance count</div>
+          </div>
+        </div>
+        <div class="stat-card blue-bg">
+          <div class="stat-icon white">💲</div>
+          <div class="stat-text">
+            <div class="label">This Month Revenue</div>
+            <div class="value">₹103</div>
+            <div class="sub">↗ From 1 transactions</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="card-grid-2" style="grid-template-columns:1.4fr 1fr;">
+        <!-- Revenue Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Revenue Overview</span>
+            <span class="chart-badge">Last 6 months</span>
+          </div>
+          <svg viewBox="0 0 600 160" style="width:100%;height:160px;">
+            <!-- Grid lines -->
+            <line x1="0" y1="20" x2="600" y2="20" stroke="#27272a" stroke-width="1"/>
+            <line x1="0" y1="52" x2="600" y2="52" stroke="#27272a" stroke-width="1"/>
+            <line x1="0" y1="84" x2="600" y2="84" stroke="#27272a" stroke-width="1"/>
+            <line x1="0" y1="116" x2="600" y2="116" stroke="#27272a" stroke-width="1"/>
+            <!-- Revenue line (spike at end = June data) -->
+            <polyline points="50,148 150,148 250,148 350,148 450,148 550,40" fill="none" stroke="#0A84FF" stroke-width="2.5"/>
+            <!-- Area fill -->
+            <polygon points="50,148 150,148 250,148 350,148 450,148 550,40 550,155 50,155" fill="rgba(10,132,255,0.08)"/>
+            <!-- Data dots -->
+            <circle cx="50"  cy="148" r="4" fill="#0A84FF"/>
+            <circle cx="150" cy="148" r="4" fill="#0A84FF"/>
+            <circle cx="250" cy="148" r="4" fill="#0A84FF"/>
+            <circle cx="350" cy="148" r="4" fill="#0A84FF"/>
+            <circle cx="450" cy="148" r="4" fill="#0A84FF"/>
+            <circle cx="550" cy="40"  r="4" fill="#0A84FF"/>
+            <!-- X-axis labels -->
+            <text x="50"  y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">Jan</text>
+            <text x="150" y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">Feb</text>
+            <text x="250" y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">Mar</text>
+            <text x="350" y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">Apr</text>
+            <text x="450" y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">May</text>
+            <text x="550" y="168" text-anchor="middle" fill="#52525b" font-size="12" font-family="Inter">Jun</text>
+            <!-- Y-axis -->
+            <text x="0" y="24"  fill="#52525b" font-size="11" font-family="Inter">₹0K</text>
+            <text x="0" y="56"  fill="#52525b" font-size="11" font-family="Inter">₹0K</text>
+            <text x="0" y="88"  fill="#52525b" font-size="11" font-family="Inter">₹0K</text>
+            <text x="0" y="120" fill="#52525b" font-size="11" font-family="Inter">₹0K</text>
+          </svg>
+        </div>
+
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Membership Status Donut -->
+          <div class="chart-card">
+            <div class="chart-title" style="margin-bottom:16px;">Membership Status</div>
+            <div class="donut-wrapper">
+              <svg class="donut-svg" viewBox="0 0 120 120">
+                <!-- Donut: Active=3 blue, Expired=3 red -->
+                <circle cx="60" cy="60" r="45" fill="none" stroke="#ff453a" stroke-width="18"/>
+                <circle cx="60" cy="60" r="45" fill="none" stroke="#0A84FF" stroke-width="18"
+                  stroke-dasharray="141.3 141.3" stroke-dashoffset="-70.7" stroke-linecap="butt"/>
+                <text x="60" y="55" text-anchor="middle" fill="#fafafa" font-size="18" font-weight="800" font-family="Inter">6</text>
+                <text x="60" y="70" text-anchor="middle" fill="#a1a1aa" font-size="10" font-family="Inter">TOTAL</text>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:#0A84FF"></div> Active <span class="legend-count">3</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ffd60a"></div> Expiring <span class="legend-count">0</span></div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ff453a"></div> Expired <span class="legend-count">3</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lead Sources -->
+          <div class="chart-card">
+            <div class="chart-title" style="margin-bottom:14px;">Lead Sources</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;"><span>Instagram</span><span style="font-weight:700;">65%</span></div>
+                <div style="height:5px;background:var(--bg-hover);border-radius:3px;"><div style="height:100%;width:65%;background:#0A84FF;border-radius:3px;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;"><span>Walk-ins</span><span style="font-weight:700;">25%</span></div>
+                <div style="height:5px;background:var(--bg-hover);border-radius:3px;"><div style="height:100%;width:25%;background:#ec4899;border-radius:3px;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;"><span>Referrals</span><span style="font-weight:700;">10%</span></div>
+                <div style="height:5px;background:var(--bg-hover);border-radius:3px;"><div style="height:100%;width:10%;background:#32d74b;border-radius:3px;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">June 2026</span>
+          <span style="font-size:13px;color:var(--accent-primary);">Today's attendance: <strong>0 check-ins</strong></span>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-day"><div class="cal-day-name">Mon</div><div class="cal-day-num">2</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day today"><div class="cal-day-name">Tue</div><div class="cal-day-num" style="color:var(--accent-primary);">3</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day"><div class="cal-day-name">Wed</div><div class="cal-day-num">4</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day"><div class="cal-day-name">Thu</div><div class="cal-day-num">5</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day"><div class="cal-day-name">Fri</div><div class="cal-day-num">6</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day"><div class="cal-day-name">Sat</div><div class="cal-day-num">7</div><div class="cal-day-count">0</div></div>
+          <div class="cal-day"><div class="cal-day-name">Sun</div><div class="cal-day-num">8</div><div class="cal-day-count">0</div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: MEMBERS                                             -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-members" class="app-layout" style="padding-top:40px;display:none;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">My Gym</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item">📊 Dashboard</a>
+      <a class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Members
+      </a>
+      <a class="nav-item">💳 Subscriptions</a>
+      <a class="nav-item">💲 Payments</a>
+      <a class="nav-item">📅 Attendance</a>
+      <a class="nav-item">🏋️ Trainers</a>
+      <a class="nav-item">⏱ PT Sessions</a>
+      <a class="nav-item">📅 Trainer Calendar</a>
+      <a class="nav-item">👤 Trainer Portal</a>
+      <a class="nav-item">📋 Enquiries</a>
+      <a class="nav-item">🏋️ Equipment</a>
+      <a class="nav-item">💰 Expenses</a>
+      <a class="nav-item">📊 Reports</a>
+      <a class="nav-item">⚙️ Settings</a>
+    </nav>
+    <div class="sidebar-footer"><button class="logout-btn">→ LOGOUT</button></div>
+  </aside>
+  <div class="main-wrapper">
+    <header class="header">
+      <span class="header-title">Members</span>
+      <div class="header-right">
+        <button class="bell-btn">🔔</button>
+        <div class="avatar-circle">OW</div>
+        <div class="header-user"><div class="header-user-name">Gym Owner</div><div class="header-user-role">Owner</div></div>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Members</div>
+          <div class="page-subtitle">5 total · 2 active</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-secondary">⬇ Export CSV</button>
+          <button class="btn btn-primary">+ Add Member</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrapper" style="flex:1;">
+          <span class="search-icon">🔍</span>
+          <input class="search-bar" placeholder="Search by name, phone, ID...">
+        </div>
+        <select class="filter-select"><option>All Status</option></select>
+        <select class="filter-select"><option>All Plans</option></select>
+      </div>
+
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>MEMBER</th><th>M.ID</th><th>CONTACT</th><th>PLAN</th><th>STATUS</th><th>EXPIRY</th><th>AREA</th><th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="member-name-cell"><div class="member-avatar" style="background:#8b5cf6;">LM</div><div><div class="member-name">Lalit mohn</div></div></div></td>
+              <td style="color:var(--text-muted);font-size:12px;">GMS-1005</td>
+              <td><div style="font-size:13px;">8752</div><div style="font-size:11px;color:var(--text-muted);">mohann ahhh</div></td>
+              <td>Annual Full Access</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td><div class="expiry-cell"><div class="expiry-dot" style="background:var(--accent-success);"></div>08/06/2027</div></td>
+              <td style="color:var(--text-secondary);">ahmedabad</td>
+              <td><div class="action-icons"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn danger">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="member-name-cell"><div class="member-avatar" style="background:#0A84FF;">HC</div><div><div class="member-name">Hiren Sureshbhai Chhaniyara</div></div></div></td>
+              <td style="color:var(--text-muted);font-size:12px;">GMS-1004</td>
+              <td><div style="font-size:13px;">ee</div><div style="font-size:11px;color:var(--text-muted);">chhaniyarmail.com</div></td>
+              <td>Monthly Gym Only</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td><div class="expiry-cell"><div class="expiry-dot" style="background:var(--accent-success);"></div>03/07/2026</div></td>
+              <td style="color:var(--text-secondary);">e</td>
+              <td><div class="action-icons"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn danger">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="member-name-cell"><div class="member-avatar" style="background:#27272a;overflow:hidden;"><img src="https://i.pravatar.cc/150?u=m1" style="width:100%;height:100%;object-fit:cover;" alt=""/></div><div><div class="member-name">Rahul Kumar</div></div></div></td>
+              <td style="color:var(--text-muted);font-size:12px;">GMS-1001</td>
+              <td><div style="font-size:13px;">+91 9999988888</div><div style="font-size:11px;color:var(--text-muted);">rahul@example.com</div></td>
+              <td>Annual Full Access</td>
+              <td><span class="badge badge-expired">Expired</span></td>
+              <td><div class="expiry-cell"><div class="expiry-dot" style="background:var(--accent-danger);"></div>31/12/2024</div></td>
+              <td style="color:var(--text-secondary);">Downtown</td>
+              <td><div class="action-icons"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn danger">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="member-name-cell"><div class="member-avatar" style="background:#27272a;overflow:hidden;"><img src="https://i.pravatar.cc/150?u=m2" style="width:100%;height:100%;object-fit:cover;" alt=""/></div><div><div class="member-name">Priya Sharma</div></div></div></td>
+              <td style="color:var(--text-muted);font-size:12px;">GMS-1002</td>
+              <td><div style="font-size:13px;">+91 8888877777</div><div style="font-size:11px;color:var(--text-muted);">priya@example.com</div></td>
+              <td>Monthly Gym Only</td>
+              <td><span class="badge badge-expired">Expired</span></td>
+              <td><div class="expiry-cell"><div class="expiry-dot" style="background:var(--accent-danger);"></div>31/03/2024</div></td>
+              <td style="color:var(--text-secondary);">Suburbs</td>
+              <td><div class="action-icons"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn danger">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="member-name-cell"><div class="member-avatar" style="background:#27272a;overflow:hidden;"><img src="https://i.pravatar.cc/150?u=m3" style="width:100%;height:100%;object-fit:cover;" alt=""/></div><div><div class="member-name">Amit Patel</div></div></div></td>
+              <td style="color:var(--text-muted);font-size:12px;">GMS-1003</td>
+              <td><div style="font-size:13px;">+91 7777766666</div><div style="font-size:11px;color:var(--text-muted);">amit@example.com</div></td>
+              <td>Annual Full Access</td>
+              <td><span class="badge badge-expired">Expired</span></td>
+              <td><div class="expiry-cell"><div class="expiry-dot" style="background:var(--accent-danger);"></div>30/04/2024</div></td>
+              <td style="color:var(--text-secondary);">Westside</td>
+              <td><div class="action-icons"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn danger">🗑</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;">
+          <span class="showing-text">Showing 1–5 of 5</span>
+          <div class="pagination">
+            <button class="page-btn">‹</button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: ADD MEMBER MODAL                                    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-add-member" style="padding-top:40px;background:var(--bg-primary);min-height:100vh;display:none;align-items:center;justify-content:center;">
+  <div style="position:relative;width:100%;min-height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:40px;">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Add New Member</span>
+        <button class="modal-close">✕</button>
+      </div>
+
+      <!-- Stepper -->
+      <div style="display:flex;align-items:center;margin-bottom:28px;">
+        <div class="stepper-item">
+          <div class="step-circle done">✓</div>
+          <div class="step-label">Personal</div>
+        </div>
+        <div class="step-line done" style="flex:1;margin-bottom:16px;"></div>
+        <div class="stepper-item">
+          <div class="step-circle done">✓</div>
+          <div class="step-label">Health</div>
+        </div>
+        <div class="step-line" style="flex:1;margin-bottom:16px;"></div>
+        <div class="stepper-item">
+          <div class="step-circle active">3</div>
+          <div class="step-label">Plan</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Plan -->
+      <div class="form-group">
+        <label class="form-label">Select Plan <span class="required">*</span></label>
+        <div class="plan-card">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="plan-dot" style="background:#60a5fa;"></div>
+            <div class="plan-name">Monthly Gym Only</div>
+          </div>
+          <div>
+            <div class="plan-price">₹1,770</div>
+            <div class="plan-duration">30 days</div>
+          </div>
+        </div>
+        <div class="plan-card selected">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="plan-dot" style="background:#f43f5e;"></div>
+            <div class="plan-name">Annual Full Access <span class="plan-popular">Popular</span></div>
+          </div>
+          <div>
+            <div class="plan-price">₹16,520</div>
+            <div class="plan-duration">365 days</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;">
+        <button class="btn btn-secondary">Back</button>
+        <button class="btn btn-primary">✓ Add Member</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 1 view of Add Member (Personal Info) -->
+<div id="page-add-member-s1" style="padding-top:40px;background:var(--bg-primary);min-height:100vh;display:none;align-items:center;justify-content:center;">
+  <div style="width:100%;min-height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:40px;">
+    <div class="modal">
+      <div class="modal-header"><span class="modal-title">Add New Member</span><button class="modal-close">✕</button></div>
+      <div style="display:flex;align-items:center;margin-bottom:28px;">
+        <div class="stepper-item"><div class="step-circle active">1</div><div class="step-label" style="color:var(--accent-primary);">Personal</div></div>
+        <div class="step-line" style="flex:1;margin-bottom:16px;"></div>
+        <div class="stepper-item"><div class="step-circle inactive">2</div><div class="step-label">Health</div></div>
+        <div class="step-line" style="flex:1;margin-bottom:16px;"></div>
+        <div class="stepper-item"><div class="step-circle inactive">3</div><div class="step-label">Plan</div></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input class="input" placeholder="Arjun Kumar"></div>
+        <div class="form-group"><label class="form-label">Phone Number <span class="required">*</span></label><input class="input" placeholder="+91 9876543210"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="input" placeholder="member@email.com"></div>
+        <div class="form-group"><label class="form-label">Area <span class="required">*</span></label><input class="input" placeholder="Koramangala, Bengaluru"></div>
+        <div class="form-group"><label class="form-label">Date of Birth</label><input class="input" type="date"></div>
+        <div class="form-group"><label class="form-label">Gender</label><select class="input"><option>Male</option><option>Female</option><option>Other</option></select></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button class="btn btn-primary">Next →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: MEMBER DETAIL                                       -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-member-detail" style="padding-top:40px;background:var(--bg-primary);min-height:100vh;display:none;align-items:center;justify-content:center;">
+  <div style="width:100%;min-height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:40px;">
+    <div class="modal">
+      <button class="modal-close" style="position:absolute;top:20px;right:20px;">✕</button>
+      <div class="member-detail-header">
+        <div style="display:flex;align-items:center;">
+          <div class="member-detail-avatar" style="background:#8b5cf6;">SD</div>
+          <div class="member-detail-info">
+            <h2>sdvc</h2>
+            <div class="member-detail-badges">
+              <span class="mid-badge">GMS-1006</span>
+              <span class="badge badge-active">Active</span>
+            </div>
+          </div>
+        </div>
+        <div class="days-remaining">
+          <div class="days-remaining-label">Days Remaining</div>
+          <div class="days-remaining-value">30</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">Personal</div>
+        <div class="tab">Subscription</div>
+        <div class="tab">Payments</div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-field"><div class="detail-field-label">📞 Phone</div><div class="detail-field-value">sdc</div></div>
+        <div class="detail-field"><div class="detail-field-label">✉️ Email</div><div class="detail-field-value">—</div></div>
+        <div class="detail-field"><div class="detail-field-label">📍 Area</div><div class="detail-field-value">dcs</div></div>
+        <div class="detail-field"><div class="detail-field-label">📅 Date of Birth</div><div class="detail-field-value">—</div></div>
+        <div class="detail-field"><div class="detail-field-label">👤 Gender</div><div class="detail-field-value">Male</div></div>
+        <div class="detail-field"><div class="detail-field-label">🩸 Blood Group</div><div class="detail-field-value">O+</div></div>
+        <div class="detail-field"><div class="detail-field-label">📞 Emergency Contact</div><div class="detail-field-value">xsaCAXXXDC</div></div>
+        <div class="detail-field"><div class="detail-field-label">📅 Joined On</div><div class="detail-field-value">08/06/2026</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: PAYMENTS                                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-payments" class="app-layout" style="padding-top:40px;display:none;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">My Gym</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item">📊 Dashboard</a>
+      <a class="nav-item">👥 Members</a>
+      <a class="nav-item">💳 Subscriptions</a>
+      <a class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Payments
+      </a>
+      <a class="nav-item">📅 Attendance</a>
+      <a class="nav-item">🏋️ Trainers</a>
+      <a class="nav-item">⏱ PT Sessions</a>
+      <a class="nav-item">📅 Trainer Calendar</a>
+      <a class="nav-item">👤 Trainer Portal</a>
+      <a class="nav-item">📋 Enquiries</a>
+      <a class="nav-item">🏋️ Equipment</a>
+      <a class="nav-item">💰 Expenses</a>
+      <a class="nav-item">📊 Reports</a>
+      <a class="nav-item">⚙️ Settings</a>
+    </nav>
+    <div class="sidebar-footer"><button class="logout-btn">→ LOGOUT</button></div>
+  </aside>
+  <div class="main-wrapper">
+    <header class="header">
+      <span class="header-title">Payments</span>
+      <div class="header-right">
+        <button class="bell-btn">🔔</button>
+        <div class="avatar-circle">OW</div>
+        <div class="header-user"><div class="header-user-name">Gym Owner</div><div class="header-user-role">Owner</div></div>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Payments &amp; Billing</div>
+          <div class="page-subtitle">0 transactions · ₹0 total</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-secondary">⬇ Export</button>
+          <button class="btn btn-primary">+ Collect Payment</button>
+        </div>
+      </div>
+
+      <div class="payment-stats">
+        <div class="payment-stat">
+          <div class="payment-stat-emoji">💰</div>
+          <div class="payment-stat-value color-purple">₹0</div>
+          <div class="payment-stat-label">Total Revenue</div>
+        </div>
+        <div class="payment-stat">
+          <div class="payment-stat-emoji">📅</div>
+          <div class="payment-stat-value color-green">₹0</div>
+          <div class="payment-stat-label">This Month</div>
+        </div>
+        <div class="payment-stat">
+          <div class="payment-stat-emoji">📱</div>
+          <div class="payment-stat-value color-blue">0 txns</div>
+          <div class="payment-stat-label">Digital Payments</div>
+        </div>
+        <div class="payment-stat">
+          <div class="payment-stat-emoji">💵</div>
+          <div class="payment-stat-value color-yellow">0 txns</div>
+          <div class="payment-stat-label">Cash Payments</div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrapper" style="flex:1;">
+          <span class="search-icon">🔍</span>
+          <input class="search-bar" placeholder="Search by member, receipt...">
+        </div>
+        <select class="filter-select"><option>All Modes</option></select>
+      </div>
+
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr><th>RECEIPT NO</th><th>MEMBER</th><th>CATEGORY</th><th>AMOUNT</th><th>MODE</th><th>DATE</th><th>COLLECTED BY</th><th>ACTIONS</th></tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="8" class="table-empty">No results</td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:flex-end;padding:12px 16px;">
+          <div class="pagination"><button class="page-btn">‹</button><button class="page-btn">›</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: COLLECT PAYMENT MODAL                               -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-collect-payment" style="padding-top:40px;background:var(--bg-primary);min-height:100vh;display:none;align-items:center;justify-content:center;">
+  <div style="width:100%;min-height:100vh;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:40px;">
+    <div class="modal modal-sm">
+      <div class="modal-header"><span class="modal-title">Collect Payment</span><button class="modal-close">✕</button></div>
+      <div class="form-group"><label class="form-label">Member <span class="required">*</span></label><input class="input" placeholder="Type member name..."></div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Category <span class="required">*</span></label><select class="input"><option>Membership</option><option>PT Session</option><option>Other</option></select></div>
+        <div class="form-group"><label class="form-label">Amount <span class="required">*</span></label><input class="input" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Discount</label><select class="input"><option>No Discount</option><option>5%</option><option>10%</option></select></div>
+        <div class="form-group"><label class="form-label">Payment Mode <span class="required">*</span></label><select class="input"><option>UPI</option><option>Cash</option><option>Card</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">UPI Transaction ID</label><input class="input" placeholder="TXN123456789"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border-color);">
+        <button class="btn btn-secondary">Cancel</button>
+        <button class="btn btn-primary">Collect ₹0</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- PAGE: LOGIN                                               -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="page-login" style="padding-top:40px;display:none;">
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">⚡</div>
+      <div class="login-title">Pulse Fitness</div>
+      <div class="login-sub">Gym Management System</div>
+
+      <p style="font-size:11px;color:var(--text-muted);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Quick Demo Login</p>
+      <div class="demo-grid">
+        <button class="demo-btn">👑 Owner</button>
+        <button class="demo-btn">📊 Manager</button>
+        <button class="demo-btn">🏋️ Trainer</button>
+        <button class="demo-btn">🖥️ Receptionist</button>
+      </div>
+
+      <div class="divider"><span>OR</span></div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:16px;">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="input-with-icon">
+            <span class="i-icon">✉️</span>
+            <input class="input" type="email" placeholder="your@email.com" value="owner@gym.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-with-icon">
+            <span class="i-icon">🔒</span>
+            <input class="input" type="password" placeholder="Enter password" value="demo123" style="padding-right:44px;">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full btn-lg" style="margin-top:4px;">Sign In</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- JS NAV                                                    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<script>
+const pages = ['dashboard','members','add-member','member-detail','payments','collect-payment','login'];
+function showPage(name) {
+  pages.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = 'none';
+    const btn = document.getElementById('pnav-' + p);
+    if (btn) btn.classList.remove('active');
+  });
+  const target = document.getElementById('page-' + name);
+  if (target) {
+    // Modal pages need flex
+    if (['add-member','member-detail','collect-payment','login'].includes(name)) {
+      target.style.display = 'flex';
+    } else {
+      target.style.display = 'flex';
+      target.style.flexWrap = 'wrap';
+    }
+  }
+  const btn = document.getElementById('pnav-' + name);
+  if (btn) btn.classList.add('active');
+}
+// Overrides for app-layout pages
+['dashboard','members','payments'].forEach(p => {
+  document.getElementById('page-' + p).style.display = '';
+});
+showPage('dashboard');
+</script>
+</body>
+</html>
