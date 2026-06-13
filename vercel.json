@@ -1,28 +1,6 @@
 {
   "name": "Pulse GMS",
-  "version": 2,
-  "projectSettings": {
-    "framework": "html"
-  },
-  "env": {},
-  "builds": [
-    {
-      "src": "GMS-design/dashboard.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "GMS-design/Pulse-GMS.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "GMS-design/gms-complete.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/GMS-design/dashboard.html"
-    }
-  ]
+  "buildCommand": "echo 'Static HTML deployment'",
+  "outputDirectory": "GMS-design",
+  "installCommand": "echo 'No install needed'"
 }
