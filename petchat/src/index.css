@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties (Light & Dark) ── */
+:root {
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface2: #F1F5F9;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --sidebar-bg: #1E293B;
+  --sidebar-text: #E2E8F0;
+  --sidebar-muted: #94A3B8;
+  --sidebar-active: #3B82F6;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.12);
+  --ring: rgba(99,102,241,0.3);
+}
+
+.dark {
+  --bg: #0F172A;
+  --surface: #1E293B;
+  --surface2: #334155;
+  --border: #334155;
+  --text: #F1F5F9;
+  --text-muted: #94A3B8;
+  --sidebar-bg: #0A0F1E;
+  --sidebar-text: #E2E8F0;
+  --sidebar-muted: #64748B;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+#root { width: 100%; height: 100%; }
+
+/* ── App Shell ── */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg);
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background-color: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--bg);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: var(--card-shadow-hover); }
+
+/* ── Stat Cards ── */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+}
+
+/* ── Avatar Status Rings ── */
+.avatar-active  { box-shadow: 0 0 0 3px #10B981; }
+.avatar-idle    { box-shadow: 0 0 0 3px #F59E0B; }
+.avatar-blocked { box-shadow: 0 0 0 3px #EF4444; }
+.avatar-offline { box-shadow: 0 0 0 3px #94A3B8; }
+
+/* ── Screentime Bars ── */
+.screentime-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6366F1, #8B5CF6);
+}
+
+/* ── Activity Ring ── */
+.activity-ring {
+  stroke-linecap: round;
+  fill: none;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+/* ── Mascot ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(-3deg); }
+  66% { transform: translateY(-4px) rotate(3deg); }
+}
+@keyframes wag {
+  0%   { transform: rotate(-20deg); }
+  100% { transform: rotate(20deg); }
+}
+@keyframes blink {
+  0%, 95%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.1); }
+}
+
+.mascot-float { animation: float 3s ease-in-out infinite; }
+.mascot-wag   { animation: wag 0.4s ease-in-out infinite alternate; }
+.mascot-eye   { animation: blink 4s ease-in-out infinite; }
+
+/* ── Transitions ── */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes countdown {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 100; }
+}
+
+.animate-slide-in       { animation: slideIn 0.3s ease-out; }
+.animate-slide-in-right { animation: slideInRight 0.3s ease-out; }
+.animate-fade-in        { animation: fadeIn 0.2s ease-out; }
+.animate-scale-in       { animation: scaleIn 0.2s ease-out; }
+.animate-count-up       { animation: countUp 0.4s ease-out; }
+
+/* ── Kanban Columns ── */
+.kanban-col {
+  background: var(--surface2);
+  border-radius: 12px;
+  min-height: 400px;
+  padding: 16px;
+}
+
+/* ── Message Bubbles ── */
+.bubble-me   { background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white; border-radius: 18px 18px 4px 18px; }
+.bubble-them { background: var(--surface2); color: var(--text); border-radius: 18px 18px 18px 4px; }
+
+/* ── Priority Badges ── */
+.badge-urgent { background: #FEE2E2; color: #DC2626; }
+.badge-high   { background: #FEF3C7; color: #D97706; }
+.badge-medium { background: #DBEAFE; color: #2563EB; }
+.badge-low    { background: #DCFCE7; color: #16A34A; }
+
+.dark .badge-urgent { background: rgba(220,38,38,0.2); color: #FCA5A5; }
+.dark .badge-high   { background: rgba(217,119,6,0.2);  color: #FCD34D; }
+.dark .badge-medium { background: rgba(37,99,235,0.2);  color: #93C5FD; }
+.dark .badge-low    { background: rgba(22,163,74,0.2);  color: #86EFAC; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── .input reusable class ── */
+.input {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-color: #6366F1;
+}
+.input::placeholder { color: var(--text-muted); }
+
+/* ── Global Input Styles ── */
+input, textarea, select {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  transition: all 0.15s ease;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+button { transition: all 0.15s ease; }
+
+/* ── Loading Spinner ── */
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── AI Timer Countdown ── */
+.ai-timer-ring {
+  animation: countdown 4s linear forwards;
+}
+
+/* ── Workload Drag ── */
+.drag-over { background: rgba(99,102,241,0.1); border: 2px dashed #6366F1; }
+
+/* ── Founder Gradient ── */
+.founder-gradient { background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%); }
+.founder-card { border-left: 4px solid #7C3AED; }

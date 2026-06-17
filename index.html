@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyvoid Digitals | The Heritage of Performance Marketing</title>
+    <meta name="description" content="Skyvoid Digitals turns sports brands into legends. Elite design, sharp strategy, and data-driven dominance. Your ambition, our legacy.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --rolex-green: #006039;
+            --rolex-green-dark: #004d2e;
+            --rolex-green-light: #007a48;
+            --gold: #c4a35a;
+            --gold-light: #d4b76a;
+            --gold-dim: #a08840;
+            --cream: #f7f4ef;
+            --cream-dark: #ece7dd;
+            --ivory: #faf8f5;
+            --charcoal: #121212;
+            --charcoal-deep: #0a0a0a;
+            --text-dark: #1a1a1a;
+            --text-light: #f7f4ef;
+            --text-body: #4a4a4a;
+            --serif: 'Playfair Display', serif;
+            --sans: 'Inter', sans-serif;
+            --transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            --transition-fast: all 0.3s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--sans);
+            background: var(--ivory);
+            color: var(--text-dark);
+            overflow-x: hidden;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Cinematic Loader */
+        .loader {
+            position: fixed;
+            inset: 0;
+            background: var(--charcoal-deep);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1s ease-out;
+        }
+        .loader-hidden { opacity: 0; pointer-events: none; }
+        .loader-crown {
+            width: 40px;
+            height: 2px;
+            background: var(--gold);
+            margin-bottom: 20px;
+            animation: pulse-line 2s infinite ease-in-out;
+        }
+        .loader-text {
+            font-family: var(--serif);
+            color: var(--gold);
+            font-size: 0.8rem;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            opacity: 0;
+            animation: fadeInOut 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-line {
+            0% { transform: scaleX(0.2); opacity: 0.1; }
+            50% { transform: scaleX(1); opacity: 1; }
+            100% { transform: scaleX(0.2); opacity: 0.1; }
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            z-index: 1000;
+            background: transparent;
+            transition: var(--transition);
+        }
+        nav.scrolled {
+            background: rgba(18, 18, 18, 0.98);
+            backdrop-filter: blur(20px);
+            height: 70px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            fill: var(--gold);
+        }
+        .logo {
+            font-family: var(--serif);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+        }
+        .nav-links a {
+            text-decoration: none;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            transition: var(--transition-fast);
+        }
+        .nav-links a:hover { color: var(--gold); }
+        nav.light-nav .nav-links a { color: var(--text-dark); }
+
+        .btn-nav {
+            padding: 10px 28px;
+            background: var(--rolex-green);
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: var(--transition-fast);
+        }
+        .btn-nav:hover { background: var(--rolex-green-light); }
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--charcoal-deep);
+            color: var(--text-light);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 70% 30%, rgba(0, 96, 57, 0.2), transparent 60%),
+                radial-gradient(circle at 20% 80%, rgba(196, 163, 90, 0.1), transparent 60%);
+        }
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 1000px;
+            padding: 0 24px;
+        }
+        .hero-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--gold);
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            display: block;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: revealUp 1s 1.2s forwards;
+        }
+        .hero h1 {
+            font-family: var(--serif);
+            font-size: clamp(3.5rem, 9vw, 6.5rem);
+            line-height: 1;
+            font-weight: 400;
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: revealUp 1s 1.4s forwards;
+        }
+        .hero h1 span {
+            color: var(--gold);
+            font-style: italic;
+        }
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 0.05em;
+            margin-bottom: 60px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: revealUp 1s 1.6s forwards;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: revealUp 1s 1.8s forwards;
+        }
+
+        @keyframes revealUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            padding: 20px 48px;
+            background: var(--rolex-green);
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            transition: var(--transition);
+            border: 1px solid var(--rolex-green);
+        }
+        .btn-primary:hover {
+            background: transparent;
+            color: var(--gold);
+            border-color: var(--gold);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            padding: 20px 48px;
+            background: transparent;
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            transition: var(--transition);
+            border: 1px solid rgba(196, 163, 90, 0.3);
+        }
+        .btn-secondary:hover {
+            border-color: var(--gold);
+            background: rgba(196, 163, 90, 0.05);
+        }
+
+        /* Sections */
+        section { padding: 160px 8%; position: relative; }
+        .section-header { margin-bottom: 80px; max-width: 800px; }
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.45em;
+            margin-bottom: 24px;
+            display: block;
+        }
+        .section-title {
+            font-family: var(--serif);
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            line-height: 1.1;
+            font-weight: 400;
+            color: var(--text-dark);
+        }
+        .section-title em { font-style: italic; color: var(--gold-dim); }
+
+        /* Process Mastery — Roman numerals */
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--cream-dark);
+            border: 1px solid var(--cream-dark);
+        }
+        .process-card {
+            background: var(--ivory);
+            padding: 80px 50px;
+            transition: var(--transition);
+        }
+        .process-card:hover { background: var(--ivory); transform: translateY(-10px); z-index: 2; box-shadow: 0 30px 60px rgba(0,0,0,0.05); }
+        .process-num {
+            font-family: var(--serif);
+            font-size: 3rem;
+            font-weight: 300;
+            color: var(--gold);
+            margin-bottom: 40px;
+            display: block;
+            opacity: 0.6;
+        }
+        .process-card h3 { font-family: var(--serif); font-size: 1.8rem; margin-bottom: 24px; font-weight: 500; }
+        .process-card p { font-size: 1rem; color: var(--text-body); line-height: 1.8; }
+
+        /* Specialisms Grid */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+        }
+        .service-card {
+            background: var(--charcoal);
+            padding: 70px 45px;
+            border-top: 2px solid transparent;
+            transition: var(--transition);
+        }
+        .service-card:hover {
+            border-top-color: var(--gold);
+            transform: translateY(-5px);
+            background: var(--charcoal-deep);
+        }
+        .service-card h3 { font-family: var(--serif); font-size: 1.6rem; color: var(--text-light); margin-bottom: 20px; }
+        .service-card p { color: rgba(255,255,255,0.4); font-size: 0.95rem; margin-bottom: 40px; height: 80px; }
+        .service-badge {
+            display: inline-block;
+            padding: 6px 18px;
+            border: 1px solid var(--gold-dim);
+            color: var(--gold);
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        /* Portfolio */
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+        }
+        .portfolio-item {
+            position: relative;
+            aspect-ratio: 16/11;
+            overflow: hidden;
+            background: #1a1a1a;
+            cursor: pointer;
+        }
+        .portfolio-item:nth-child(even) { margin-top: 100px; }
+        .portfolio-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7;
+            transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s;
+        }
+        .portfolio-item:hover .portfolio-img { transform: scale(1.1); opacity: 1; }
+        .portfolio-info {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
+            z-index: 5;
+        }
+        .portfolio-info h4 { font-family: var(--serif); font-size: 2.2rem; color: #fff; margin-bottom: 8px; }
+        .portfolio-info span { color: var(--gold); font-size: 0.75rem; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 500; }
+
+        /* Stats */
+        .stats-wrap {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border-gold);
+            margin-top: 100px;
+            border: 1px solid rgba(196, 163, 90, 0.1);
+        }
+        .stat-card {
+            padding: 60px 20px;
+            text-align: center;
+            background: var(--ivory);
+        }
+        .stat-card h5 { font-family: var(--serif); font-size: 3.5rem; color: var(--rolex-green); margin-bottom: 10px; font-weight: 400; }
+        .stat-card p { font-size: 0.7rem; color: var(--text-body); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; }
+
+        /* Testimonials */
+        .testimonial-slider { margin-top: 60px; }
+        .testimonial-card {
+            background: var(--charcoal);
+            padding: 60px;
+            border: 1px solid rgba(196, 163, 90, 0.1);
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .testimonial-card blockquote {
+            font-family: var(--serif);
+            font-size: 1.8rem;
+            font-style: italic;
+            color: var(--text-light);
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+        .testimonial-author { color: var(--gold); font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; }
+        .testimonial-role { color: rgba(255,255,255,0.3); font-size: 0.7rem; margin-top: 5px; }
+
+        /* Inquiry Section */
+        .inquiry-section {
+            background: var(--ivory);
+            text-align: center;
+            border-top: 1px solid var(--cream-dark);
+            overflow: hidden;
+        }
+        .inquiry-content { position: relative; z-index: 5; }
+        .ribbon {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin-bottom: 60px;
+            opacity: 0.4;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--charcoal-deep);
+            padding: 100px 8% 60px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 100px;
+        }
+        .footer-brand h2 { font-family: var(--serif); font-size: 2.5rem; color: var(--gold); letter-spacing: 0.1em; margin-bottom: 20px; }
+        .footer-brand p { color: rgba(255,255,255,0.3); max-width: 300px; font-size: 0.9rem; }
+        .footer-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 60px; }
+        .footer-col h6 { color: var(--gold); font-size: 0.7rem; letter-spacing: 0.3em; margin-bottom: 30px; text-transform: uppercase; }
+        .footer-col ul { list-style: none; }
+        .footer-col li { margin-bottom: 15px; }
+        .footer-col a { color: rgba(255,255,255,0.4); text-decoration: none; font-size: 0.85rem; transition: var(--transition-fast); }
+        .footer-col a:hover { color: var(--text-light); }
+
+        .footer-bottom {
+            padding-top: 40px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+        }
+
+        /* Reveal animations */
+        .reveal { opacity: 0; transform: translateY(50px); transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        @media (max-width: 1024px) {
+            .process-grid, .services-grid, .stats-wrap { grid-template-columns: 1fr; }
+            .portfolio-grid { grid-template-columns: 1fr; }
+            .portfolio-item:nth-child(even) { margin-top: 0; }
+            footer .footer-top { flex-direction: column; gap: 80px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cinematic Loader -->
+    <div class="loader" id="loader">
+        <div class="loader-crown"></div>
+        <div class="loader-text">Skyvoid Digitals</div>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <a href="#" class="logo-wrap">
+            <svg class="logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Skyvoid Triangular Logo: Stylized Geometric Motif -->
+                <path d="M50 5 L95 85 L5 85 Z" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M50 15 L85 75 L15 75 Z" opacity="0.3" />
+                <path d="M50 25 L40 65 L60 65 Z" fill="var(--gold-light)" />
+                <path d="M30 85 L45 55 M70 85 L55 55" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <span class="logo">Skyvoid</span>
+        </a>
+        <div class="nav-links">
+            <a href="#mastery">Mastery</a>
+            <a href="#specialisms">Specialisms</a>
+            <a href="#heritage">Heritage</a>
+            <a href="#inquiry">Inquiry</a>
+        </div>
+        <a href="https://calendly.com/skyvoid09/skyvoid-digital" class="btn-primary" style="padding: 12px 30px; font-size: 0.6rem; letter-spacing: 0.15em;">Book fREE DEMO</a>
+    </nav>
+
+    <!-- Hero -->
+    <div class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <span class="hero-label">Established in Bangalore</span>
+            <h1>The Elite Standard of <span>Performance.</span></h1>
+            <p class="hero-subtitle">Where ambitious sports brands become enduring digital legends. Sharp design, elite strategy, data-driven dominance.</p>
+            <div class="hero-actions">
+                <a href="#heritage" class="btn-primary">View Portfolio</a>
+                <a href="#inquiry" class="btn-secondary">Start Inquiry</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Mastery -->
+    <section id="mastery">
+        <div class="section-header reveal">
+            <span class="section-label">Our Methodology</span>
+            <h2 class="section-title">A Three-Step <em>Mastery</em> for Dominance</h2>
+        </div>
+        <div class="process-grid reveal">
+            <div class="process-card">
+                <span class="process-num">I</span>
+                <h3>Discovery</h3>
+                <p>Understanding your brand's unique rhythm and market position. We immerse ourselves in your audience and untapped competitive opportunities.</p>
+            </div>
+            <div class="process-card">
+                <span class="process-num">II</span>
+                <h3>Strategy</h3>
+                <p>Creating a bespoke roadmap for marketing success. Every campaign is reverse-engineered from your specific revenue goals with precision.</p>
+            </div>
+            <div class="process-card">
+                <span class="process-num">III</span>
+                <h3>Execution</h3>
+                <p>Harmonizing multi-channel campaigns to amplify your narrative. We launch, measure, refine, and scale exactly what delivers results.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Specialisms -->
+    <section id="specialisms" style="background: var(--charcoal-deep);">
+        <div class="section-header reveal">
+            <span class="section-label" style="color: var(--gold-light)">Core Specialisms</span>
+            <h2 class="section-title" style="color: var(--text-light)">Built to <em>Elevate</em> & Dominate</h2>
+        </div>
+        <div class="services-grid reveal">
+            <div class="service-card">
+                <h3>Paid Advertising</h3>
+                <p>Clicks. Conversions. Champions. We build high-performance ad campaigns that turn your ambition into measurable market results.</p>
+                <span class="service-badge">Elite Status</span>
+            </div>
+            <div class="service-card">
+                <h3>Web Architecture</h3>
+                <p>Pixel-perfect, responsive design that captures your vision. Bespoke digital architecture engineered for prestige and high-stakes conversion.</p>
+                <span class="service-badge">Master Craft</span>
+            </div>
+            <div class="service-card">
+                <h3>SEO Dominance</h3>
+                <p>Rank. Reach. Rule. Securing the technical throne of search results through technical precision and authoritative content strategy.</p>
+                <span class="service-badge">Legacy Ranking</span>
+            </div>
+        </div>
+
+        <!-- Animated Stats -->
+        <div class="stats-wrap reveal">
+            <div class="stat-card">
+                <h5>12+</h5>
+                <p>Global Brands</p>
+            </div>
+            <div class="stat-card">
+                <h5>15+</h5>
+                <p>Years Experience</p>
+            </div>
+            <div class="stat-card">
+                <h5>10+</h5>
+                <p>Strategic Partners</p>
+            </div>
+            <div class="stat-card">
+                <h5>98%</h5>
+                <p>Retention Rate</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Heritage / Portfolio -->
+    <section id="heritage" class="cream-section">
+        <div class="section-header reveal">
+            <span class="section-label">The Heritage</span>
+            <h2 class="section-title">The Hall of <em>Legends</em></h2>
+        </div>
+        <div class="portfolio-grid">
+            <a href="https://knowingly-domain-003189.framer.app/work/mizuno" target="_blank" class="portfolio-item reveal">
+                <img src="https://images.unsplash.com/photo-1541534741688-6078c64b52d3?auto=format&fit=crop&w=1200q=80" alt="Mizuno Sports" class="portfolio-img">
+                <div class="portfolio-info">
+                    <span>Performance Strategy</span>
+                    <h4>MIZUNO Sports</h4>
+                </div>
+            </a>
+            <a href="https://knowingly-domain-003189.framer.app/work/soar-running" target="_blank" class="portfolio-item reveal">
+                <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80" alt="Soar Running" class="portfolio-img">
+                <div class="portfolio-info">
+                    <span>Brand Growth</span>
+                    <h4>Soar Running</h4>
+                </div>
+            </a>
+            <a href="https://knowingly-domain-003189.framer.app/work/ryse-supplements" target="_blank" class="portfolio-item reveal">
+                <img src="https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80" alt="Ryse Supplements" class="portfolio-img">
+                <div class="portfolio-info">
+                    <span>Performance Ads</span>
+                    <h4>Ryse Supplements</h4>
+                </div>
+            </a>
+            <a href="https://knowingly-domain-003189.framer.app/work/ten-thousand" target="_blank" class="portfolio-item reveal">
+                <img src="https://images.unsplash.com/photo-1579338559194-a162d19bf842?auto=format&fit=crop&w=1200&q=80" alt="Ten Thousand" class="portfolio-img">
+                <div class="portfolio-info">
+                    <span>Digital Systems</span>
+                    <h4>Ten Thousand</h4>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section id="voices" style="background: var(--charcoal-deep);">
+        <div class="section-header reveal" style="text-align: center; margin: 0 auto 80px;">
+            <span class="section-label">Testimonials</span>
+            <h2 class="section-title" style="color: #fff;">Voices of <em>Prestige</em></h2>
+        </div>
+        <div class="testimonial-slider reveal">
+            <div class="testimonial-card">
+                <blockquote>"Skyvoid Digitals made our website transformation seamless and brought our vision to life beyond expectations. They captured every detail of the elite sports experience."</blockquote>
+                <div class="testimonial-author">Rick O'connell</div>
+                <div class="testimonial-role">Founder, SportSphere</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final Inquiry -->
+    <section id="inquiry" class="inquiry-section">
+        <div class="ribbon"></div>
+        <div class="inquiry-content reveal">
+            <span class="section-label">Limited Intake</span>
+            <h2 class="section-title">Ready to Begin Your <em>Legacy?</em></h2>
+            <p style="max-width: 600px; margin: 40px auto 60px; color: var(--text-body);">We accept a limited number of ambitious partners each quarter to ensure zero-compromise quality. Consult with our senior strategists today.</p>
+            <a href="https://calendly.com/skyvoid09/skyvoid-digital" class="btn-primary">Consult with an Expert</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-top">
+            <div class="footer-brand">
+                <a href="#" class="logo">Skyvoid</a>
+                <p>The elite standard of performance marketing for sports brands who seek to lead, not follow.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h6>Company</h6>
+                    <ul>
+                        <li><a href="#mastery">Our Mastery</a></li>
+                        <li><a href="#heritage">The Heritage</a></li>
+                        <li><a href="#specialisms">Specialisms</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h6>Legal</h6>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Skyvoid Digitals. All Rights Reserved. Bangalore, India.</p>
+            <p>THE HERITAGE OF PERFORMANCE</p>
+        </div>
+    </footer>
+
+    <script>
+        // Loader handling
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('loader');
+            setTimeout(() => {
+                loader.classList.add('loader-hidden');
+            }, 1200);
+        });
+
+        // Sticky Nav logic
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 100) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+
+        // Intersection Observer for scroll reveal
+        const observerOptions = {
+            threshold: 0.15
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Smooth scroll for nav links (handled by CSS, but good to have fallback if needed)
+    </script>
+</body>
+</html>

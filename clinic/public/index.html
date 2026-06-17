@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sai Manohar Clinic | Child Vaccination Specialist</title>
+    <meta name="description" content="Dr. Sai Manohar — Expert Vaccination Specialist for Children. Book appointments online.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        :root {
+            --blue: #1565C0;
+            --blue-light: #1E88E5;
+            --blue-pale: #E3F2FD;
+            --blue-mid: #BBDEFB;
+            --green: #2E7D32;
+            --green-pale: #E8F5E9;
+            --text: #1A237E;
+            --text-body: #37474F;
+            --gray-100: #F8FAFE;
+            --gray-200: #EEF2F7;
+            --gray-500: #78909C;
+            --gray-700: #455A64;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow: 0 4px 24px rgba(21,101,192,0.10);
+            --shadow-lg: 0 8px 40px rgba(21,101,192,0.15);
+            --t: all 0.3s ease;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior:smooth; }
+        body { font-family:'Poppins',sans-serif; background:#fff; color:var(--text-body); overflow-x:hidden; line-height:1.6; }
+
+        /* NAV */
+        nav {
+            position:fixed; top:0; left:0; right:0; z-index:1000;
+            background:rgba(255,255,255,0.97); backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--blue-mid);
+            padding:0 5%; height:72px;
+            display:flex; align-items:center; justify-content:space-between;
+            box-shadow:var(--shadow);
+        }
+        .nav-logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
+        .nav-logo-icon {
+            width:44px; height:44px;
+            background:linear-gradient(135deg,var(--blue),var(--blue-light));
+            border-radius:12px; display:flex; align-items:center; justify-content:center;
+            color:#fff; font-size:1.2rem;
+        }
+        .nav-logo-text strong { display:block; font-family:'Nunito',sans-serif; font-size:1rem; font-weight:800; color:var(--blue); line-height:1.2; }
+        .nav-logo-text span   { font-size:0.65rem; color:var(--gray-500); font-weight:500; }
+        .nav-links { display:flex; gap:28px; align-items:center; }
+        .nav-links a { text-decoration:none; color:var(--text-body); font-size:0.85rem; font-weight:500; transition:var(--t); }
+        .nav-links a:hover { color:var(--blue); }
+        .btn-book-nav { background:var(--blue)!important; color:#fff!important; padding:10px 22px; border-radius:50px; font-weight:600!important; }
+        .btn-book-nav:hover { background:var(--blue-light)!important; box-shadow:0 4px 16px rgba(21,101,192,0.3); transform:translateY(-1px); }
+        .hamburger { display:none; flex-direction:column; gap:5px; cursor:pointer; }
+        .hamburger span { display:block; width:24px; height:2px; background:var(--blue); border-radius:2px; transition:var(--t); }
+
+        /* HERO */
+        .hero {
+            min-height:100vh;
+            background:linear-gradient(135deg,#EBF4FF 0%,#F0FFF4 60%,#FFF8E1 100%);
+            display:flex; align-items:center;
+            padding:100px 8% 60px; position:relative; overflow:hidden;
+        }
+        .hero::before {
+            content:''; position:absolute; top:-200px; right:-200px;
+            width:600px; height:600px;
+            background:radial-gradient(circle,rgba(21,101,192,0.07),transparent 70%);
+            border-radius:50%; pointer-events:none;
+        }
+        .hero-inner { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; max-width:1200px; margin:0 auto; width:100%; position:relative; z-index:1; }
+        .hero-badge { display:inline-flex; align-items:center; gap:8px; background:var(--blue-pale); color:var(--blue); padding:8px 16px; border-radius:50px; font-size:0.78rem; font-weight:600; margin-bottom:22px; border:1px solid var(--blue-mid); }
+        .hero-text h1 { font-family:'Nunito',sans-serif; font-size:clamp(2rem,3.5vw,3rem); font-weight:900; color:var(--text); line-height:1.15; margin-bottom:18px; }
+        .hero-text h1 span { color:var(--blue-light); }
+        .hero-text p { font-size:1rem; color:var(--gray-700); margin-bottom:36px; line-height:1.8; max-width:480px; }
+        .hero-actions { display:flex; gap:14px; flex-wrap:wrap; }
+        .btn-primary { display:inline-flex; align-items:center; gap:8px; background:var(--blue); color:#fff; text-decoration:none; padding:13px 30px; border-radius:50px; font-size:0.88rem; font-weight:600; border:none; cursor:pointer; font-family:'Poppins',sans-serif; transition:var(--t); }
+        .btn-primary:hover { background:var(--blue-light); transform:translateY(-2px); box-shadow:0 6px 24px rgba(21,101,192,0.35); }
+        .btn-outline { display:inline-flex; align-items:center; gap:8px; background:transparent; color:var(--blue); text-decoration:none; padding:13px 30px; border-radius:50px; font-size:0.88rem; font-weight:600; border:2px solid var(--blue); transition:var(--t); }
+        .btn-outline:hover { background:var(--blue-pale); transform:translateY(-2px); }
+        .hero-stats { display:flex; gap:28px; margin-top:36px; flex-wrap:wrap; }
+        .stat-item strong { display:block; font-size:1.6rem; font-weight:900; color:var(--blue); font-family:'Nunito',sans-serif; }
+        .stat-item span { font-size:0.72rem; color:var(--gray-500); font-weight:500; }
+        .stat-divider { border-left:2px solid var(--blue-mid); padding-left:28px; }
+        .hero-visual { display:flex; justify-content:center; }
+        .doctor-card { background:#fff; border-radius:24px; padding:36px 28px; box-shadow:var(--shadow-lg); text-align:center; width:100%; max-width:340px; position:relative; }
+        .doc-photo-wrap { position:relative; width:180px; height:180px; margin:0 auto 20px; }
+        .doc-photo { width:180px; height:180px; border-radius:50%; background:linear-gradient(135deg,var(--blue-pale),var(--blue-mid)); display:flex; align-items:center; justify-content:center; font-size:4.5rem; color:var(--blue); border:4px solid #fff; box-shadow:0 8px 32px rgba(21,101,192,0.18); overflow:hidden; }
+        .doc-photo img { width:100%; height:100%; object-fit:cover; }
+        .doc-verified { position:absolute; bottom:4px; right:4px; width:40px; height:40px; background:var(--green); border-radius:50%; border:3px solid #fff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.9rem; }
+        .doctor-card h3 { font-family:'Nunito',sans-serif; font-size:1.2rem; font-weight:900; color:var(--text); margin-bottom:4px; }
+        .doctor-card .spec { color:var(--blue); font-size:0.82rem; font-weight:600; margin-bottom:14px; }
+        .doc-stars { color:#FFA000; font-size:0.85rem; margin-bottom:4px; }
+        .doc-rating-text { font-size:0.75rem; color:var(--gray-500); margin-bottom:16px; }
+        .doc-avail { background:var(--green-pale); color:var(--green); padding:9px 16px; border-radius:10px; font-size:0.78rem; font-weight:600; }
+        .float-pill { position:absolute; background:#fff; border-radius:50px; padding:10px 16px; box-shadow:var(--shadow); font-size:0.75rem; font-weight:600; display:flex; align-items:center; gap:7px; white-space:nowrap; }
+        .float-pill.left  { top:30px; left:-80px; color:var(--blue); border:1px solid var(--blue-mid); }
+        .float-pill.right { bottom:60px; right:-80px; color:var(--green); border:1px solid #C8E6C9; }
+
+        /* SECTIONS */
+        section { padding:96px 8%; }
+        .section-badge { display:inline-flex; align-items:center; gap:8px; background:var(--blue-pale); color:var(--blue); padding:6px 14px; border-radius:50px; font-size:0.72rem; font-weight:600; margin-bottom:14px; border:1px solid var(--blue-mid); }
+        .section-title { font-family:'Nunito',sans-serif; font-size:clamp(1.7rem,2.8vw,2.4rem); font-weight:900; color:var(--text); margin-bottom:14px; line-height:1.2; }
+        .section-title span { color:var(--blue-light); }
+        .section-desc { font-size:0.95rem; color:var(--gray-700); max-width:600px; line-height:1.8; }
+        .section-head { margin-bottom:56px; }
+        .section-head.center { text-align:center; }
+        .section-head.center .section-desc { margin:0 auto; }
+
+        /* ABOUT */
+        .about { background:var(--gray-100); }
+        .about-grid { display:grid; grid-template-columns:1fr 1.5fr; gap:72px; align-items:center; }
+        .about-img-wrap { position:relative; max-width:360px; }
+        .about-photo { width:100%; aspect-ratio:1; border-radius:50%; background:linear-gradient(135deg,var(--blue-pale),var(--blue-mid)); display:flex; align-items:center; justify-content:center; font-size:7rem; color:var(--blue); border:8px solid #fff; box-shadow:0 20px 60px rgba(21,101,192,0.14); overflow:hidden; }
+        .about-photo img { width:100%; height:100%; object-fit:cover; }
+        .about-xp { position:absolute; bottom:10px; right:-10px; background:var(--blue); color:#fff; padding:14px 20px; border-radius:18px; text-align:center; box-shadow:var(--shadow); border:4px solid #fff; }
+        .about-xp strong { display:block; font-size:1.8rem; font-family:'Nunito',sans-serif; font-weight:900; line-height:1; }
+        .about-xp span { font-size:0.72rem; opacity:.9; }
+        .credentials { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 28px; }
+        .cred-tag { background:var(--blue-pale); color:var(--blue); padding:5px 12px; border-radius:50px; font-size:0.78rem; font-weight:600; border:1px solid var(--blue-mid); }
+        .highlights { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
+        .highlight { display:flex; align-items:flex-start; gap:12px; background:#fff; padding:14px; border-radius:var(--radius-sm); border-left:3px solid var(--blue); }
+        .highlight .ico { width:34px; height:34px; background:var(--blue-pale); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; }
+        .highlight strong { display:block; font-size:0.83rem; color:var(--text); margin-bottom:2px; }
+        .highlight p { font-size:0.73rem; color:var(--gray-500); }
+
+        /* SERVICES */
+        .services-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+        .svc-card { background:#fff; border-radius:var(--radius); padding:28px 20px; text-align:center; border:1.5px solid var(--gray-200); transition:var(--t); }
+        .svc-card:hover { border-color:var(--blue); box-shadow:var(--shadow); transform:translateY(-4px); }
+        .svc-icon { width:60px; height:60px; background:var(--blue-pale); border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:var(--blue); margin:0 auto 16px; transition:var(--t); }
+        .svc-card:hover .svc-icon { background:var(--blue); color:#fff; }
+        .svc-card h4 { font-family:'Nunito',sans-serif; font-size:0.95rem; font-weight:800; color:var(--text); margin-bottom:8px; }
+        .svc-card p  { font-size:0.78rem; color:var(--gray-500); line-height:1.6; }
+
+        /* BOOKING */
+        .booking { background:linear-gradient(135deg,#EBF4FF,#F0FFF4); }
+        .booking-grid { display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:start; }
+        .booking-info h3 { font-family:'Nunito',sans-serif; font-size:1.35rem; font-weight:900; color:var(--text); margin-bottom:20px; }
+        .booking-steps { display:flex; flex-direction:column; gap:18px; margin-bottom:28px; }
+        .bstep { display:flex; align-items:flex-start; gap:14px; }
+        .bstep-num { width:34px; height:34px; background:var(--blue); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; flex-shrink:0; }
+        .bstep strong { display:block; font-size:0.88rem; color:var(--text); margin-bottom:2px; }
+        .bstep p { font-size:0.78rem; color:var(--gray-500); }
+        .gcal-box { background:#fff; border-radius:var(--radius); padding:24px; border:2px solid var(--blue-mid); text-align:center; }
+        .gcal-box i { font-size:1.8rem; color:#4285F4; margin-bottom:10px; }
+        .gcal-box h4 { font-family:'Nunito',sans-serif; font-weight:900; color:var(--text); margin-bottom:7px; }
+        .gcal-box p { font-size:0.78rem; color:var(--gray-500); margin-bottom:14px; }
+        .form-wrap { background:#fff; border-radius:var(--radius); padding:36px; box-shadow:var(--shadow); }
+        .form-wrap h3 { font-family:'Nunito',sans-serif; font-size:1.35rem; font-weight:900; color:var(--text); margin-bottom:22px; }
+        .form-group { margin-bottom:16px; }
+        .form-group label { display:block; font-size:0.78rem; font-weight:600; color:var(--text); margin-bottom:6px; }
+        .form-group input,.form-group select,.form-group textarea { width:100%; padding:11px 14px; border:1.5px solid var(--gray-200); border-radius:var(--radius-sm); font-size:0.88rem; font-family:'Poppins',sans-serif; color:var(--text-body); outline:none; background:#fff; transition:var(--t); }
+        .form-group input:focus,.form-group select:focus,.form-group textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(21,101,192,0.09); }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .btn-submit { width:100%; padding:13px; background:var(--blue); color:#fff; border:none; border-radius:50px; font-size:0.92rem; font-weight:600; font-family:'Poppins',sans-serif; cursor:pointer; transition:var(--t); display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-submit:hover { background:var(--blue-light); box-shadow:0 6px 24px rgba(21,101,192,0.3); }
+        .btn-submit:disabled { opacity:.7; cursor:not-allowed; }
+        .form-error { background:#FFEBEE; border:1px solid #FFCDD2; border-radius:var(--radius-sm); padding:12px 16px; font-size:0.82rem; color:#C62828; margin-bottom:14px; display:none; }
+        .form-success { display:none; text-align:center; padding:28px 16px; }
+        .success-circle { width:68px; height:68px; background:var(--green-pale); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:var(--green); margin:0 auto 14px; }
+        .form-success h4 { font-family:'Nunito',sans-serif; font-size:1.25rem; font-weight:900; color:var(--text); margin-bottom:8px; }
+        .form-success p { font-size:0.88rem; color:var(--gray-700); margin-bottom:18px; }
+
+        /* REVIEWS */
+        .reviews { background:var(--gray-100); }
+        .reviews-top { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:52px; flex-wrap:wrap; gap:20px; }
+        .overall-box { display:flex; align-items:center; gap:20px; background:#fff; padding:20px 28px; border-radius:var(--radius); box-shadow:var(--shadow); }
+        .rating-num { font-family:'Nunito',sans-serif; font-size:2.8rem; font-weight:900; color:var(--text); line-height:1; }
+        .stars-big { color:#FFA000; font-size:1rem; letter-spacing:2px; }
+        .rating-sub { font-size:0.72rem; color:var(--gray-500); margin-top:4px; }
+        .g-badge { display:flex; align-items:center; gap:5px; font-size:0.72rem; color:var(--gray-500); margin-top:6px; }
+        .reviews-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+        .review-card { background:#fff; border-radius:var(--radius); padding:24px; border:1.5px solid var(--gray-200); transition:var(--t); }
+        .review-card:hover { border-color:var(--blue-mid); box-shadow:var(--shadow); }
+        .rev-header { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+        .rev-avatar { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0; }
+        .rev-info strong { display:block; font-size:0.88rem; color:var(--text); }
+        .rev-info span { font-size:0.73rem; color:var(--gray-500); }
+        .rev-stars { color:#FFA000; font-size:0.78rem; margin-bottom:8px; }
+        .rev-text { font-size:0.85rem; color:var(--text-body); line-height:1.7; }
+        .rev-footer { display:flex; align-items:center; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid var(--gray-200); font-size:0.7rem; color:var(--gray-500); }
+
+        /* LOCATION */
+        .location { background:#fff; }
+        .location-grid { display:grid; grid-template-columns:1fr 1.6fr; gap:56px; align-items:start; }
+        .location-info h3 { font-family:'Nunito',sans-serif; font-size:1.3rem; font-weight:900; color:var(--text); margin-bottom:22px; }
+        .contact-items { display:flex; flex-direction:column; gap:14px; margin-bottom:28px; }
+        .c-item { display:flex; align-items:flex-start; gap:12px; }
+        .c-ico { width:38px; height:38px; background:var(--blue-pale); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; }
+        .c-item strong { display:block; font-size:0.82rem; color:var(--text); margin-bottom:2px; }
+        .c-item span { font-size:0.8rem; color:var(--gray-700); }
+        .hours-box { background:var(--gray-100); border-radius:var(--radius-sm); padding:18px; }
+        .hours-box h4 { font-size:0.82rem; font-weight:700; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:7px; }
+        .hours-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--gray-200); font-size:0.8rem; }
+        .hours-row:last-child { border-bottom:none; }
+        .hours-row .day { color:var(--gray-700); }
+        .hours-row .open   { font-weight:600; color:var(--green); }
+        .hours-row .closed { font-weight:600; color:#E53935; }
+        .map-wrap { border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); height:480px; position:relative; }
+        .map-wrap iframe { width:100%; height:100%; border:none; display:block; }
+        .dir-btn { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); z-index:10; background:var(--blue); color:#fff; padding:11px 26px; border-radius:50px; text-decoration:none; font-size:0.83rem; font-weight:600; display:flex; align-items:center; gap:7px; box-shadow:0 4px 20px rgba(0,0,0,0.22); transition:var(--t); white-space:nowrap; }
+        .dir-btn:hover { background:var(--blue-light); transform:translateX(-50%) translateY(-2px); }
+
+        /* FOOTER */
+        footer { background:#0D1B2A; color:rgba(255,255,255,0.65); padding:56px 8% 28px; }
+        .footer-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:44px; margin-bottom:44px; }
+        .footer-brand h3 { font-family:'Nunito',sans-serif; font-size:1.15rem; font-weight:900; color:#fff; margin-bottom:10px; }
+        .footer-brand p { font-size:0.83rem; line-height:1.7; margin-bottom:20px; }
+        .socials { display:flex; gap:10px; }
+        .social-btn { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:1rem; transition:var(--t); }
+        .social-btn:hover { transform:translateY(-3px); box-shadow:0 4px 16px rgba(0,0,0,0.35); }
+        .social-btn.instagram { background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color:#fff; }
+        .social-btn.facebook  { background:#1877F2; color:#fff; }
+        .social-btn.telegram  { background:#2AABEE; color:#fff; }
+        .footer-col h5 { font-size:0.75rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:18px; }
+        .footer-col ul { list-style:none; }
+        .footer-col li { margin-bottom:9px; }
+        .footer-col a { color:rgba(255,255,255,0.45); text-decoration:none; font-size:0.83rem; transition:var(--t); }
+        .footer-col a:hover { color:#fff; }
+        .footer-bottom { padding-top:28px; border-top:1px solid rgba(255,255,255,0.07); display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; flex-wrap:wrap; gap:10px; }
+        .footer-bottom a { color:rgba(255,255,255,0.4); text-decoration:none; }
+        .footer-bottom a:hover { color:#fff; }
+
+        /* TOAST */
+        .toast { position:fixed; bottom:28px; right:28px; background:#fff; border-radius:14px; padding:14px 20px; box-shadow:0 8px 40px rgba(0,0,0,0.14); display:flex; align-items:center; gap:12px; z-index:9999; transform:translateY(100px); opacity:0; transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1); max-width:340px; border-left:4px solid var(--green); }
+        .toast.show { transform:translateY(0); opacity:1; }
+        .toast-ico { width:38px; height:38px; background:var(--green-pale); border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--green); font-size:1.1rem; flex-shrink:0; }
+        .toast-txt strong { display:block; font-size:0.88rem; color:var(--text); margin-bottom:2px; }
+        .toast-txt span { font-size:0.78rem; color:var(--gray-500); }
+
+        /* ANIMATIONS */
+        .fade-in { opacity:0; transform:translateY(28px); transition:opacity 0.65s ease, transform 0.65s ease; }
+        .fade-in.visible { opacity:1; transform:translateY(0); }
+
+        /* RESPONSIVE */
+        @media (max-width:1100px) {
+            .hero-inner { grid-template-columns:1fr; }
+            .hero-visual { display:none; }
+            .about-grid { grid-template-columns:1fr; }
+            .about-img-wrap { max-width:280px; margin:0 auto; }
+            .services-grid { grid-template-columns:repeat(2,1fr); }
+            .booking-grid { grid-template-columns:1fr; }
+            .reviews-grid { grid-template-columns:1fr; }
+            .location-grid { grid-template-columns:1fr; }
+            .footer-grid { grid-template-columns:1fr 1fr; }
+            .float-pill { display:none; }
+        }
+        @media (max-width:768px) {
+            section { padding:64px 5%; }
+            nav { padding:0 5%; }
+            .nav-links { display:none; }
+            .hamburger { display:flex; }
+            .nav-links.open { display:flex; flex-direction:column; position:fixed; top:72px; left:0; right:0; background:#fff; padding:20px 5%; border-bottom:1px solid var(--gray-200); gap:18px; box-shadow:0 8px 24px rgba(0,0,0,0.09); z-index:999; }
+            .services-grid { grid-template-columns:1fr 1fr; }
+            .highlights { grid-template-columns:1fr; }
+            .form-row { grid-template-columns:1fr; }
+            .footer-grid { grid-template-columns:1fr; }
+            .reviews-top { flex-direction:column; align-items:flex-start; }
+            .hero-text h1 { font-size:1.9rem; }
+        }
+        @media (max-width:480px) {
+            .services-grid { grid-template-columns:1fr; }
+            .toast { left:16px; right:16px; bottom:16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toast" id="toast">
+    <div class="toast-ico"><i class="fas fa-check"></i></div>
+    <div class="toast-txt">
+        <strong>Appointment Booked!</strong>
+        <span>Doctor notified via Telegram</span>
+    </div>
+</div>
+
+<!-- NAV -->
+<nav>
+    <a href="#home" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fas fa-stethoscope"></i></div>
+        <div class="nav-logo-text">
+            <strong>Sai Manohar Clinic</strong>
+            <span>Child Vaccination Specialist</span>
+        </div>
+    </a>
+    <div class="nav-links" id="navLinks">
+        <a href="#about">About</a>
+        <a href="#services">Services</a>
+        <a href="#booking">Book Appointment</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#location">Location</a>
+        <a href="#booking" class="btn-book-nav">Book Now</a>
+    </div>
+    <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section id="home" class="hero">
+    <div class="hero-inner">
+        <div class="hero-text fade-in">
+            <div class="hero-badge"><i class="fas fa-shield-heart"></i> Trusted Child Vaccination Specialist</div>
+            <h1>Protecting <span>Young Lives</span><br>with Expert Vaccination Care</h1>
+            <p>Dr. Sai Manohar provides comprehensive, safe, and timely vaccination services for children &mdash; ensuring every child is protected from preventable diseases.</p>
+            <div class="hero-actions">
+                <a href="#booking" class="btn-primary"><i class="fas fa-calendar-plus"></i> Book Appointment</a>
+                <a href="#about"   class="btn-outline"><i class="fas fa-user-doctor"></i> Meet the Doctor</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item"><strong>10+</strong><span>Years Experience</span></div>
+                <div class="stat-item stat-divider"><strong>5000+</strong><span>Happy Patients</span></div>
+                <div class="stat-item stat-divider"><strong>4.9</strong><span>Google Rating</span></div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="doctor-card fade-in">
+                <div class="doc-photo-wrap">
+                    <div class="doc-photo">
+                        <!-- ADD PHOTO: replace icon with <img src="doctor.jpg" alt="Dr. Sai Manohar"> -->
+                        <i class="fas fa-user-doctor"></i>
+                    </div>
+                    <div class="doc-verified"><i class="fas fa-check"></i></div>
+                </div>
+                <h3>Dr. Sai Manohar</h3>
+                <div class="spec">Vaccination Specialist &middot; Pediatrics</div>
+                <div class="doc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <div class="doc-rating-text">4.9 &bull; 128 reviews</div>
+                <div class="doc-avail"><i class="fas fa-circle" style="font-size:.5rem;"></i> Available Today &mdash; Book Now</div>
+                <div class="float-pill left"><i class="fas fa-syringe"></i> Certified Vaccine Provider</div>
+                <div class="float-pill right"><i class="fas fa-children"></i> Child-Friendly Care</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about" class="about">
+    <div class="about-grid">
+        <div class="about-img-wrap fade-in">
+            <div class="about-photo">
+                <!-- ADD PHOTO: replace icon with <img src="doctor.jpg" alt="Dr. Sai Manohar"> -->
+                <i class="fas fa-user-doctor"></i>
+            </div>
+            <div class="about-xp"><strong>10+</strong><span>Years of Care</span></div>
+        </div>
+        <div class="about-text fade-in">
+            <div class="section-badge"><i class="fas fa-star"></i> About the Doctor</div>
+            <h2 class="section-title">Dr. Sai Manohar &mdash;<br><span>Dedicated to Children's Health</span></h2>
+            <p class="section-desc">Dr. Sai Manohar is a highly experienced vaccination specialist dedicated to protecting children through safe, timely, and comprehensive immunization. With over a decade of expertise, he follows the latest IAP (Indian Academy of Pediatrics) vaccination schedule and maintains thorough records for every patient.</p>
+            <div class="credentials">
+                <span class="cred-tag"><i class="fas fa-graduation-cap"></i> MBBS</span>
+                <span class="cred-tag"><i class="fas fa-award"></i> MD &ndash; Pediatrics</span>
+                <span class="cred-tag"><i class="fas fa-shield-virus"></i> IAP Member</span>
+                <span class="cred-tag"><i class="fas fa-certificate"></i> Certified Immunologist</span>
+            </div>
+            <div class="highlights">
+                <div class="highlight"><div class="ico"><i class="fas fa-syringe"></i></div><div><strong>All IAP Vaccines</strong><p>Complete schedule for all age groups</p></div></div>
+                <div class="highlight"><div class="ico"><i class="fas fa-heart-pulse"></i></div><div><strong>Child-First Approach</strong><p>Gentle, stress-free for every child</p></div></div>
+                <div class="highlight"><div class="ico"><i class="fas fa-file-medical"></i></div><div><strong>Digital Records</strong><p>Full vaccination cards maintained</p></div></div>
+                <div class="highlight"><div class="ico"><i class="fas fa-phone-volume"></i></div><div><strong>Post-Vaccine Support</strong><p>24hr guidance for any reactions</p></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+    <div class="section-head center fade-in">
+        <div class="section-badge"><i class="fas fa-list-check"></i> Our Services</div>
+        <h2 class="section-title">Comprehensive <span>Vaccination Programs</span></h2>
+        <p class="section-desc">Complete range of childhood vaccines recommended by IAP, WHO, and the Government of India schedule.</p>
+    </div>
+    <div class="services-grid fade-in">
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-baby"></i></div><h4>Newborn Vaccines</h4><p>BCG, Hepatitis B, OPV &mdash; essential first-life protection for your newborn</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-virus-slash"></i></div><h4>MMR Vaccine</h4><p>Protection against Measles, Mumps, and Rubella with certified brands</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-shield-virus"></i></div><h4>DPT / Pentavalent</h4><p>Diphtheria, Pertussis, Tetanus, Hib and Hepatitis B combined protection</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-lungs"></i></div><h4>Pneumococcal (PCV)</h4><p>Prevents pneumonia, meningitis and bloodstream infections in children</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-star-of-life"></i></div><h4>Typhoid &amp; Chickenpox</h4><p>Typhoid conjugate vaccine and Varicella (chickenpox) vaccine</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-wind"></i></div><h4>Annual Flu Shot</h4><p>Seasonal influenza vaccination every year for children 6 months and above</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-plane-departure"></i></div><h4>Travel Vaccines</h4><p>Pre-travel vaccination advice and administration for families going abroad</p></div>
+        <div class="svc-card"><div class="svc-icon"><i class="fas fa-rotate"></i></div><h4>Catch-Up Vaccination</h4><p>Custom programs for children who have missed scheduled vaccines</p></div>
+    </div>
+</section>
+
+<!-- BOOKING -->
+<section id="booking" class="booking">
+    <div class="section-head center fade-in">
+        <div class="section-badge"><i class="fas fa-calendar-check"></i> Book an Appointment</div>
+        <h2 class="section-title">Easy <span>Online Booking</span></h2>
+        <p class="section-desc">Fill the form and the doctor is notified instantly on Telegram. Google Calendar invite sent to your email automatically.</p>
+    </div>
+    <div class="booking-grid fade-in">
+        <div class="booking-info">
+            <h3>How it works</h3>
+            <div class="booking-steps">
+                <div class="bstep"><div class="bstep-num">1</div><div><strong>Fill the Appointment Form</strong><p>Enter your child's details, email, preferred date and time</p></div></div>
+                <div class="bstep"><div class="bstep-num">2</div><div><strong>Doctor Notified Instantly</strong><p>Dr. Sai Manohar receives your request via Telegram immediately</p></div></div>
+                <div class="bstep"><div class="bstep-num">3</div><div><strong>Calendar Invite Sent to You</strong><p>You receive a Google Calendar invite with the appointment details</p></div></div>
+                <div class="bstep"><div class="bstep-num">4</div><div><strong>Automatic 30-min Reminders</strong><p>Both you and the doctor get a reminder 30 minutes before your appointment</p></div></div>
+            </div>
+            <div class="gcal-box">
+                <i class="fas fa-calendar-days"></i>
+                <h4>View Available Slots</h4>
+                <p>Check real-time available slots on Google Calendar</p>
+                <!--
+                    REPLACE href below with your Google Calendar appointment scheduling link.
+                    Google Calendar → + Create → Appointment schedule → Open booking page → copy URL
+                -->
+                <a href="https://calendar.google.com" target="_blank" class="btn-primary">
+                    <i class="fab fa-google"></i> Open Appointment Calendar
+                </a>
+            </div>
+        </div>
+        <div class="form-wrap">
+            <h3><i class="fas fa-pen-to-square" style="color:var(--blue);margin-right:9px;"></i>Book Your Appointment</h3>
+            <div class="form-error" id="formError"></div>
+            <form id="apptForm">
+                <div class="form-row">
+                    <div class="form-group"><label>Parent's Name *</label><input type="text" id="parentName" placeholder="Your full name" required></div>
+                    <div class="form-group"><label>Phone Number *</label><input type="tel" id="phone" placeholder="+91 XXXXX XXXXX" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Email Address <span style="color:var(--green);font-size:0.72rem;">(recommended — for calendar invite &amp; reminder)</span></label>
+                    <input type="email" id="email" placeholder="yourname@email.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Child's Name *</label><input type="text" id="childName" placeholder="Child's full name" required></div>
+                    <div class="form-group"><label>Child's Age *</label><input type="text" id="childAge" placeholder="e.g. 6 months / 2 years" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Vaccine / Service Needed</label>
+                    <select id="vaccine">
+                        <option value="">Select vaccine or service</option>
+                        <option>Newborn Vaccines (BCG, Hep-B, OPV)</option>
+                        <option>MMR Vaccine</option>
+                        <option>DPT / Pentavalent</option>
+                        <option>Pneumococcal (PCV)</option>
+                        <option>Typhoid Vaccine</option>
+                        <option>Chickenpox (Varicella)</option>
+                        <option>Annual Flu Shot</option>
+                        <option>Travel Vaccines</option>
+                        <option>Catch-Up Vaccination</option>
+                        <option>Vaccination Consultation</option>
+                        <option>Not sure — need advice</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Preferred Date *</label><input type="date" id="prefDate" required></div>
+                    <div class="form-group">
+                        <label>Preferred Time</label>
+                        <select id="prefTime">
+                            <option value="">Select time slot</option>
+                            <option>9:00 AM – 10:00 AM</option>
+                            <option>10:00 AM – 11:00 AM</option>
+                            <option>11:00 AM – 12:00 PM</option>
+                            <option>4:00 PM – 5:00 PM</option>
+                            <option>5:00 PM – 6:00 PM</option>
+                            <option>6:00 PM – 7:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Additional Notes</label><textarea id="notes" rows="2" placeholder="Any allergies, health conditions, or special requests..."></textarea></div>
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fas fa-paper-plane"></i> Send Appointment Request
+                </button>
+            </form>
+            <div class="form-success" id="formSuccess">
+                <div class="success-circle"><i class="fas fa-check"></i></div>
+                <h4>Appointment Booked!</h4>
+                <p>Dr. Sai Manohar has been notified via Telegram. A Google Calendar invite has been sent to your email with a 30-minute reminder built in.</p>
+                <a href="https://calendar.google.com" target="_blank" class="btn-primary">
+                    <i class="fab fa-google"></i> Open Google Calendar
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- REVIEWS -->
+<section id="reviews" class="reviews">
+    <div class="reviews-top fade-in">
+        <div>
+            <div class="section-badge"><i class="fas fa-star"></i> Patient Reviews</div>
+            <h2 class="section-title">What Parents <span>Say About Us</span></h2>
+        </div>
+        <div class="overall-box">
+            <div class="rating-num">4.9</div>
+            <div>
+                <div class="stars-big">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <div class="rating-sub">Based on 128+ reviews</div>
+                <div class="g-badge"><i class="fab fa-google" style="color:#4285F4;"></i> Google Reviews</div>
+            </div>
+        </div>
+    </div>
+    <div class="reviews-grid fade-in">
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#E3F2FD;color:#1565C0;">PS</div><div class="rev-info"><strong>Priya Sharma</strong><span>2 months ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rev-text">"Dr. Sai Manohar was extremely patient with my 2-year-old. She was crying the entire time but the doctor handled it so gently. All vaccinations done on schedule and he explained everything clearly. Highly recommend!"</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#E8F5E9;color:#2E7D32;">RR</div><div class="rev-info"><strong>Rahul Reddy</strong><span>3 months ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rev-text">"Best pediatric vaccination clinic in the area. Very clean, organized, and Dr. Manohar explains each vaccine clearly before administering. My son is always comfortable here. Minimal waiting time too!"</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#FFF8E1;color:#FF8F00;">MK</div><div class="rev-info"><strong>Meena Krishnan</strong><span>1 month ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rev-text">"My son has been coming here since birth for all his vaccinations. Dr. Manohar maintains thorough digital records and always reminds us for the next due vaccine. Outstanding doctor — zero stress!"</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#FCE4EC;color:#C62828;">AP</div><div class="rev-info"><strong>Arun Patel</strong><span>5 months ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9734;</div><p class="rev-text">"Great clinic with minimal waiting time. The doctor is extremely knowledgeable and very kind with kids. Easy to book appointments online. Well-stocked with all vaccines and helpful staff."</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#EDE7F6;color:#4527A0;">SR</div><div class="rev-info"><strong>Sunita Rao</strong><span>1 week ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rev-text">"I was so worried about my baby's first vaccination but Dr. Sai Manohar made the whole experience completely smooth. He was calm, quick, and very reassuring. My baby barely cried!"</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+        <div class="review-card"><div class="rev-header"><div class="rev-avatar" style="background:#E0F7FA;color:#00695C;">VN</div><div class="rev-info"><strong>Vikram Nair</strong><span>2 weeks ago</span></div></div><div class="rev-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rev-text">"Excellent catch-up vaccination service. Our kids had missed some doses and Dr. Manohar designed a custom schedule to get them fully covered. He is thorough, professional, and truly cares."</p><div class="rev-footer"><i class="fab fa-google" style="color:#4285F4;"></i> Posted on Google Maps</div></div>
+    </div>
+</section>
+
+<!-- LOCATION & GOOGLE MAPS -->
+<section id="location" class="location">
+    <div class="section-head fade-in">
+        <div class="section-badge"><i class="fas fa-location-dot"></i> Find Us</div>
+        <h2 class="section-title">Visit <span>Sai Manohar Clinic</span></h2>
+        <p class="section-desc">Conveniently located and easy to find. Walk-ins welcome alongside scheduled appointments.</p>
+    </div>
+    <div class="location-grid fade-in">
+        <div class="location-info">
+            <h3>Clinic Details</h3>
+            <div class="contact-items">
+                <div class="c-item"><div class="c-ico"><i class="fas fa-location-dot"></i></div><div><strong>Address</strong><span>Sai Manohar Clinic<br>View exact location on Google Maps</span></div></div>
+                <div class="c-item"><div class="c-ico"><i class="fas fa-phone"></i></div><div><strong>Phone</strong><span>Book via the form above</span></div></div>
+                <div class="c-item"><div class="c-ico"><i class="fab fa-telegram"></i></div><div><strong>Telegram</strong><span>Appointment requests delivered instantly to doctor</span></div></div>
+            </div>
+            <div class="hours-box">
+                <h4><i class="fas fa-clock" style="color:var(--blue);"></i> Clinic Hours</h4>
+                <div class="hours-row"><span class="day">Monday &ndash; Friday</span><span class="open">9:00 AM &ndash; 12:00 PM, 4:00 PM &ndash; 7:00 PM</span></div>
+                <div class="hours-row"><span class="day">Saturday</span><span class="open">9:00 AM &ndash; 1:00 PM</span></div>
+                <div class="hours-row"><span class="day">Sunday</span><span class="closed">Closed</span></div>
+            </div>
+        </div>
+        <div class="map-wrap">
+            <!--
+                REPLACE the iframe src with your exact embed URL from:
+                Google Maps → search your clinic → Share → "Embed a map" → copy the src URL
+            -->
+            <iframe
+                src="https://maps.google.com/maps?q=Sai+Manohar+Clinic&output=embed&hl=en"
+                allowfullscreen loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                title="Sai Manohar Clinic Location">
+            </iframe>
+            <a href="https://share.google/TyJcKaZUisXdqT5RW" target="_blank" class="dir-btn">
+                <i class="fas fa-diamond-turn-right"></i> Get Directions
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-grid">
+        <div class="footer-brand">
+            <h3>Sai Manohar Clinic</h3>
+            <p>Dedicated to protecting children's health through safe, timely, and comprehensive vaccination care. Serving families with trust and expertise.</p>
+            <div class="socials">
+                <!-- Replace # with your actual Instagram / Facebook page URLs -->
+                <a href="#" class="social-btn instagram" title="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="#" class="social-btn facebook"  title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://t.me/" class="social-btn telegram" title="Telegram"><i class="fab fa-telegram"></i></a>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h5>Quick Links</h5>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About Doctor</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#booking">Book Appointment</a></li>
+                <li><a href="#reviews">Reviews</a></li>
+                <li><a href="#location">Location</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h5>Vaccines</h5>
+            <ul>
+                <li><a href="#services">Newborn Vaccines</a></li>
+                <li><a href="#services">MMR Vaccine</a></li>
+                <li><a href="#services">DPT / Pentavalent</a></li>
+                <li><a href="#services">Typhoid &amp; Chickenpox</a></li>
+                <li><a href="#services">Flu Shots</a></li>
+                <li><a href="#services">Catch-Up Programs</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h5>Contact</h5>
+            <ul>
+                <li><a href="#location"><i class="fas fa-location-dot"></i> Find Clinic</a></li>
+                <li><a href="#booking"><i class="fas fa-calendar-plus"></i> Book Appointment</a></li>
+                <li><a href="https://share.google/TyJcKaZUisXdqT5RW" target="_blank"><i class="fas fa-map"></i> Google Maps</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2024 Sai Manohar Clinic. All Rights Reserved.</p>
+        <p>Child Vaccination Specialist</p>
+        <div><a href="#">Privacy Policy</a> &middot; <a href="#">Terms</a></div>
+    </div>
+</footer>
+
+<script>
+    // Form submits to /api/book (Vercel serverless function)
+    document.getElementById('apptForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('submitBtn');
+        const errBox = document.getElementById('formError');
+        errBox.style.display = 'none';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
+
+        const payload = {
+            parentName: document.getElementById('parentName').value,
+            phone:      document.getElementById('phone').value,
+            email:      document.getElementById('email').value,
+            childName:  document.getElementById('childName').value,
+            childAge:   document.getElementById('childAge').value,
+            vaccine:    document.getElementById('vaccine').value,
+            date:       document.getElementById('prefDate').value,
+            time:       document.getElementById('prefTime').value,
+            notes:      document.getElementById('notes').value,
+        };
+
+        try {
+            const res  = await fetch('/api/book', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('apptForm').style.display = 'none';
+                document.getElementById('formSuccess').style.display = 'block';
+                showToast();
+            } else {
+                throw new Error(data.error || 'Booking failed');
+            }
+        } catch (err) {
+            errBox.textContent = err.message || 'Something went wrong. Please call the clinic directly.';
+            errBox.style.display = 'block';
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Appointment Request';
+    });
+
+    function showToast() {
+        const t = document.getElementById('toast');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 5000);
+    }
+
+    function toggleMenu() {
+        document.getElementById('navLinks').classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+        const links  = document.getElementById('navLinks');
+        const burger = document.getElementById('hamburger');
+        if (!links.contains(e.target) && !burger.contains(e.target)) links.classList.remove('open');
+    });
+    document.querySelectorAll('#navLinks a').forEach(a =>
+        a.addEventListener('click', () => document.getElementById('navLinks').classList.remove('open'))
+    );
+
+    // Scroll reveal
+    const obs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+
+    // Min date = today
+    document.getElementById('prefDate').min = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
