@@ -21,6 +21,7 @@ import AdminTeam from './pages/admin/AdminTeam';
 import AdminTasks from './pages/admin/AdminTasks';
 import AdminShifts from './pages/admin/AdminShifts';
 import IntegrationHub from './pages/admin/IntegrationHub';
+import AdminHealth from './pages/admin/AdminHealth';
 import CheckInForm from './components/CheckInForm';
 import TimeTracker from './components/TimeTracker';
 
@@ -316,6 +317,9 @@ export default function App() {
           )}
           {currentPage === 'admin-integrations' && (
             <IntegrationHub employee={currentEmployee} />
+          )}
+          {currentPage === 'admin-health' && (
+            <AdminHealth employee={currentEmployee} allEmployees={employees} />
           )}
         </main>
       </div>

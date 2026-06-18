@@ -39,6 +39,36 @@ export const logoutAdmin   = () => signOut(auth);
 export const onAuthChange  = (cb: (u: any) => void) => onAuthStateChanged(auth, cb);
 
 // ── Employees ─────────────────────────────────────────────────────────────
+
+/** Generate a readable random password like "Blue7Kite#42" */
+export const generatePassword = (): string => {
+  const words = ['Blue','Red','Sun','Sky','Fast','Bold','Star','Oak','Fox','Mist','Gold','Jade'];
+  const nums  = () => Math.floor(Math.random() * 90 + 10);
+  const syms  = ['!','#','@','$','%','&'];
+  const sym   = syms[Math.floor(Math.random() * syms.length)];
+  const w1    = words[Math.floor(Math.random() * words.length)];
+  const w2    = words[Math.floor(Math.random() * words.length)];
+  return `${w1}${nums()}${w2}${sym}${nums()}`;
+};
+
+/** Create Firebase Auth user + Firestore employee record. Stores password in Firestore for admin reference. */
+export const createEmployeeWithAuth = async (
+  emp: Omit<Employee, 'id'> & { password: string }
+): Promise<string> => {
+  // Create Auth account
+  const cred = await createUserWithEmailAndPassword(auth, emp.email, emp.password);
+  // Store in Firestore with password field (internal tool — admin needs to see it)
+  const ref = await addDoc(collection(db, 'employees'), {
+    name: emp.name, email: emp.email, department: emp.department,
+    role: emp.role, status: 'offline',
+    shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
+    password: emp.password,   // stored so admin can view/copy it
+    authUid: cred.user.uid,
+    createdAt: Date.now(),
+  });
+  return ref.id;
+};
+
 export const addEmployee = (e: Omit<Employee, 'id'>) =>
   addDoc(collection(db, 'employees'), { ...e, createdAt: Date.now() });
 
