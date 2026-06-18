@@ -4,189 +4,162 @@ import { onUserTasksChange, createTask, updateTask, deleteTask } from '../servic
 
 interface Props { employee: Employee; }
 
-const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
-  { key: 'todo',        label: '📋 To Do',       color: 'border-gray-300 dark:border-gray-600' },
-  { key: 'in_progress', label: '🔄 In Progress',  color: 'border-blue-400' },
-  { key: 'blocked',    label: '🚫 Blocked',       color: 'border-red-400' },
-  { key: 'done',       label: '✅ Done',          color: 'border-green-400' },
+type Col = { key: TaskStatus; label: string; dot: string };
+const COLS: Col[] = [
+  { key: 'todo',        label: 'To Do',       dot: '#D1D5DB' },
+  { key: 'in_progress', label: 'In Progress',  dot: '#CA8A04' },
+  { key: 'blocked',    label: 'Blocked',       dot: '#DC2626' },
+  { key: 'done',       label: 'Done',          dot: '#16A34A' },
 ];
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-  urgent: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  high:   'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  low:    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-};
 
 interface NewTask { title: string; description: string; priority: Priority; dueDate: string; }
 const EMPTY: NewTask = { title: '', description: '', priority: 'medium', dueDate: '' };
 
 export default function TasksPage({ employee }: Props) {
   const [tasks, setTasks]       = useState<Task[]>([]);
-  const [showNew, setShowNew]   = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [form, setForm]         = useState<NewTask>(EMPTY);
   const [saving, setSaving]     = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [dragId, setDragId]     = useState<string | null>(null);
+  const [overCol, setOverCol]   = useState<TaskStatus | null>(null);
 
-  useEffect(() => {
-    return onUserTasksChange(employee.id, setTasks);
-  }, [employee.id]);
+  useEffect(() => onUserTasksChange(employee.id, setTasks), [employee.id]);
 
-  const handleCreate = async () => {
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!form.title.trim()) return;
     setSaving(true);
     await createTask({
-      title: form.title, description: form.description,
+      title: form.title.trim(), description: form.description,
       assigneeId: employee.id, assigneeName: employee.name,
       priority: form.priority, status: 'todo',
       dueDate: form.dueDate ? new Date(form.dueDate).getTime() : undefined,
     });
-    setForm(EMPTY); setShowNew(false); setSaving(false);
+    setForm(EMPTY); setShowModal(false); setSaving(false);
   };
 
-  const handleStatusChange = (task: Task, status: TaskStatus) => {
+  const moveTo = (task: Task, status: TaskStatus) =>
     updateTask(task.id, { status, ...(status === 'done' ? { completedAt: Date.now() } : {}) });
+
+  const onDrop = (col: TaskStatus) => {
+    if (dragId) {
+      const task = tasks.find(t => t.id === dragId);
+      if (task && task.status !== col) moveTo(task, col);
+    }
+    setDragId(null); setOverCol(null);
   };
 
-  const handlePriorityChange = (task: Task, priority: Priority) => updateTask(task.id, { priority });
+  const todo       = tasks.filter(t => t.status === 'todo').length;
+  const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+  const done       = tasks.filter(t => t.status === 'done').length;
 
-  const handleDelete = (id: string) => { if (confirm('Delete this task?')) deleteTask(id); };
-
-  const total = tasks.length;
-  const done  = tasks.filter(t => t.status === 'done').length;
+  const formatDate = (ts?: number) => ts ? new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
 
   return (
-    <div className="p-6 space-y-5 animate-slide-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>📋 My Tasks</h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {done} of {total} done · {tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length} urgent
-          </p>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', animation: 'fadeIn 200ms ease' }}>
+      {/* Toolbar */}
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}><strong style={{ color: 'var(--text)' }}>{todo}</strong> to do</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}><strong style={{ color: '#CA8A04' }}>{inProgress}</strong> in progress</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}><strong style={{ color: '#16A34A' }}>{done}</strong> done</span>
         </div>
-        <button onClick={() => setShowNew(v => !v)}
-          className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm transition shadow">
-          + New Task
+        <button onClick={() => setShowModal(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 16px', background: '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
+          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Task
         </button>
       </div>
 
-      {/* Create form */}
-      {showNew && (
-        <div className="card p-5 space-y-4 border-2 border-blue-300 dark:border-blue-700">
-          <h3 className="font-semibold" style={{ color: 'var(--text)' }}>New Task</h3>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Task title *" className="input w-full" />
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Description (optional)" rows={2}
-            className="input w-full resize-none" />
-          <div className="flex gap-3">
-            <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}
-              className="input flex-1">
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-            <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
-              className="input flex-1" />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleCreate} disabled={saving || !form.title.trim()}
-              className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium transition">
-              {saving ? 'Creating…' : 'Create Task'}
-            </button>
-            <button onClick={() => { setShowNew(false); setForm(EMPTY); }}
-              className="flex-1 py-2 rounded-lg text-sm font-medium transition"
-              style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {total > 0 && (
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
-          <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${total ? (done / total) * 100 : 0}%`, background: 'linear-gradient(90deg,#6366F1,#8B5CF6)' }} />
-        </div>
-      )}
-
-      {/* Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {COLUMNS.map(col => {
+      {/* Kanban columns */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, padding: 16, overflowY: 'auto', minHeight: 0 }}>
+        {COLS.map(col => {
           const colTasks = tasks.filter(t => t.status === col.key);
+          const isOver = overCol === col.key;
           return (
-            <div key={col.key} className={`rounded-xl border-2 ${col.color} flex flex-col`} style={{ background: 'var(--surface2)', minHeight: 200 }}>
-              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'inherit' }}>
-                <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{col.label}</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-muted)' }}>{colTasks.length}</span>
+            <div key={col.key}
+              onDragOver={e => { e.preventDefault(); setOverCol(col.key); }}
+              onDragLeave={() => setOverCol(null)}
+              onDrop={() => onDrop(col.key)}
+              className="kanban-col"
+              style={{ background: isOver ? 'rgba(37,99,235,0.03)' : 'var(--surface)', borderColor: isOver ? '#2563EB' : 'var(--border)', transition: 'background 150ms, border-color 150ms' }}
+            >
+              {/* Column header */}
+              <div style={{ padding: '14px 16px 10px', flexShrink: 0, background: 'rgba(250,250,250,0.7)', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em', textTransform: 'uppercase' }}>{col.label}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg)', padding: '1px 7px', borderRadius: 99 }}>{colTasks.length}</span>
+                </div>
               </div>
 
-              <div className="p-2 space-y-2 flex-1">
+              {/* Cards */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px' }}>
                 {colTasks.length === 0 && (
-                  <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No tasks</p>
+                  <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 12, color: 'var(--text-faint)' }}>No tasks</div>
                 )}
                 {colTasks.map(task => {
-                  const isEditing = editingId === task.id;
                   const overdue = task.dueDate && task.dueDate < Date.now() && task.status !== 'done';
                   return (
-                    <div key={task.id} className="p-3 rounded-lg shadow-sm border transition hover:shadow-md"
-                      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                      {isEditing ? (
-                        <div className="space-y-2">
-                          <select value={task.status} onChange={e => { handleStatusChange(task, e.target.value as TaskStatus); setEditingId(null); }}
-                            className="input w-full text-xs">
-                            {COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                          </select>
-                          <select value={task.priority} onChange={e => { handlePriorityChange(task, e.target.value as Priority); setEditingId(null); }}
-                            className="input w-full text-xs">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                          </select>
-                          <button onClick={() => setEditingId(null)}
-                            className="w-full text-xs py-1 rounded-lg" style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>Done</button>
+                    <div key={task.id}
+                      draggable
+                      onDragStart={() => setDragId(task.id)}
+                      onDragEnd={() => { setDragId(null); setOverCol(null); }}
+                      style={{
+                        background: '#fff',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8, padding: '12px 13px', marginBottom: 7,
+                        cursor: 'grab',
+                        opacity: dragId === task.id ? 0.5 : 1,
+                        transition: 'border-color 150ms, box-shadow 150ms',
+                      }}
+                      onMouseOver={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
+                      onMouseOut={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, marginBottom: 8 }}>
+                        {/* drag grip */}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" style={{ marginTop: 3, flexShrink: 0 }}>
+                          <circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/>
+                          <circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>
+                        </svg>
+                        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111', lineHeight: 1.4, textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.5 : 1 }}>
+                          {task.title}
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`text-sm font-medium leading-snug flex-1 ${task.status === 'done' ? 'line-through opacity-60' : ''}`}
-                              style={{ color: 'var(--text)' }}>
-                              {task.title}
-                            </p>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button onClick={() => setEditingId(task.id)}
-                                className="text-xs hover:text-blue-500 transition" style={{ color: 'var(--text-muted)' }}>✏️</button>
-                              <button onClick={() => handleDelete(task.id)}
-                                className="text-xs hover:text-red-500 transition" style={{ color: 'var(--text-muted)' }}>🗑️</button>
-                            </div>
-                          </div>
-                          {task.description && (
-                            <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{task.description}</p>
-                          )}
-                          <div className="flex items-center justify-between mt-2">
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
-                            {task.dueDate && (
-                              <span className={`text-xs ${overdue ? 'text-red-500 font-semibold' : ''}`} style={!overdue ? { color: 'var(--text-muted)' } : {}}>
-                                {overdue ? '⚠️ ' : ''}
-                                {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                              </span>
-                            )}
-                          </div>
-                          {/* Quick status buttons */}
-                          <div className="flex gap-1 mt-2">
-                            {COLUMNS.filter(c => c.key !== col.key).map(c => (
-                              <button key={c.key} onClick={() => handleStatusChange(task, c.key)}
-                                className="text-[10px] px-1.5 py-0.5 rounded transition hover:opacity-80"
-                                style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
-                                → {c.key.replace('_', ' ')}
-                              </button>
-                            ))}
-                          </div>
-                        </>
+                        <button onClick={() => deleteTask(task.id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0, fontSize: 14 }}
+                          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = '#DC2626'}
+                          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-faint)'}
+                        >×</button>
+                      </div>
+
+                      {task.description && (
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>{task.description}</div>
                       )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span className={`badge-${task.priority}`} style={{ textTransform: 'capitalize' }}>{task.priority}</span>
+                        {task.dueDate && (
+                          <span style={{ fontSize: 11, color: overdue ? '#DC2626' : 'var(--text-faint)', fontWeight: overdue ? 600 : 400 }}>
+                            {overdue ? '⚠ ' : ''}{formatDate(task.dueDate)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Move buttons */}
+                      <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+                        {COLS.filter(c => c.key !== col.key).map(c => (
+                          <button key={c.key} onClick={() => moveTo(task, c.key)}
+                            style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'; }}
+                            onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+                          >
+                            → {c.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
@@ -195,6 +168,63 @@ export default function TasksPage({ employee }: Props) {
           );
         })}
       </div>
+
+      {/* New Task Modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setForm(EMPTY); } }}>
+          <div style={{ width: 420, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeIn 150ms ease' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>New Task</div>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Title *</label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="What needs to be done?" required autoFocus
+                  style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
+                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Description</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional details…" rows={3}
+                  style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', resize: 'none' }}
+                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Priority</label>
+                  <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}
+                    style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
+                  <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
+                    style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button type="button" onClick={() => { setShowModal(false); setForm(EMPTY); }}
+                  style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving || !form.title.trim()}
+                  style={{ flex: 1, height: 40, background: saving || !form.title.trim() ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving || !form.title.trim() ? 'not-allowed' : 'pointer' }}>
+                  {saving ? 'Creating…' : 'Create Task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

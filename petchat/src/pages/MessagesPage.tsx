@@ -8,14 +8,16 @@ interface Props {
 }
 
 export default function MessagesPage({ employee, allEmployees }: Props) {
-  const [contacts, setContacts]     = useState<Employee[]>([]);
-  const [selected, setSelected]     = useState<Employee | null>(null);
-  const [messages, setMessages]     = useState<Message[]>([]);
-  const [text, setText]             = useState('');
-  const [sending, setSending]       = useState(false);
-  const [searchNew, setSearchNew]   = useState('');
-  const [showNew, setShowNew]       = useState(false);
-  const bottomRef                   = useRef<HTMLDivElement>(null);
+  const [contacts, setContacts]   = useState<Employee[]>([]);
+  const [selected, setSelected]   = useState<Employee | null>(null);
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [text, setText]           = useState('');
+  const [sending, setSending]     = useState(false);
+  const [searchNew, setSearchNew] = useState('');
+  const [showNew, setShowNew]     = useState(false);
+  const [dropOver, setDropOver]   = useState(false);
+  const bottomRef                 = useRef<HTMLDivElement>(null);
+  const fileRef                   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getConversationPartners(employee.id, allEmployees).then(partners => {
@@ -34,19 +36,27 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!text.trim() || !selected || sending) return;
     setSending(true);
     const msg = text.trim();
     setText('');
-    await sendMessage({
-      senderId: employee.id, senderName: employee.name,
-      recipientId: selected.id, content: msg, isGroupChat: false,
-    });
-    if (!contacts.find(c => c.id === selected.id)) {
-      setContacts(prev => [selected, ...prev]);
-    }
+    await sendMessage({ senderId: employee.id, senderName: employee.name, recipientId: selected.id, content: msg, isGroupChat: false });
+    if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
     setSending(false);
+  };
+
+  const handleFile = async (file: File) => {
+    if (!selected) return;
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+    await sendMessage({
+      senderId: employee.id, senderName: employee.name, recipientId: selected.id, isGroupChat: false,
+      content: `📎 ${file.name}`,
+      attachment: { name: file.name, size: `${sizeMB} MB`, ext },
+    });
+    if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
   };
 
   const handleNewChat = (emp: Employee) => {
@@ -54,148 +64,160 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
     setSelected(emp); setShowNew(false); setSearchNew('');
   };
 
-  const newChatResults = allEmployees.filter(e =>
+  const newResults = allEmployees.filter(e =>
     e.id !== employee.id &&
     (searchNew === '' || e.name.toLowerCase().includes(searchNew.toLowerCase()))
   );
 
-  const renderAvatar = (emp: Employee, size = 'w-10 h-10') => {
-    const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    const ring = { active: 'avatar-active', idle: 'avatar-idle', blocked: 'avatar-blocked', offline: 'avatar-offline' }[emp.status ?? 'offline'];
-    return (
-      <div className={`${size} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${ring}`}>
-        {initials}
-      </div>
-    );
-  };
+  const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const fmtTime  = (ts: number) => new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   return (
-    <div className="flex h-full" style={{ height: 'calc(100vh - 57px)' }}>
-      {/* Sidebar: contacts */}
-      <div className="w-72 flex-shrink-0 border-r flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold" style={{ color: 'var(--text)' }}>Messages</h3>
-            <button onClick={() => setShowNew(v => !v)}
-              className="w-8 h-8 rounded-lg bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center text-lg transition">+</button>
-          </div>
+    <div style={{ height: '100%', display: 'flex', overflow: 'hidden', animation: 'fadeIn 200ms ease' }}>
 
+      {/* Conversation list */}
+      <div style={{ width: 260, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
+        <div style={{ padding: '16px 12px 10px', borderBottom: '1px solid var(--sidebar-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Messages</span>
+            <button onClick={() => setShowNew(v => !v)}
+              style={{ width: 28, height: 28, borderRadius: 7, background: '#111', border: 'none', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
+          </div>
           {showNew && (
-            <div className="mt-2">
-              <input value={searchNew} onChange={e => setSearchNew(e.target.value)}
-                placeholder="Find a teammate…"
-                className="input w-full text-sm" />
-              <div className="mt-1 max-h-48 overflow-y-auto rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
-                {newChatResults.map(emp => (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px', marginBottom: 6 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" value={searchNew} onChange={e => setSearchNew(e.target.value)} placeholder="Search teammates…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} autoFocus />
+              </div>
+              <div style={{ maxHeight: 200, overflowY: 'auto', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 4 }}>
+                {newResults.map(emp => (
                   <button key={emp.id} onClick={() => handleNewChat(emp)}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left">
-                    {renderAvatar(emp, 'w-7 h-7')}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', border: 'none', background: 'transparent', borderRadius: 7, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'}
+                    onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+                  >
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(emp.name)}</div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{emp.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{emp.department}</p>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
                     </div>
                   </button>
                 ))}
               </div>
             </div>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px', marginTop: showNew ? 6 : 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
           {contacts.length === 0 ? (
-            <div className="p-4 text-center">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No conversations yet.</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Click + to start one</p>
+            <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
+              No conversations.<br />Click + to start one.
             </div>
-          ) : (
-            contacts.map(c => (
-              <button key={c.id}
-                onClick={() => setSelected(c)}
-                className={`w-full flex items-center gap-3 px-4 py-3 transition text-left ${
-                  selected?.id === c.id ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-white/5'
-                }`}
-              >
-                {renderAvatar(c)}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{c.name}</p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{c.department} · {c.status ?? 'offline'}</p>
-                </div>
-              </button>
-            ))
-          )}
+          ) : contacts.map(c => (
+            <div key={c.id} onClick={() => setSelected(c)}
+              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px', borderRadius: 8, cursor: 'pointer', background: selected?.id === c.id ? 'var(--bg)' : 'transparent', marginBottom: 1, transition: 'background 120ms' }}
+              onMouseOver={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
+              onMouseOut={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(c.name)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.department}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Chat area */}
-      {selected ? (
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Chat header */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-            {renderAvatar(selected)}
-            <div>
-              <p className="font-semibold" style={{ color: 'var(--text)' }}>{selected.name}</p>
-              <p className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>{selected.status ?? 'offline'} · {selected.department}</p>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ background: 'var(--bg)' }}>
-            {messages.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-4xl mb-3">💬</p>
-                <p className="font-medium" style={{ color: 'var(--text)' }}>Start the conversation!</p>
-                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Say hi to {selected.name.split(' ')[0]}</p>
+      {/* Thread area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {selected ? (
+          <>
+            {/* Thread header */}
+            <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(selected.name)}</div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{selected.name}</div>
+                <div style={{ fontSize: 11, color: '#22C55E' }}>● {selected.status === 'active' ? 'Online' : selected.status ?? 'Offline'}</div>
               </div>
-            )}
-            {messages.map(msg => {
-              const isMe = msg.senderId === employee.id;
-              const time = new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-              return (
-                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
-                      isMe
-                        ? 'bg-blue-500 text-white rounded-br-sm'
-                        : 'rounded-bl-sm'
-                    }`} style={isMe ? {} : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                      {msg.content}
-                    </div>
-                    <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>{time}</p>
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={bottomRef} />
-          </div>
+            </div>
 
-          {/* Input */}
-          <div className="p-4 border-t flex gap-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-            <input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder={`Message ${selected.name.split(' ')[0]}…`}
-              className="input flex-1"
-              disabled={sending}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!text.trim() || sending}
-              className="px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white font-medium text-sm transition"
+            {/* Messages */}
+            <div
+              style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 8, background: dropOver ? 'rgba(37,99,235,0.03)' : 'var(--bg)', transition: 'background 150ms' }}
+              onDragOver={e => { e.preventDefault(); setDropOver(true); }}
+              onDragLeave={() => setDropOver(false)}
+              onDrop={e => { e.preventDefault(); setDropOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
             >
-              Send ↑
-            </button>
+              {messages.length === 0 && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-faint)' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>Say hello to {selected.name.split(' ')[0]}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>Drop files here to share</span>
+                </div>
+              )}
+              {messages.map((msg, i) => {
+                const isMe = msg.senderId === employee.id;
+                const showSender = !isMe && (i === 0 || messages[i - 1].senderId !== msg.senderId);
+                const att = (msg as any).attachment;
+                return (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
+                    {showSender && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3, paddingLeft: 4 }}>{msg.senderName}</div>}
+                    {att ? (
+                      <div style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
+                        <span style={{ width: 30, height: 30, borderRadius: 7, background: isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: isMe ? '#fff' : 'var(--text)', flexShrink: 0 }}>{att.ext}</span>
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isMe ? '#fff' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                          <span style={{ display: 'block', fontSize: 10, color: isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{att.size}</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '9px 13px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', color: isMe ? '#fff' : 'var(--text)', fontSize: 13, lineHeight: 1.5, borderBottomRightRadius: isMe ? 4 : 12, borderBottomLeftRadius: isMe ? 12 : 4 }}>
+                        {msg.content}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 3, padding: '0 4px' }}>{fmtTime(msg.timestamp)}</div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input */}
+            <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+              <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} style={{ display: 'none' }} />
+              <button type="button" onClick={() => fileRef.current?.click()}
+                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0, cursor: 'pointer' }}
+                onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'}
+                onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+              <input type="text" value={text} onChange={e => setText(e.target.value)}
+                placeholder={`Message ${selected.name.split(' ')[0]}…`}
+                style={{ flex: 1, height: 40, padding: '0 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', minWidth: 0 }}
+                onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                disabled={sending}
+              />
+              <button type="submit" disabled={!text.trim() || sending}
+                style={{ width: 40, height: 40, borderRadius: 8, background: '#111', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.5 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </form>
+          </>
+        ) : (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-faint)' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>Select a conversation</span>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-          <div className="text-center">
-            <p className="text-5xl mb-4">💬</p>
-            <p className="font-semibold text-lg" style={{ color: 'var(--text)' }}>Select a conversation</p>
-            <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>or click + to start a new one</p>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
