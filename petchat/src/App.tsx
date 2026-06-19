@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { onEmployeesChange, loginAdmin, logoutAdmin, onAuthChange } from './services/firebase';
 import { getDocs, collection, query, where } from 'firebase/firestore';
 import { db } from './services/firebase';
@@ -44,10 +44,13 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  useEffect(() => {
-    const unsub = onEmployeesChange(setEmployees);
-    return unsub;
-  }, []);
+  // Employees listener — only safe to start after auth (rules require auth).
+  // We hold the unsubscribe in a ref so we can swap it on login/logout.
+  const empUnsubRef = useRef<(() => void) | null>(null);
+  const startEmpListener = () => {
+    empUnsubRef.current?.();
+    empUnsubRef.current = onEmployeesChange(setEmployees);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -63,10 +66,16 @@ export default function App() {
     }
   }, [currentEmployee?.id]);
 
-  // Restore session from Firebase Auth
+  // Keep a ref of the current employee so the auth listener reads fresh state
+  // (avoids the stale-closure race between handleLogin and onAuthChange).
+  const currentEmpRef = useRef<Employee | null>(currentEmployee);
+  useEffect(() => { currentEmpRef.current = currentEmployee; }, [currentEmployee]);
+
+  // Restore session from Firebase Auth (only if not already signed in via the form)
   useEffect(() => {
     const unsub = onAuthChange(async (user: any) => {
-      if (user && !currentEmployee) {
+      if (user && !currentEmpRef.current) {
+        startEmpListener(); // start before fetching so employees load with the session
         try {
           const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', user.email)));
           if (!snap.empty) {
@@ -84,34 +93,46 @@ export default function App() {
     setLoginError('');
     setLoginLoading(true);
     try {
-      // Try Firebase Auth first
-      try {
-        await loginAdmin(loginEmail, loginPass);
-      } catch {
-        // Auth failed — fall through to email-only lookup (for non-auth employees)
-      }
-      // Look up employee by email in Firestore
-      const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', loginEmail.trim())));
+      const email = loginEmail.trim();
+      // Look up the employee first so we know whether to use Firebase Auth.
+      const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', email)));
       if (snap.empty) {
         setLoginError('No account found for this email. Ask your admin to add you.');
-        setLoginLoading(false);
         return;
       }
       const empDoc = snap.docs[0];
       const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
-      // Verify role matches selection (loose check — founders can access admin)
+
+      // Verify the password. Accounts with a Firebase Auth UID verify through
+      // Auth; otherwise (or if the admin changed the password after creation)
+      // we verify against the stored password. No more "any password works".
+      let verified = false;
+      if (emp.authUid) {
+        try { await loginAdmin(email, loginPass); verified = true; }
+        catch { /* fall through to stored-password check */ }
+      }
+      if (!verified && emp.password) {
+        verified = loginPass === emp.password;
+      }
+      if (!verified) {
+        setLoginError(emp.password || emp.authUid
+          ? 'Incorrect password. Try again or ask your admin to reset it.'
+          : 'No password set for this account. Ask your admin to set one.');
+        return;
+      }
+
+      // Verify role matches selection (founders can access admin areas).
       if (loginRole === 'founder' && emp.role !== 'founder') {
-        setLoginError('You don\'t have founder access.');
-        setLoginLoading(false);
+        setLoginError("You don't have founder access.");
         return;
       }
       if (loginRole === 'admin' && emp.role === 'employee') {
-        setLoginError('You don\'t have admin access.');
-        setLoginLoading(false);
+        setLoginError("You don't have admin access.");
         return;
       }
       setCurrentEmployee(emp);
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
+      startEmpListener(); // start employees listener now that auth is active
     } catch (err: any) {
       setLoginError(err.message || 'Login failed. Check your credentials.');
     } finally {
@@ -121,6 +142,9 @@ export default function App() {
 
   const handleSignOut = async () => {
     try { await logoutAdmin(); } catch { /* ignore */ }
+    empUnsubRef.current?.();
+    empUnsubRef.current = null;
+    setEmployees([]);
     setCurrentEmployee(null);
     setCurrentPage('dashboard');
     setLoginEmail('');
@@ -212,26 +236,6 @@ export default function App() {
                 {loginLoading ? 'Signing in…' : 'Sign in →'}
               </button>
             </form>
-
-            {/* Quick select for dev/demo */}
-            {employees.length > 0 && (
-              <div style={{ marginTop: 20, borderTop: '1px solid #F3F3F2', paddingTop: 16 }}>
-                <p style={{ fontSize: 11, color: '#BBB', marginBottom: 8, textAlign: 'center' }}>Or pick a demo account</p>
-                <select
-                  onChange={e => {
-                    const emp = employees.find(em => em.id === e.target.value);
-                    if (emp) { setCurrentEmployee(emp); setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard'); }
-                  }}
-                  defaultValue=""
-                  style={{ width: '100%', height: 38, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, color: '#555', cursor: 'pointer', outline: 'none' }}
-                >
-                  <option value="" disabled>Select account…</option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name} — {emp.role}</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
           </div>

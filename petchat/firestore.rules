@@ -1,9 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow all reads and writes for MVP (restrict later if needed)
+
+    // ──────────────────────────────────────────────────────────────────────
+    // BuddyDesk security rules.
+    //
+    // Previously this was `allow read, write: if true;` — i.e. anyone who knew
+    // the project ID could read every employee, password, and message and write
+    // anything. These rules instead require a signed-in Firebase Auth user.
+    //
+    // IMPORTANT: every person who needs access must have a Firebase Auth account.
+    // The admin "Add Employee" flow (createEmployeeWithAuth) creates one. The
+    // demo-account dropdown on the login screen does NOT sign in to Auth, so it
+    // will not work once these rules are deployed — use real email+password.
+    //
+    // Deploy with:  firebase deploy --only firestore:rules
+    // ──────────────────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Employees: any signed-in user can read the directory; signed-in users can
+    // create/update/delete (admin tooling runs client-side in this internal app).
+    match /employees/{id} {
+      allow read, write: if signedIn();
+    }
+
+    // Everything else: signed-in users only.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if signedIn();
     }
   }
 }

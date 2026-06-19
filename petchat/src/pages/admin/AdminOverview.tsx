@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Task, LoginLog, CheckInResponse, ActivityEntry } from '../../types';
-import { onAllTasksChange, onLoginLogsChange, onCheckInsChange, onActivityChange, updateEmployeeStatus } from '../../services/firebase';
+import { onAllTasksChange, onLoginLogsChange, onCheckInsChange, onActivityChange, updateEmployeeStatus, todayKey } from '../../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -47,6 +47,7 @@ export default function AdminOverview({ employee, allEmployees }: Props) {
   const [checkIns, setCheckIns]     = useState<CheckInResponse[]>([]);
   const [activity, setActivity]     = useState<ActivityEntry[]>([]);
   const [aiTimer, setAiTimer]       = useState<{ action: string; fn: () => void } | null>(null);
+  const [, setNowTick]              = useState(0);
 
   useEffect(() => {
     const u1 = onAllTasksChange(setTasks);
@@ -56,10 +57,16 @@ export default function AdminOverview({ employee, allEmployees }: Props) {
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Refresh "X ago" labels every minute.
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const today = todayKey();
   const todayLogs  = logs.filter(l => l.date === today);
   const activeNow  = todayLogs.filter(l => !l.logoutTime).length;
-  const todayCI    = checkIns.filter(ci => new Date(ci.date).toDateString() === new Date().toDateString());
+  const todayCI    = checkIns.filter(ci => (ci as any).dateKey === today || todayKey(new Date((ci as any).date)) === today);
   const issues     = todayCI.filter(ci => ci.hasProblems);
   const openTasks  = tasks.filter(t => t.status !== 'done').length;
   const urgentTasks = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done');

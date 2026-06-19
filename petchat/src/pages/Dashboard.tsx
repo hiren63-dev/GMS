@@ -20,6 +20,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const [activeCount, setActiveCount]   = useState(0);
   const [workHours, setWorkHours]       = useState('0h 0m');
   const [clockLoading, setClockLoading] = useState(false);
+  const [clockError, setClockError]     = useState('');
   const [recentConvs, setRecentConvs]   = useState<{ emp: Employee; lastMsg: string; time: string }[]>([]);
 
   useEffect(() => {
@@ -29,28 +30,30 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     getTodaysCheckIn(employee.id).then(setCheckin);
     getTodaysActiveCount().then(setActiveCount);
     return () => { unsub(); unsubA(); };
-  }, [employee]);
+  }, [employee.id]);
 
-  // Load recent conversations preview
+  // Load recent conversations preview (live, leak-free, no shared-state race)
+  const otherIds = allEmployees.filter(e => e.id !== employee.id).slice(0, 3).map(e => e.id).join(',');
   useEffect(() => {
     const others = allEmployees.filter(e => e.id !== employee.id).slice(0, 3);
-    const previews: { emp: Employee; lastMsg: string; time: string }[] = [];
-    let loaded = 0;
-    if (others.length === 0) return;
-    others.forEach(other => {
-      const unsub = onMessagesChange(employee.id, other.id, msgs => {
+    if (others.length === 0) { setRecentConvs([]); return; }
+    const previews: Record<string, { emp: Employee; lastMsg: string; time: string }> = {};
+    const unsubs = others.map(other =>
+      onMessagesChange(employee.id, other.id, msgs => {
         const last = msgs[msgs.length - 1];
         if (last) {
-          const t = new Date(last.timestamp);
-          const timeStr = t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-          previews.push({ emp: other, lastMsg: last.content.slice(0, 40), time: timeStr });
+          const timeStr = new Date(last.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+          const text = last.content ?? (last.attachment ? `📎 ${last.attachment.name}` : '');
+          previews[other.id] = { emp: other, lastMsg: text.slice(0, 40), time: timeStr };
+        } else {
+          delete previews[other.id];
         }
-        loaded++;
-        if (loaded === others.length) setRecentConvs([...previews]);
-        unsub();
-      });
-    });
-  }, [employee, allEmployees]);
+        setRecentConvs(Object.values(previews));
+      })
+    );
+    return () => unsubs.forEach(u => u());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id, otherIds]);
 
   // Live work-hours counter
   useEffect(() => {
@@ -70,6 +73,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
 
   const handleClock = async () => {
     setClockLoading(true);
+    setClockError('');
     try {
       if (!log || log.logoutTime) {
         await logLogin(employee.id, employee.name);
@@ -79,6 +83,9 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
         await logLogout(log.id, employee.id);
         setLog(prev => prev ? { ...prev, logoutTime: Date.now() } : null);
       }
+    } catch (err) {
+      console.error('Clock action failed:', err);
+      setClockError('Could not update your clock status. Check your connection and try again.');
     } finally { setClockLoading(false); }
   };
 
@@ -121,6 +128,12 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
           {clockLoading ? '…' : isClockedIn ? `Clock Out · ${workHours}` : 'Clock In'}
         </button>
       </div>
+
+      {clockError && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 16 }}>
+          {clockError}
+        </div>
+      )}
 
       {/* Pinned announcements */}
       {announcements.filter(a => a.pinned).slice(0, 1).map(a => (

@@ -1,45 +1,19 @@
 {
   "indexes": [
     {
-      "collectionGroup": "messages",
-      "queryScope": "Collection",
+      "collectionGroup": "loginLogs",
+      "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "isGroupChat",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "checkInResponses",
-      "queryScope": "Collection",
-      "fields": [
-        {
-          "fieldPath": "employeeId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "date",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "employeeId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "loginLogs",
-      "queryScope": "Collection",
+      "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "employeeId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "date",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "employeeId", "order": "ASCENDING" },
+        { "fieldPath": "loginTime", "order": "DESCENDING" }
       ]
     }
   ],

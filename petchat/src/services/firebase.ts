@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getFirestore, collection, addDoc, query, where, onSnapshot,
   updateDoc, doc, getDocs, deleteDoc, setDoc, orderBy, limit,
@@ -25,11 +25,20 @@ const snapList = <T>(ref: any, cb: (items: T[]) => void) =>
   onSnapshot(ref, (s: any) => cb(s.docs.map((d: any) => ({ id: d.id, ...d.data() }) as T)));
 
 const toMs = (v: any): number => {
-  if (!v) return Date.now();
+  if (v === null || v === undefined) return 0;
   if (typeof v === 'number') return v;
   if (v instanceof Timestamp) return v.toMillis();
   if (v?.toMillis) return v.toMillis();
-  return new Date(v).getTime();
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** Local-timezone date key (YYYY-MM-DD). Avoids the UTC off-by-one for IST users. */
+export const todayKey = (d: Date = new Date()): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -51,22 +60,33 @@ export const generatePassword = (): string => {
   return `${w1}${nums()}${w2}${sym}${nums()}`;
 };
 
-/** Create Firebase Auth user + Firestore employee record. Stores password in Firestore for admin reference. */
+/**
+ * Create Firebase Auth user + Firestore employee record.
+ * Uses a *secondary* Firebase app so creating the account does NOT sign the
+ * admin out of their own session (createUserWithEmailAndPassword auto-switches
+ * the active user on the app instance it's called against).
+ * Stores password in Firestore for admin reference (internal tool).
+ */
 export const createEmployeeWithAuth = async (
   emp: Omit<Employee, 'id'> & { password: string }
 ): Promise<string> => {
-  // Create Auth account
-  const cred = await createUserWithEmailAndPassword(auth, emp.email, emp.password);
-  // Store in Firestore with password field (internal tool — admin needs to see it)
-  const ref = await addDoc(collection(db, 'employees'), {
-    name: emp.name, email: emp.email, department: emp.department,
-    role: emp.role, status: 'offline',
-    shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
-    password: emp.password,   // stored so admin can view/copy it
-    authUid: cred.user.uid,
-    createdAt: Date.now(),
-  });
-  return ref.id;
+  const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, emp.email, emp.password);
+    const ref = await addDoc(collection(db, 'employees'), {
+      name: emp.name, email: emp.email, department: emp.department,
+      role: emp.role, status: 'offline',
+      shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
+      password: emp.password,   // stored so admin can view/copy it
+      authUid: cred.user.uid,
+      createdAt: Date.now(),
+    });
+    await signOut(secondaryAuth).catch(() => {});
+    return ref.id;
+  } finally {
+    await deleteApp(secondaryApp).catch(() => {});
+  }
 };
 
 export const addEmployee = (e: Omit<Employee, 'id'>) =>
@@ -90,10 +110,21 @@ export const updateEmployeeStatus = (id: string, status: Employee['status']) =>
 
 // ── Messages ──────────────────────────────────────────────────────────────
 export const sendMessage = (msg: Record<string, any>) =>
-  addDoc(collection(db, 'messages'), { ...msg, timestamp: Date.now() });
+  addDoc(collection(db, 'messages'), {
+    ...msg,
+    // `participants` lets us query only a user's own messages via array-contains
+    // (single-field index, no composite index needed) instead of scanning the
+    // whole collection.
+    participants: msg.isGroupChat
+      ? []
+      : [msg.senderId, msg.recipientId].filter(Boolean),
+    timestamp: Date.now(),
+  });
 
 export const onMessagesChange = (userId: string, otherId: string, cb: (msgs: any[]) => void) => {
-  const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
+  // Only fetch messages this user is part of, then narrow to the pair + sort
+  // client-side (avoids a composite index requirement on participants+timestamp).
+  const q = query(collection(db, 'messages'), where('participants', 'array-contains', userId));
   return onSnapshot(q, s => {
     const msgs = s.docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -102,20 +133,41 @@ export const onMessagesChange = (userId: string, otherId: string, cb: (msgs: any
           (m.senderId === userId && m.recipientId === otherId) ||
           (m.senderId === otherId && m.recipientId === userId)
         )
-      );
+      )
+      .sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
     cb(msgs);
   });
 };
 
 export const getConversationPartners = async (userId: string, allEmployees: Employee[]): Promise<Employee[]> => {
-  const s = await getDocs(query(collection(db, 'messages'), where('isGroupChat', '==', false)));
+  const s = await getDocs(query(collection(db, 'messages'), where('participants', 'array-contains', userId)));
   const partnerIds = new Set<string>();
   s.docs.forEach(d => {
     const m = d.data() as any;
+    if (m.isGroupChat) return;
     if (m.senderId === userId) partnerIds.add(m.recipientId);
     if (m.recipientId === userId) partnerIds.add(m.senderId);
   });
   return allEmployees.filter(e => partnerIds.has(e.id) && e.id !== userId);
+};
+
+/** Live conversation-partner list (real-time, fixes stale contact list). */
+export const onConversationPartnersChange = (
+  userId: string,
+  allEmployees: Employee[],
+  cb: (partners: Employee[]) => void,
+) => {
+  const q = query(collection(db, 'messages'), where('participants', 'array-contains', userId));
+  return onSnapshot(q, s => {
+    const partnerIds = new Set<string>();
+    s.docs.forEach(d => {
+      const m = d.data() as any;
+      if (m.isGroupChat) return;
+      if (m.senderId === userId) partnerIds.add(m.recipientId);
+      if (m.recipientId === userId) partnerIds.add(m.senderId);
+    });
+    cb(allEmployees.filter(e => partnerIds.has(e.id) && e.id !== userId));
+  });
 };
 
 // ── Tasks ─────────────────────────────────────────────────────────────────
@@ -140,7 +192,7 @@ export const onAllTasksChange = (cb: (tasks: Task[]) => void) =>
 
 // ── Login / Time Tracking ─────────────────────────────────────────────────
 export const logLogin = async (employeeId: string, employeeName: string): Promise<string> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKey();
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
   if (!s.empty) return s.docs[0].id;
@@ -164,7 +216,7 @@ export const logLogout = async (logId: string, employeeId: string) => {
 };
 
 export const getTodaysLog = async (employeeId: string): Promise<LoginLog | null> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKey();
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
   if (s.empty) return null;
@@ -178,29 +230,38 @@ export const getTimeLogs = async (employeeId: string, limitN = 7): Promise<Login
 };
 
 export const onLoginLogsChange = (cb: (logs: LoginLog[]) => void) =>
-  snapList<LoginLog>(collection(db, 'loginLogs'), cb);
+  snapList<LoginLog>(query(collection(db, 'loginLogs'), orderBy('loginTime', 'desc'), limit(300)), cb);
 
 export const getTodaysActiveCount = async (): Promise<number> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKey();
   const q = query(collection(db, 'loginLogs'), where('date', '==', today));
   const s = await getDocs(q);
   return s.docs.filter(d => !(d.data() as any).logoutTime).length;
 };
 
 // ── Check-Ins ─────────────────────────────────────────────────────────────
-export const submitCheckIn = (ci: Omit<CheckInResponse, 'id'>) =>
-  addDoc(collection(db, 'checkIns'), { ...ci, date: Date.now(), status: 'completed' });
+/** Upserts today's check-in — submitting twice in one day overwrites, never duplicates. */
+export const submitCheckIn = async (ci: Omit<CheckInResponse, 'id'>) => {
+  const payload = { ...ci, date: Date.now(), dateKey: todayKey(), status: 'completed' as const };
+  const existing = await getTodaysCheckIn(ci.employeeId);
+  if (existing) return updateDoc(doc(db, 'checkIns', existing.id), payload as any);
+  return addDoc(collection(db, 'checkIns'), payload);
+};
 
 export const getTodaysCheckIn = async (employeeId: string): Promise<CheckInResponse | null> => {
-  const todayStr = new Date().toDateString();
+  // Query only this employee's check-ins (single-field index), then match today.
   const q = query(collection(db, 'checkIns'), where('employeeId', '==', employeeId));
   const s = await getDocs(q);
-  const d = s.docs.find(x => new Date(toMs((x.data() as any).date)).toDateString() === todayStr);
+  const key = todayKey();
+  const d = s.docs.find(x => {
+    const data = x.data() as any;
+    return data.dateKey === key || todayKey(new Date(toMs(data.date))) === key;
+  });
   return d ? ({ id: d.id, ...d.data() } as CheckInResponse) : null;
 };
 
 export const onCheckInsChange = (cb: (cis: CheckInResponse[]) => void) =>
-  snapList<CheckInResponse>(collection(db, 'checkIns'), cb);
+  snapList<CheckInResponse>(query(collection(db, 'checkIns'), orderBy('date', 'desc'), limit(300)), cb);
 
 // ── Announcements ─────────────────────────────────────────────────────────
 export const createAnnouncement = (a: Omit<Announcement, 'id'>) =>
@@ -239,7 +300,11 @@ export const onObjectivesChange = (cb: (items: Objective[]) => void) =>
 
 // ── Activity Feed ─────────────────────────────────────────────────────────
 export const logActivity = (entry: Omit<ActivityEntry, 'id'>) =>
-  addDoc(collection(db, 'activity'), entry).catch(() => {});
+  addDoc(collection(db, 'activity'), entry).catch(e => console.warn('logActivity failed:', e));
+
+/** Log a completed task to the activity feed (feeds Founder "Tasks Done" metric). */
+export const logTaskDone = (employeeId: string, employeeName: string, taskTitle: string) =>
+  logActivity({ employeeId, employeeName, type: 'task_done', detail: `Completed "${taskTitle}"`, timestamp: Date.now() });
 
 export const onActivityChange = (cb: (items: ActivityEntry[]) => void) => {
   const q = query(collection(db, 'activity'), orderBy('timestamp', 'desc'), limit(50));

@@ -19,6 +19,7 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
   const [aiResponse, setAiResponse]   = useState('');
   const [showQA, setShowQA]           = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const qaRef     = useRef<HTMLDivElement>(null);
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -30,6 +31,21 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // ⌘K / Ctrl+K focuses the search box (the hint shown in the bar now works).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Clean up the AI countdown timer on unmount.
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   useEffect(() => {
     if (!search.trim()) { setResults([]); setSearchOpen(false); return; }
@@ -52,9 +68,9 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           setAiCounting(false);
-          setAiResponse(`Got it! Processing: "${aiText}"`);
+          setAiResponse('AI isn\'t connected yet — add a provider in Integrations.');
           setAiText('');
-          setTimeout(() => setAiResponse(''), 3000);
+          setTimeout(() => setAiResponse(''), 4000);
           return 4;
         }
         return prev - 1;
@@ -87,11 +103,12 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
+            ref={searchInputRef}
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             onFocus={() => search && setSearchOpen(true)}
-            placeholder="Search people, tasks…"
+            placeholder="Search people…"
             style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', minWidth: 0 }}
           />
           <span style={{ fontSize: 10, color: 'var(--text-faint)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>⌘K</span>
@@ -128,7 +145,7 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
             type="text"
             value={aiText}
             onChange={e => setAiText(e.target.value)}
-            placeholder={aiResponse || 'Ask AI… e.g. "Summarize today\'s tasks"'}
+            placeholder={aiResponse || 'Ask AI… (connect a provider in Integrations)'}
             style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', minWidth: 0 }}
           />
         </div>

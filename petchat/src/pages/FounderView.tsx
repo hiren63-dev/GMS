@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Employee, Objective, KeyResult, ActivityEntry, LoginLog } from '../types';
-import { onObjectivesChange, createObjective, updateObjective, deleteObjective, onActivityChange, onLoginLogsChange } from '../services/firebase';
+import { onObjectivesChange, createObjective, updateObjective, deleteObjective, onActivityChange, onLoginLogsChange, todayKey } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -15,7 +15,7 @@ const OKR_STATUS_COLORS = {
 };
 
 function KRBar({ kr }: { kr: KeyResult }) {
-  const pct = Math.min(100, Math.round((kr.current / kr.target) * 100));
+  const pct = kr.target > 0 ? Math.min(100, Math.round((kr.current / kr.target) * 100)) : 0;
   const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
   return (
     <div className="mb-3">
@@ -38,6 +38,9 @@ export default function FounderView({ employee, allEmployees }: Props) {
   const [editingKR, setEditingKR]   = useState<{ objId: string; krIdx: number; value: string } | null>(null);
   const [newTitle, setNewTitle]     = useState('');
   const [newQuarter, setNewQuarter] = useState(`Q${Math.ceil((new Date().getMonth() + 1) / 3)} ${new Date().getFullYear()}`);
+  const [krModal, setKrModal]       = useState<{ objId: string } | null>(null);
+  const [krForm, setKrForm]         = useState({ title: '', target: '', unit: '%' });
+  const [krError, setKrError]       = useState('');
 
   useEffect(() => {
     const u1 = onObjectivesChange(setObjectives);
@@ -46,8 +49,15 @@ export default function FounderView({ employee, allEmployees }: Props) {
     return () => { u1(); u2(); u3(); };
   }, []);
 
+  // Refresh "X ago" labels every minute.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const activeToday = new Set(
-    logs.filter(l => l.date === new Date().toISOString().split('T')[0] && !l.logoutTime).map(l => l.employeeId)
+    logs.filter(l => l.date === todayKey() && !l.logoutTime).map(l => l.employeeId)
   ).size;
 
   const deptGroups = allEmployees.reduce<Record<string, Employee[]>>((acc, e) => {
@@ -64,13 +74,27 @@ export default function FounderView({ employee, allEmployees }: Props) {
     setShowNewOKR(false); setNewTitle('');
   };
 
-  const handleAddKR = async (obj: Objective) => {
-    const title = prompt('Key Result title:');
-    const target = parseFloat(prompt('Target number:') || '100');
-    const unit = prompt('Unit (%, users, $, etc.):') || '%';
-    if (!title) return;
-    const kr: KeyResult = { id: Date.now().toString(), title, current: 0, target, unit };
-    await updateObjective(obj.id, { keyResults: [...obj.keyResults, kr] });
+  const openAddKR = (obj: Objective) => {
+    setKrForm({ title: '', target: '', unit: '%' });
+    setKrError('');
+    setKrModal({ objId: obj.id });
+  };
+
+  const submitKR = async () => {
+    if (!krModal) return;
+    const obj = objectives.find(o => o.id === krModal.objId);
+    if (!obj) { setKrModal(null); return; }
+    const target = parseFloat(krForm.target);
+    if (!krForm.title.trim()) { setKrError('Enter a title.'); return; }
+    if (!Number.isFinite(target) || target <= 0) { setKrError('Target must be a number greater than 0.'); return; }
+    const kr: KeyResult = { id: Date.now().toString(), title: krForm.title.trim(), current: 0, target, unit: krForm.unit.trim() || '%' };
+    try {
+      await updateObjective(obj.id, { keyResults: [...obj.keyResults, kr] });
+      setKrModal(null);
+    } catch (err) {
+      console.error('Failed to add key result:', err);
+      setKrError('Could not save. Please try again.');
+    }
   };
 
   const handleUpdateKR = async (obj: Objective, krIdx: number, current: number) => {
@@ -153,7 +177,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
 
           {objectives.map(obj => {
             const avgPct = obj.keyResults.length
-              ? Math.round(obj.keyResults.reduce((s, kr) => s + (kr.current / kr.target) * 100, 0) / obj.keyResults.length)
+              ? Math.round(obj.keyResults.reduce((s, kr) => s + (kr.target > 0 ? Math.min(100, (kr.current / kr.target) * 100) : 0), 0) / obj.keyResults.length)
               : 0;
             return (
               <div key={obj.id} className="card p-5">
@@ -213,13 +237,13 @@ export default function FounderView({ employee, allEmployees }: Props) {
                     ) : (
                       <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface2)' }}>
                         <div className="h-full rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (kr.current / kr.target) * 100)}%`, background: '#7C3AED' }} />
+                          style={{ width: `${kr.target > 0 ? Math.min(100, (kr.current / kr.target) * 100) : 0}%`, background: '#7C3AED' }} />
                       </div>
                     )}
                   </div>
                 ))}
 
-                <button onClick={() => handleAddKR(obj)}
+                <button onClick={() => openAddKR(obj)}
                   className="text-xs text-blue-500 hover:text-blue-600 font-medium mt-1">+ Add Key Result</button>
               </div>
             );
@@ -278,6 +302,35 @@ export default function FounderView({ employee, allEmployees }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Add Key Result modal */}
+      {krModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setKrModal(null); }}>
+          <div style={{ width: 400, background: 'var(--surface)', borderRadius: 12, padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 18 }}>Add Key Result</div>
+            {krError && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{krError}</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input value={krForm.title} onChange={e => setKrForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Key result e.g. Sign 20 new customers" className="input w-full" autoFocus />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input type="number" value={krForm.target} onChange={e => setKrForm(f => ({ ...f, target: e.target.value }))}
+                  placeholder="Target" className="input" style={{ flex: 1 }} min={1} />
+                <input value={krForm.unit} onChange={e => setKrForm(f => ({ ...f, unit: e.target.value }))}
+                  placeholder="Unit (%, users, $)" className="input" style={{ flex: 1 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
+                <button onClick={() => setKrModal(null)}
+                  style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={submitKR}
+                  style={{ flex: 1, height: 40, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

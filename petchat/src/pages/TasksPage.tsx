@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Employee, Task, Priority, TaskStatus } from '../types';
-import { onUserTasksChange, createTask, updateTask, deleteTask } from '../services/firebase';
+import { onUserTasksChange, createTask, updateTask, deleteTask, logTaskDone } from '../services/firebase';
 
 interface Props { employee: Employee; }
 
@@ -29,17 +29,30 @@ export default function TasksPage({ employee }: Props) {
     e.preventDefault();
     if (!form.title.trim()) return;
     setSaving(true);
-    await createTask({
-      title: form.title.trim(), description: form.description,
-      assigneeId: employee.id, assigneeName: employee.name,
-      priority: form.priority, status: 'todo',
-      dueDate: form.dueDate ? new Date(form.dueDate).getTime() : undefined,
-    });
-    setForm(EMPTY); setShowModal(false); setSaving(false);
+    try {
+      await createTask({
+        title: form.title.trim(), description: form.description,
+        assigneeId: employee.id, assigneeName: employee.name,
+        priority: form.priority, status: 'todo',
+        dueDate: form.dueDate ? new Date(form.dueDate).getTime() : undefined,
+      });
+      setForm(EMPTY); setShowModal(false);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      alert('Could not create the task. Please check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const moveTo = (task: Task, status: TaskStatus) =>
-    updateTask(task.id, { status, ...(status === 'done' ? { completedAt: Date.now() } : {}) });
+  const moveTo = (task: Task, status: TaskStatus) => {
+    updateTask(task.id, { status, ...(status === 'done' ? { completedAt: Date.now() } : {}) })
+      .catch(err => console.error('Failed to update task:', err));
+    // Feed the Founder "Tasks Done" metric + activity log on completion.
+    if (status === 'done' && task.status !== 'done') {
+      logTaskDone(employee.id, employee.name, task.title);
+    }
+  };
 
   const onDrop = (col: TaskStatus) => {
     if (dragId) {
@@ -82,7 +95,7 @@ export default function TasksPage({ employee }: Props) {
           return (
             <div key={col.key}
               onDragOver={e => { e.preventDefault(); setOverCol(col.key); }}
-              onDragLeave={() => setOverCol(null)}
+              onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null); }}
               onDrop={() => onDrop(col.key)}
               className="kanban-col"
               style={{ background: isOver ? 'rgba(37,99,235,0.03)' : 'var(--surface)', borderColor: isOver ? '#2563EB' : 'var(--border)', transition: 'background 150ms, border-color 150ms' }}
@@ -109,7 +122,7 @@ export default function TasksPage({ employee }: Props) {
                       onDragStart={() => setDragId(task.id)}
                       onDragEnd={() => { setDragId(null); setOverCol(null); }}
                       style={{
-                        background: '#fff',
+                        background: 'var(--surface)',
                         border: '1px solid var(--border)',
                         borderRadius: 8, padding: '12px 13px', marginBottom: 7,
                         cursor: 'grab',
@@ -128,10 +141,11 @@ export default function TasksPage({ employee }: Props) {
                         <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111', lineHeight: 1.4, textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.5 : 1 }}>
                           {task.title}
                         </div>
-                        <button onClick={() => deleteTask(task.id)}
+                        <button onClick={() => { if (confirm(`Delete "${task.title}"?`)) deleteTask(task.id).catch(err => console.error('Failed to delete task:', err)); }}
                           style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, lineHeight: 1, flexShrink: 0, fontSize: 14 }}
                           onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = '#DC2626'}
                           onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-faint)'}
+                          title="Delete task"
                         >×</button>
                       </div>
 

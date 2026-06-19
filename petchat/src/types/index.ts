@@ -19,6 +19,8 @@ export interface Employee {
   shiftEnd?: string;
   lastSeen?: number;
   createdAt?: number;
+  password?: string;     // stored plaintext for admin reference (internal tool)
+  authUid?: string;      // Firebase Auth UID, if account created via createEmployeeWithAuth
 }
 
 export interface Message {
@@ -28,10 +30,12 @@ export interface Message {
   senderAvatar?: string;
   recipientId?: string;
   groupId?: string;
+  participants?: string[];   // [senderId, recipientId] for DM querying
   content: string;
   isGroupChat: boolean;
   timestamp: number;
   read?: boolean;
+  attachment?: { name: string; size: string; ext: string };
 }
 
 export interface Task {
@@ -67,6 +71,7 @@ export interface CheckInResponse {
   employeeId: string;
   employeeName: string;
   date: number;
+  dateKey?: string;     // 'YYYY-MM-DD' local — dedupes one check-in per day
   mood: Mood;
   isFeelingGood: boolean;
   workDone: string;

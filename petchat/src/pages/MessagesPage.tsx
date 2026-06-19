@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
-import { sendMessage, onMessagesChange, getConversationPartners } from '../services/firebase';
+import { sendMessage, onMessagesChange, onConversationPartnersChange } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -14,17 +14,24 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
   const [text, setText]           = useState('');
   const [sending, setSending]     = useState(false);
   const [searchNew, setSearchNew] = useState('');
+  const [convSearch, setConvSearch] = useState('');
   const [showNew, setShowNew]     = useState(false);
   const [dropOver, setDropOver]   = useState(false);
   const bottomRef                 = useRef<HTMLDivElement>(null);
   const fileRef                   = useRef<HTMLInputElement>(null);
 
+  // Stable ID string so the listener only re-subscribes when employees actually change.
+  const allEmpIds = allEmployees.map(e => e.id).join(',');
+
+  // Live conversation partners (updates when a new message arrives, no manual refresh)
   useEffect(() => {
-    getConversationPartners(employee.id, allEmployees).then(partners => {
+    const unsub = onConversationPartnersChange(employee.id, allEmployees, partners => {
       setContacts(partners);
-      if (partners.length > 0 && !selected) setSelected(partners[0]);
+      setSelected(prev => prev ?? (partners[0] ?? null));
     });
-  }, [allEmployees, employee.id]);
+    return unsub;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id, allEmpIds]);
 
   useEffect(() => {
     if (!selected) return;
@@ -72,6 +79,20 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
   const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const fmtTime  = (ts: number) => new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
+  const STATUS_META: Record<string, { color: string; label: string }> = {
+    active:  { color: '#22C55E', label: 'Online' },
+    idle:    { color: '#F59E0B', label: 'Idle' },
+    blocked: { color: '#EF4444', label: 'Blocked' },
+    offline: { color: '#9CA3AF', label: 'Offline' },
+  };
+  const statusOf = (s?: string) => STATUS_META[s ?? 'offline'] ?? STATUS_META.offline;
+
+  const visibleContacts = contacts.filter(c =>
+    !convSearch ||
+    c.name.toLowerCase().includes(convSearch.toLowerCase()) ||
+    c.department.toLowerCase().includes(convSearch.toLowerCase())
+  );
+
   return (
     <div style={{ height: '100%', display: 'flex', overflow: 'hidden', animation: 'fadeIn 200ms ease' }}>
 
@@ -108,16 +129,16 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px', marginTop: showNew ? 6 : 0 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" placeholder="Search…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} />
+            <input type="text" value={convSearch} onChange={e => setConvSearch(e.target.value)} placeholder="Search conversations…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} />
           </div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
-          {contacts.length === 0 ? (
+          {visibleContacts.length === 0 ? (
             <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-              No conversations.<br />Click + to start one.
+              {convSearch ? 'No matches.' : <>No conversations.<br />Click + to start one.</>}
             </div>
-          ) : contacts.map(c => (
+          ) : visibleContacts.map(c => (
             <div key={c.id} onClick={() => setSelected(c)}
               style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px', borderRadius: 8, cursor: 'pointer', background: selected?.id === c.id ? 'var(--bg)' : 'transparent', marginBottom: 1, transition: 'background 120ms' }}
               onMouseOver={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
@@ -142,7 +163,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(selected.name)}</div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{selected.name}</div>
-                <div style={{ fontSize: 11, color: '#22C55E' }}>● {selected.status === 'active' ? 'Online' : selected.status ?? 'Offline'}</div>
+                <div style={{ fontSize: 11, color: statusOf(selected.status).color }}>● {statusOf(selected.status).label}</div>
               </div>
             </div>
 
@@ -168,7 +189,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
                   <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
                     {showSender && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3, paddingLeft: 4 }}>{msg.senderName}</div>}
                     {att ? (
-                      <div style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
+                      <div title="File reference (name & size only — actual upload needs Firebase Storage)" style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
                         <span style={{ width: 30, height: 30, borderRadius: 7, background: isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: isMe ? '#fff' : 'var(--text)', flexShrink: 0 }}>{att.ext}</span>
                         <span style={{ minWidth: 0 }}>
                           <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isMe ? '#fff' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
@@ -190,7 +211,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
             {/* Input */}
             <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
               <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} style={{ display: 'none' }} />
-              <button type="button" onClick={() => fileRef.current?.click()}
+              <button type="button" onClick={() => fileRef.current?.click()} title="Share a file reference (name & size). Actual file upload requires Firebase Storage."
                 style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0, cursor: 'pointer' }}
                 onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'}
                 onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'}

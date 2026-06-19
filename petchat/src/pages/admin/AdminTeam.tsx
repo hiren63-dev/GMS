@@ -62,7 +62,10 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
           password: form.password,
         });
-        showToast(`✓ ${form.name} added — password: ${form.password}`);
+        // Don't print the password on screen (shoulder-surfing / screen-share risk).
+        // Copy it to the clipboard instead; it also stays visible in the table for the admin.
+        navigator.clipboard?.writeText(form.password).catch(() => {});
+        showToast(`✓ ${form.name} added. Password copied to clipboard.`);
       }
       resetForm();
       setShowForm(false);
@@ -89,10 +92,19 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Remove ${selected.size} employees?`)) return;
-    await Promise.all([...selected].map(id => deleteEmployee(id)));
-    setSelected(new Set());
-    showToast(`${selected.size} employees removed.`);
+    // Never bulk-delete your own account — you'd be removed from the team you're managing.
+    const ids = [...selected].filter(id => id !== employee.id);
+    if (ids.length === 0) { showToast("You can't remove your own account here."); return; }
+    const count = ids.length;
+    if (!confirm(`Remove ${count} employee${count > 1 ? 's' : ''}?`)) return;
+    try {
+      await Promise.all(ids.map(id => deleteEmployee(id)));
+      setSelected(new Set());
+      showToast(`${count} employee${count > 1 ? 's' : ''} removed.`);
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+      showToast('Some removals failed. Please try again.');
+    }
   };
 
   const copyPw = (pw: string) => { navigator.clipboard.writeText(pw); showToast('Password copied!'); };
@@ -226,6 +238,14 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
             {!editId && (
               <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                 The password is stored so you can share it with the employee and look it up later.
+              </p>
+            )}
+            {editId && (
+              <p style={{ fontSize: 11, color: '#CA8A04', marginTop: 6, lineHeight: 1.5 }}>
+                ⚠ This updates the stored password shown in the table. The employee's actual
+                login will accept the new password too — but if their account also has a Firebase
+                Auth record, the old Auth password keeps working until reset from Firebase Console →
+                Authentication (or via “forgot password”).
               </p>
             )}
           </div>
