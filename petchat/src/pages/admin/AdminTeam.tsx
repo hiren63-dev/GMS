@@ -97,13 +97,14 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     if (ids.length === 0) { showToast("You can't remove your own account here."); return; }
     const count = ids.length;
     if (!confirm(`Remove ${count} employee${count > 1 ? 's' : ''}?`)) return;
-    try {
-      await Promise.all(ids.map(id => deleteEmployee(id)));
-      setSelected(new Set());
-      showToast(`${count} employee${count > 1 ? 's' : ''} removed.`);
-    } catch (err) {
-      console.error('Bulk delete failed:', err);
-      showToast('Some removals failed. Please try again.');
+    const results = await Promise.allSettled(ids.map(id => deleteEmployee(id)));
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const succeeded = ids.length - failed;
+    setSelected(new Set());
+    if (failed > 0) {
+      showToast(`${succeeded} removed, ${failed} could not be deleted — try again.`);
+    } else {
+      showToast(`${succeeded} employee${succeeded > 1 ? 's' : ''} removed.`);
     }
   };
 
@@ -117,7 +118,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
-  const toggleAll = () => setSelected(s => s.size === filtered.length ? new Set() : new Set(filtered.map(e => e.id)));
+  const toggleAll = () => setSelected(() => filtered.every(e => selected.has(e.id)) ? new Set() : new Set(filtered.map(e => e.id)));
 
   const statusDot: Record<string, string> = { active: '#22C55E', idle: '#F59E0B', blocked: '#EF4444', offline: '#D1D5DB' };
 
@@ -283,7 +284,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
               <th style={{ padding: '10px 14px', textAlign: 'left', width: 40 }}>
-                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} style={{ cursor: 'pointer' }} />
+                <input type="checkbox" checked={filtered.length > 0 && filtered.every(e => selected.has(e.id))} onChange={toggleAll} style={{ cursor: 'pointer' }} />
               </th>
               {['Employee', 'Department', 'Role', 'Status', 'Shift', 'Password', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{h}</th>

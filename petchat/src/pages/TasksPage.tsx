@@ -20,6 +20,7 @@ export default function TasksPage({ employee }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm]         = useState<NewTask>(EMPTY);
   const [saving, setSaving]     = useState(false);
+  const [createError, setCreateError] = useState('');
   const [dragId, setDragId]     = useState<string | null>(null);
   const [overCol, setOverCol]   = useState<TaskStatus | null>(null);
 
@@ -36,10 +37,10 @@ export default function TasksPage({ employee }: Props) {
         priority: form.priority, status: 'todo',
         dueDate: form.dueDate ? new Date(form.dueDate).getTime() : undefined,
       });
-      setForm(EMPTY); setShowModal(false);
+      setForm(EMPTY); setShowModal(false); setCreateError('');
     } catch (err) {
       console.error('Failed to create task:', err);
-      alert('Could not create the task. Please check your connection and try again.');
+      setCreateError('Could not create the task. Check your connection and try again.');
     } finally {
       setSaving(false);
     }
@@ -186,10 +187,15 @@ export default function TasksPage({ employee }: Props) {
       {/* New Task Modal */}
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setForm(EMPTY); } }}>
+          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setForm(EMPTY); setCreateError(''); } }}>
           <div style={{ width: 420, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeIn 150ms ease' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>New Task</div>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {createError && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>
+                  {createError}
+                </div>
+              )}
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Title *</label>
                 <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -226,7 +232,7 @@ export default function TasksPage({ employee }: Props) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <button type="button" onClick={() => { setShowModal(false); setForm(EMPTY); }}
+                <button type="button" onClick={() => { setShowModal(false); setForm(EMPTY); setCreateError(''); }}
                   style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>
                   Cancel
                 </button>

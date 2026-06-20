@@ -72,8 +72,9 @@ export default function ScreentimePage({ targetEmployee }: Props) {
   const maxMin = Math.max(...hourActivity, 1);
 
   // Stats
-  const totalHours = logs.reduce((s, l) => s + (l.duration ?? 0), 0);
-  const avgHours   = logs.length > 0 ? totalHours / logs.filter(l => l.logoutTime).length : 0;
+  const totalHours   = logs.reduce((s, l) => s + (l.duration ?? 0), 0);
+  const completedLogs = logs.filter(l => l.logoutTime);
+  const avgHours     = completedLogs.length > 0 ? totalHours / completedLogs.length : 0;
   const todayHours = todayLog ? ((todayLog.logoutTime ?? Date.now()) - todayLog.loginTime) / 3600000 : 0;
   const tasksDone  = tasks.filter(t => t.status === 'done').length;
   const taskTotal  = tasks.length;

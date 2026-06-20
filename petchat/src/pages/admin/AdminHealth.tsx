@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getDocs, collection, query, limit, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../../services/firebase';
 import type { Employee } from '../../types';
@@ -29,6 +29,7 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
   const [checks, setChecks] = useState<Check[]>([]);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<Date | null>(null);
+  const ranWithEmployees = useRef(false);
 
   const runChecks = async () => {
     setRunning(true);
@@ -145,6 +146,15 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
   };
 
   useEffect(() => { runChecks(); }, []);
+
+  // Re-run once employees arrive if the initial run had no employees to test with
+  useEffect(() => {
+    if (allEmployees.length > 0 && !ranWithEmployees.current) {
+      ranWithEmployees.current = true;
+      runChecks();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEmployees.length]);
 
   const okCount    = checks.filter(c => c.status === 'ok').length;
   const warnCount  = checks.filter(c => c.status === 'warn').length;

@@ -80,7 +80,9 @@ export default function App() {
           const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', user.email)));
           if (!snap.empty) {
             const doc = snap.docs[0];
-            setCurrentEmployee({ id: doc.id, ...doc.data() } as Employee);
+            const empData = { id: doc.id, ...doc.data() } as Employee;
+            setCurrentEmployee(empData);
+            setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
           }
         } catch { /* ignore */ }
       }
@@ -174,7 +176,11 @@ export default function App() {
 
   const navigate = (page: string, id?: string) => {
     setCurrentPage(page as Page);
-    if (id) setScreentimeId(id);
+    if (id) {
+      setScreentimeId(id);
+    } else if (page === 'screentime') {
+      setScreentimeId(null); // navigating to screentime without a target → show own data
+    }
   };
 
   // ── Login screen ──────────────────────────────────────────────────────────

@@ -7,6 +7,58 @@ interface Props {
   allEmployees: Employee[];
 }
 
+interface AnnouncementCardProps {
+  a: Announcement;
+  canPost: boolean;
+  onPin: (a: Announcement) => void;
+  onDelete: (id: string) => void;
+}
+
+function AnnouncementCard({ a, canPost, onPin, onDelete }: AnnouncementCardProps) {
+  const expired = a.expiresAt && a.expiresAt < Date.now();
+  if (expired) return null;
+  return (
+    <div className={`card p-5 border-l-4 ${a.pinned ? 'border-l-blue-500' : 'border-l-transparent'} animate-slide-in`}
+      style={{ opacity: expired ? 0.5 : 1 }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {a.pinned && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">📌 Pinned</span>}
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
+              {a.audience.join(', ')}
+            </span>
+          </div>
+          <h4 className="font-semibold" style={{ color: 'var(--text)' }}>{a.title}</h4>
+          <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{a.body}</p>
+          <div className="flex items-center gap-3 mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span>👤 {a.authorName}</span>
+            <span>·</span>
+            <span>{new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            {a.expiresAt && (
+              <>
+                <span>·</span>
+                <span>Expires {new Date(a.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+              </>
+            )}
+          </div>
+        </div>
+        {canPost && (
+          <div className="flex gap-1 flex-shrink-0">
+            <button onClick={() => onPin(a)} title={a.pinned ? 'Unpin' : 'Pin'}
+              className="text-sm p-1.5 rounded-lg transition hover:bg-gray-100 dark:hover:bg-white/10"
+              style={{ color: a.pinned ? '#3B82F6' : 'var(--text-muted)' }}>📌</button>
+            <button onClick={() => onDelete(a.id)}
+              className="text-sm p-1.5 rounded-lg transition hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
+              style={{ color: 'var(--text-muted)' }}>🗑️</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AnnouncementsPage({ employee, allEmployees }: Props) {
   const [all, setAll]       = useState<Announcement[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -41,51 +93,6 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
   const handleDelete = (id: string) => { if (confirm('Delete this announcement?')) deleteAnnouncement(id); };
 
   const departments = Array.from(new Set(allEmployees.map(e => e.department)));
-
-  const AnnouncementCard = ({ a }: { a: Announcement }) => {
-    const expired = a.expiresAt && a.expiresAt < Date.now();
-    if (expired) return null;
-    return (
-      <div className={`card p-5 border-l-4 ${a.pinned ? 'border-l-blue-500' : 'border-l-transparent'} animate-slide-in`}
-        style={{ opacity: expired ? 0.5 : 1 }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              {a.pinned && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">📌 Pinned</span>}
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
-                {a.audience.join(', ')}
-              </span>
-            </div>
-            <h4 className="font-semibold" style={{ color: 'var(--text)' }}>{a.title}</h4>
-            <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{a.body}</p>
-            <div className="flex items-center gap-3 mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-              <span>👤 {a.authorName}</span>
-              <span>·</span>
-              <span>{new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-              {a.expiresAt && (
-                <>
-                  <span>·</span>
-                  <span>Expires {new Date(a.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                </>
-              )}
-            </div>
-          </div>
-          {canPost && (
-            <div className="flex gap-1 flex-shrink-0">
-              <button onClick={() => togglePin(a)} title={a.pinned ? 'Unpin' : 'Pin'}
-                className="text-sm p-1.5 rounded-lg transition hover:bg-gray-100 dark:hover:bg-white/10"
-                style={{ color: a.pinned ? '#3B82F6' : 'var(--text-muted)' }}>📌</button>
-              <button onClick={() => handleDelete(a.id)}
-                className="text-sm p-1.5 rounded-lg transition hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
-                style={{ color: 'var(--text-muted)' }}>🗑️</button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="p-6 space-y-5 animate-slide-in">
@@ -148,7 +155,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
       {pinned.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>📌 Pinned</h3>
-          {pinned.map(a => <AnnouncementCard key={a.id} a={a} />)}
+          {pinned.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} onPin={togglePin} onDelete={handleDelete} />)}
         </div>
       )}
 
@@ -157,7 +164,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
         {pinned.length > 0 && normal.length > 0 && (
           <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Latest</h3>
         )}
-        {normal.map(a => <AnnouncementCard key={a.id} a={a} />)}
+        {normal.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} onPin={togglePin} onDelete={handleDelete} />)}
       </div>
 
       {visible.length === 0 && (

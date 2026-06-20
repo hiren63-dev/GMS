@@ -7,6 +7,68 @@ interface Props {
   allEmployees: Employee[];
 }
 
+interface WorkloadCardProps {
+  entry: WorkloadEntry;
+  isDraggingOver: boolean;
+  canManage: boolean;
+  onDragOver: (id: string) => void;
+  onDragLeave: () => void;
+  onDrop: (id: string) => void;
+}
+
+function WorkloadCard({ entry, isDraggingOver, canManage, onDragOver, onDragLeave, onDrop }: WorkloadCardProps) {
+  const { employee: emp, taskCount, urgentCount, capacity, status } = entry;
+  const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const ring = { active: 'avatar-active', idle: 'avatar-idle', blocked: 'avatar-blocked', offline: 'avatar-offline' }[emp.status ?? 'offline'];
+  const barColor = status === 'overloaded' ? '#EF4444' : status === 'available' ? '#10B981' : '#6366F1';
+  const statusBadge = {
+    overloaded: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    available:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    balanced:   'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  }[status];
+
+  return (
+    <div
+      className={`card p-4 transition-all duration-200 ${isDraggingOver ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}`}
+      onDragOver={e => { e.preventDefault(); onDragOver(emp.id); }}
+      onDragLeave={onDragLeave}
+      onDrop={() => onDrop(emp.id)}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${ring}`}>
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{emp.name}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{emp.department}</p>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge}`}>{status}</span>
+      </div>
+
+      <div className="mb-2">
+        <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+          <span>Workload</span>
+          <span className="font-semibold" style={{ color: 'var(--text)' }}>{capacity}%</span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${capacity}%`, background: barColor }} />
+        </div>
+      </div>
+
+      <div className="flex gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span>📋 {taskCount} tasks</span>
+        {urgentCount > 0 && <span className="text-red-500">🚨 {urgentCount} urgent</span>}
+      </div>
+
+      {isDraggingOver && canManage && (
+        <div className="mt-2 text-xs text-blue-500 font-medium text-center">
+          Drop to reassign here
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ResourcesPage({ employee, allEmployees }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dragTask, setDragTask] = useState<Task | null>(null);
@@ -36,60 +98,6 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
     if (!targetEmp) return;
     await updateTask(dragTask.id, { assigneeId: employeeId, assigneeName: targetEmp.name });
     setDragTask(null); setDragOver(null);
-  };
-
-  const WorkloadCard = ({ entry }: { entry: WorkloadEntry }) => {
-    const { employee: emp, taskCount, urgentCount, capacity, status } = entry;
-    const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    const ring = { active: 'avatar-active', idle: 'avatar-idle', blocked: 'avatar-blocked', offline: 'avatar-offline' }[emp.status ?? 'offline'];
-    const isDraggingOver = dragOver === emp.id;
-    const barColor = status === 'overloaded' ? '#EF4444' : status === 'available' ? '#10B981' : '#6366F1';
-    const statusBadge = {
-      overloaded: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-      available:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-      balanced:   'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    }[status];
-
-    return (
-      <div
-        className={`card p-4 transition-all duration-200 ${isDraggingOver ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}`}
-        onDragOver={e => { e.preventDefault(); setDragOver(emp.id); }}
-        onDragLeave={() => setDragOver(null)}
-        onDrop={() => handleDrop(emp.id)}
-      >
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${ring}`}>
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{emp.name}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{emp.department}</p>
-          </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge}`}>{status}</span>
-        </div>
-
-        <div className="mb-2">
-          <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-            <span>Workload</span>
-            <span className="font-semibold" style={{ color: 'var(--text)' }}>{capacity}%</span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
-            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${capacity}%`, background: barColor }} />
-          </div>
-        </div>
-
-        <div className="flex gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-          <span>📋 {taskCount} tasks</span>
-          {urgentCount > 0 && <span className="text-red-500">🚨 {urgentCount} urgent</span>}
-        </div>
-
-        {isDraggingOver && canManage && (
-          <div className="mt-2 text-xs text-blue-500 font-medium text-center">
-            Drop to reassign here
-          </div>
-        )}
-      </div>
-    );
   };
 
   const unassignedTasks = tasks.filter(t => !t.assigneeId && t.status !== 'done');
@@ -126,7 +134,7 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-red-500">🔥 Overloaded</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {overloaded.map(e => <WorkloadCard key={e.employee.id} entry={e} />)}
+                  {overloaded.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
                 </div>
               </div>
             )}
@@ -134,7 +142,7 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-blue-500">⚖️ Balanced</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {balanced.map(e => <WorkloadCard key={e.employee.id} entry={e} />)}
+                  {balanced.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
                 </div>
               </div>
             )}
@@ -142,7 +150,7 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-green-500">✅ Available</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {available.map(e => <WorkloadCard key={e.employee.id} entry={e} />)}
+                  {available.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
                 </div>
               </div>
             )}

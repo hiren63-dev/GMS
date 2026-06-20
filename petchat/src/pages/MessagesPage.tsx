@@ -210,7 +210,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
 
             {/* Input */}
             <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} style={{ display: 'none' }} />
+              <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ''; } }} style={{ display: 'none' }} />
               <button type="button" onClick={() => fileRef.current?.click()} title="Share a file reference (name & size). Actual file upload requires Firebase Storage."
                 style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0, cursor: 'pointer' }}
                 onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'}

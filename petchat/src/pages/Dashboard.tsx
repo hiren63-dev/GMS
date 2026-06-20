@@ -3,7 +3,7 @@ import type { Employee, Task, LoginLog, CheckInResponse, Announcement } from '..
 import {
   onUserTasksChange, getTodaysLog, logLogin, logLogout,
   getTodaysCheckIn, filterAnnouncements, onAnnouncementsChange,
-  getTodaysActiveCount, onMessagesChange,
+  onMessagesChange,
 } from '../services/firebase';
 
 interface Props {
@@ -17,7 +17,6 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const [log, setLog]                   = useState<LoginLog | null>(null);
   const [checkin, setCheckin]           = useState<CheckInResponse | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [activeCount, setActiveCount]   = useState(0);
   const [workHours, setWorkHours]       = useState('0h 0m');
   const [clockLoading, setClockLoading] = useState(false);
   const [clockError, setClockError]     = useState('');
@@ -28,7 +27,6 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     const unsubA = onAnnouncementsChange(items => setAnnouncements(filterAnnouncements(items, employee)));
     getTodaysLog(employee.id).then(setLog);
     getTodaysCheckIn(employee.id).then(setCheckin);
-    getTodaysActiveCount().then(setActiveCount);
     return () => { unsub(); unsubA(); };
   }, [employee.id]);
 
@@ -95,6 +93,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const urgent     = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
   const total      = tasks.length;
   const pct        = total ? Math.round((done / total) * 100) : 0;
+  const activeCount = allEmployees.filter(e => e.status === 'active').length;
   const isClockedIn = log && !log.logoutTime;
 
   const hour = new Date().getHours();

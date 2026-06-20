@@ -195,7 +195,11 @@ export const logLogin = async (employeeId: string, employeeName: string): Promis
   const today = todayKey();
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
-  if (!s.empty) return s.docs[0].id;
+  if (!s.empty) {
+    const existing = s.docs[0].data() as any;
+    // Return existing log only if still clocked in; if clocked out, fall through to create a new entry
+    if (!existing.logoutTime) return s.docs[0].id;
+  }
   const ref = await addDoc(collection(db, 'loginLogs'), {
     employeeId, employeeName,
     loginTime: Date.now(), logoutTime: null, date: today,
@@ -220,7 +224,9 @@ export const getTodaysLog = async (employeeId: string): Promise<LoginLog | null>
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
   if (s.empty) return null;
-  return { id: s.docs[0].id, ...s.docs[0].data() } as LoginLog;
+  // Sort client-side to get the most recent log (handles multiple clock-ins in one day)
+  const sorted = [...s.docs].sort((a, b) => ((b.data() as any).loginTime ?? 0) - ((a.data() as any).loginTime ?? 0));
+  return { id: sorted[0].id, ...sorted[0].data() } as LoginLog;
 };
 
 export const getTimeLogs = async (employeeId: string, limitN = 7): Promise<LoginLog[]> => {

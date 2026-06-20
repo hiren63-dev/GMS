@@ -14,21 +14,6 @@ const OKR_STATUS_COLORS = {
   achieved: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 };
 
-function KRBar({ kr }: { kr: KeyResult }) {
-  const pct = kr.target > 0 ? Math.min(100, Math.round((kr.current / kr.target) * 100)) : 0;
-  const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
-  return (
-    <div className="mb-3">
-      <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-        <span>{kr.title}</span>
-        <span className="font-semibold" style={{ color: 'var(--text)' }}>{kr.current}/{kr.target} {kr.unit}</span>
-      </div>
-      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
 
 export default function FounderView({ employee, allEmployees }: Props) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
@@ -197,7 +182,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                       <option value="off_track">Off Track</option>
                       <option value="achieved">Achieved</option>
                     </select>
-                    <button onClick={() => deleteObjective(obj.id)}
+                    <button onClick={() => { if (confirm(`Delete objective "${obj.title}"? All key results will be removed.`)) deleteObjective(obj.id); }}
                       className="text-xs text-red-400 hover:text-red-600 transition">✕</button>
                   </div>
                 </div>
@@ -229,8 +214,12 @@ export default function FounderView({ employee, allEmployees }: Props) {
                         <input type="number" value={editingKR.value}
                           onChange={e => setEditingKR({ ...editingKR, value: e.target.value })}
                           className="input flex-1 text-xs py-1" />
-                        <button onClick={() => { handleUpdateKR(obj, i, parseFloat(editingKR.value)); setEditingKR(null); }}
-                          className="text-xs px-3 py-1 bg-green-500 text-white rounded-lg">Save</button>
+                        <button onClick={() => {
+                          const val = parseFloat(editingKR.value);
+                          if (!Number.isFinite(val) || val < 0) return;
+                          handleUpdateKR(obj, i, val);
+                          setEditingKR(null);
+                        }} className="text-xs px-3 py-1 bg-green-500 text-white rounded-lg">Save</button>
                         <button onClick={() => setEditingKR(null)}
                           className="text-xs px-3 py-1 rounded-lg" style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>✕</button>
                       </div>
@@ -285,7 +274,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                   const icon = { login: '🟢', logout: '🔴', task_done: '✅', check_in: '📋', message: '💬', task_created: '📌' }[a.type] ?? '•';
                   const color = { login: 'text-green-500', logout: 'text-red-500', task_done: 'text-blue-500', check_in: 'text-purple-500', message: 'text-indigo-500', task_created: 'text-orange-500' }[a.type] ?? '';
                   const mins = Math.round((Date.now() - a.timestamp) / 60000);
-                  const timeStr = mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
+                  const timeStr = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`;
                   return (
                     <div key={a.id} className="flex items-start gap-2 text-xs">
                       <span className="mt-0.5">{icon}</span>
