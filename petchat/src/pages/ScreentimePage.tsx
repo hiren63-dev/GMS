@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Employee, LoginLog, Task, CheckInResponse } from '../types';
-import { getTimeLogs, onUserTasksChange, getTodaysCheckIn } from '../services/firebase';
+import { getTimeLogs, onUserTasksChange, getTodaysCheckIn, todayKey } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -59,7 +59,7 @@ export default function ScreentimePage({ targetEmployee }: Props) {
   }, [targetEmployee.id]);
 
   // Build hourly activity map for today
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayKey();
   const todayLog = logs.find(l => l.date === todayStr);
   const hourActivity: number[] = new Array(24).fill(0);
   if (todayLog?.loginTime) {

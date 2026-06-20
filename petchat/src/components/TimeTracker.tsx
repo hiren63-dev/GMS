@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Employee, LoginLog } from '../types';
-import { logLogin, logLogout, getTodaysLog, getTimeLogs } from '../services/firebase';
+import { logLogin, logLogout, getTodaysLog, getTimeLogs, todayKey } from '../services/firebase';
 
 interface Props { employee: Employee; }
 
@@ -143,7 +143,7 @@ export default function TimeTracker({ employee }: Props) {
               const dur = log.duration ?? (log.logoutTime ? (log.logoutTime - log.loginTime) / 3600000 : null);
               const loginStr = new Date(log.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
               const logoutStr = log.logoutTime ? new Date(log.logoutTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
-              const isToday = log.date === new Date().toISOString().split('T')[0];
+              const isToday = log.date === todayKey();
               return (
                 <div key={log.id} className="flex items-center justify-between p-3 rounded-lg"
                   style={{ background: isToday ? 'rgba(99,102,241,0.08)' : 'var(--surface2)' }}>

@@ -92,6 +92,9 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
+    // Tracks whether we successfully signed into Firebase Auth during this attempt,
+    // so we can sign back out if the role check or password check fails.
+    let firebaseSignedIn = false;
     try {
       const email = loginEmail.trim();
       // Look up the employee first so we know whether to use Firebase Auth.
@@ -104,17 +107,29 @@ export default function App() {
       const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
 
       // Verify the password. Accounts with a Firebase Auth UID verify through
-      // Auth; otherwise (or if the admin changed the password after creation)
-      // we verify against the stored password. No more "any password works".
+      // Auth; otherwise we verify against the stored password.
       let verified = false;
       if (emp.authUid) {
-        try { await loginAdmin(email, loginPass); verified = true; }
-        catch { /* fall through to stored-password check */ }
+        // Pre-assign the ref so that the onAuthStateChanged callback triggered by
+        // loginAdmin() sees a non-null value and skips session-restore logic.
+        // Without this, the auth listener would race ahead and log the user in
+        // before the role check below can run.
+        currentEmpRef.current = emp;
+        try {
+          await loginAdmin(email, loginPass);
+          verified = true;
+          firebaseSignedIn = true;
+        } catch {
+          // Firebase Auth failed; fall through to stored-password check.
+          currentEmpRef.current = null;
+        }
       }
       if (!verified && emp.password) {
         verified = loginPass === emp.password;
       }
       if (!verified) {
+        currentEmpRef.current = null;
+        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
         setLoginError(emp.password || emp.authUid
           ? 'Incorrect password. Try again or ask your admin to reset it.'
           : 'No password set for this account. Ask your admin to set one.');
@@ -123,10 +138,14 @@ export default function App() {
 
       // Verify role matches selection (founders can access admin areas).
       if (loginRole === 'founder' && emp.role !== 'founder') {
+        currentEmpRef.current = null;
+        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
         setLoginError("You don't have founder access.");
         return;
       }
       if (loginRole === 'admin' && emp.role === 'employee') {
+        currentEmpRef.current = null;
+        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
         setLoginError("You don't have admin access.");
         return;
       }
@@ -134,6 +153,8 @@ export default function App() {
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
       startEmpListener(); // start employees listener now that auth is active
     } catch (err: any) {
+      currentEmpRef.current = null;
+      if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
       setLoginError(err.message || 'Login failed. Check your credentials.');
     } finally {
       setLoginLoading(false);

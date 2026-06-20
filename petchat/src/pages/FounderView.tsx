@@ -108,7 +108,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
 
   const moods = activity.filter(a => a.type === 'check_in');
   const tasksCompleted = activity.filter(a => a.type === 'task_done').length;
-  const todayLogins = logs.filter(l => l.date === new Date().toISOString().split('T')[0]).length;
+  const todayLogins = logs.filter(l => l.date === todayKey()).length;
 
   return (
     <div className="p-6 space-y-6 animate-slide-in">

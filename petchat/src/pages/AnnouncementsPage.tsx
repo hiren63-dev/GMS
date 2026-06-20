@@ -18,7 +18,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
     return onAnnouncementsChange(setAll);
   }, []);
 
-  const visible = filterAnnouncements(all, employee);
+  const visible = filterAnnouncements(all, employee).filter(a => !a.expiresAt || a.expiresAt >= Date.now());
   const pinned  = visible.filter(a => a.pinned);
   const normal  = visible.filter(a => !a.pinned);
 
