@@ -13,12 +13,12 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon.svg">
   <script>
-    // Register service worker for PWA installability
+    // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(function(){});
     }
 
-    // Capture the install prompt before it fires
+    // Capture PWA install prompt early
     window.deferredInstallPrompt = null;
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
@@ -29,55 +29,92 @@
     var _bdIsStandalone = !!(window.navigator.standalone ||
       window.matchMedia('(display-mode: standalone)').matches);
 
-    window.__bdInstall = async function() {
-      if (!window.deferredInstallPrompt) return;
-      window.deferredInstallPrompt.prompt();
-      await window.deferredInstallPrompt.userChoice;
-      window.deferredInstallPrompt = null;
-      var el = document.getElementById('bd-install-ui');
-      if (el) el.remove();
+    // Show modal with install instructions for all platforms
+    window.__bdShowInstallHelp = function() {
+      if (document.getElementById('bd-modal')) return;
+      var m = document.createElement('div');
+      m.id = 'bd-modal';
+      m.style.cssText = 'position:fixed;inset:0;z-index:9999999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+      m.innerHTML =
+        '<div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:400px;width:100%;font-family:-apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+        + '<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px;">Install BuddyDesk</div>'
+        + '<div style="font-size:13px;color:#888;margin-bottom:20px;">Get quick access from your home screen or desktop.</div>'
+        + '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">'
+        + '<div style="padding:14px;background:#F7F7F6;border-radius:10px;font-size:13px;line-height:1.6;color:#444;">'
+        + '<strong style="color:#111;display:block;margin-bottom:2px;">&#128187; Windows / Mac (Chrome or Edge)</strong>'
+        + 'Look for the install icon in the address bar, or click the &#8942; menu &rarr; "Install BuddyDesk".'
+        + '</div>'
+        + '<div style="padding:14px;background:#F7F7F6;border-radius:10px;font-size:13px;line-height:1.6;color:#444;">'
+        + '<strong style="color:#111;display:block;margin-bottom:2px;">&#128241; Android (Chrome)</strong>'
+        + 'Tap the 3-dot menu &rarr; "Add to Home screen" or "Install app".'
+        + '</div>'
+        + '<div style="padding:14px;background:#F7F7F6;border-radius:10px;font-size:13px;line-height:1.6;color:#444;">'
+        + '<strong style="color:#111;display:block;margin-bottom:2px;">&#63743; iPhone / iPad (Safari)</strong>'
+        + 'Tap Share &#8679; at the bottom &rarr; "Add to Home Screen".'
+        + '</div>'
+        + '</div>'
+        + '<button onclick="document.getElementById(\'bd-modal\').remove()" style="width:100%;height:44px;background:#111;color:#fff;border:none;border-radius:10px;font:600 14px/1 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;">Got it</button>'
+        + '</div>';
+      m.addEventListener('click', function(e) { if (e.target===m) m.remove(); });
+      document.body.appendChild(m);
     };
 
-    function _bdInjectUI() {
+    // Install handler — native prompt if available, else show instructions
+    window.__bdInstall = async function() {
+      if (window.deferredInstallPrompt) {
+        window.deferredInstallPrompt.prompt();
+        await window.deferredInstallPrompt.userChoice;
+        window.deferredInstallPrompt = null;
+        var el = document.getElementById('bd-install-ui');
+        if (el) el.remove();
+      } else {
+        window.__bdShowInstallHelp();
+      }
+    };
+
+    // Inject the always-visible Install button once app body is ready
+    function _bdInjectButton() {
       if (_bdIsStandalone || document.getElementById('bd-install-ui')) return;
       var ui = document.createElement('div');
       ui.id = 'bd-install-ui';
-      if (window.deferredInstallPrompt) {
-        // Chrome / Edge / Android — show Install button top-right
-        ui.style.cssText = 'position:fixed;top:10px;right:10px;z-index:999999;';
-        ui.innerHTML = '<button onclick="window.__bdInstall()" '
-          + 'onmouseover="this.style.background=\'#333\'" '
-          + 'onmouseout="this.style.background=\'#111\'" '
-          + 'style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#111;'
-          + 'color:#fff;border:none;border-radius:8px;'
-          + 'font:500 13px/1 -apple-system,BlinkMacSystemFont,sans-serif;'
-          + 'cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.25);letter-spacing:-0.01em;">'
-          + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
-          + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
-          + '<polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
-          + 'Install App</button>';
-      } else if (_bdIsIOS) {
-        // iOS Safari — show bottom banner with Share instructions
-        ui.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;'
-          + 'background:#111;color:#fff;padding:14px 20px 20px;'
+      ui.style.cssText = 'position:fixed;top:10px;right:10px;z-index:999999;';
+      ui.innerHTML =
+        '<button onclick="window.__bdInstall()" '
+        + 'onmouseover="this.style.background=\'#222\'" '
+        + 'onmouseout="this.style.background=\'#111\'" '
+        + 'style="display:flex;align-items:center;gap:7px;padding:8px 14px;background:#111;'
+        + 'color:#fff;border:none;border-radius:8px;'
+        + 'font:500 13px/1 -apple-system,BlinkMacSystemFont,sans-serif;'
+        + 'cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);letter-spacing:-0.01em;white-space:nowrap;">'
+        + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+        + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+        + '<polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+        + 'Install App</button>';
+
+      // iOS: also show bottom banner
+      if (_bdIsIOS) {
+        var ios = document.createElement('div');
+        ios.id = 'bd-ios-banner';
+        ios.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;'
+          + 'background:#111;color:#fff;padding:14px 20px 22px;'
           + 'font:13px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;';
-        ui.innerHTML = 'Install BuddyDesk on iPhone/iPad: tap '
-          + '<strong>Share &#9650;</strong> then <strong>Add to Home Screen</strong>'
-          + '&nbsp;<button onclick="document.getElementById(\'bd-install-ui\').remove()" '
+        ios.innerHTML = 'Install BuddyDesk: tap <strong>Share &#8679;</strong> &rarr; <strong>Add to Home Screen</strong>'
+          + '&nbsp;<button onclick="this.parentElement.remove()" '
           + 'style="margin-left:10px;padding:4px 10px;background:rgba(255,255,255,0.15);'
-          + 'color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;'
-          + 'font-size:12px;cursor:pointer;">Got it</button>';
+          + 'color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;font-size:12px;cursor:pointer;">Got it</button>';
+        document.body.appendChild(ios);
       }
-      if (ui.innerHTML) document.body.appendChild(ui);
+
+      document.body.appendChild(ui);
     }
 
-    // Poll until app body renders (bundler decompresses + React boots ~1-3s)
+    // Poll every 250ms until the app body has rendered (bundler swap + React mount ~1-3s)
     var _bdN = 0;
     var _bdT = setInterval(function() {
       _bdN++;
-      if (_bdN > 120) { clearInterval(_bdT); return; }
+      if (_bdN > 200) { clearInterval(_bdT); return; }
       if (document.body && document.body.children.length > 0) {
-        _bdInjectUI();
+        _bdInjectButton();
         clearInterval(_bdT);
       }
     }, 250);
