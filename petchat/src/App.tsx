@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { onEmployeesChange, loginAdmin, logoutAdmin, onAuthChange } from './services/firebase';
-import { getDocs, collection, query, where } from 'firebase/firestore';
+import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { db } from './services/firebase';
 import type { Employee } from './types';
 import type { Page } from './components/Sidebar';
@@ -37,9 +37,9 @@ export default function App() {
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
 
-  // Login form state
-  const [loginRole, setLoginRole]   = useState<LoginRole>('employee');
-  const [loginEmail, setLoginEmail] = useState('');
+  // Login form state — pre-fill from last session
+  const [loginRole, setLoginRole]   = useState<LoginRole>(() => (localStorage.getItem('lastRole') as LoginRole) || 'employee');
+  const [loginEmail, setLoginEmail] = useState(() => localStorage.getItem('lastEmail') || '');
   const [loginPass, setLoginPass]   = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -75,16 +75,33 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthChange(async (user: any) => {
       if (user && !currentEmpRef.current) {
-        startEmpListener(); // start before fetching so employees load with the session
+        startEmpListener();
         try {
           const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', user.email)));
           if (!snap.empty) {
-            const doc = snap.docs[0];
-            const empData = { id: doc.id, ...doc.data() } as Employee;
+            const d = snap.docs[0];
+            const empData = { id: d.id, ...d.data() } as Employee;
             setCurrentEmployee(empData);
             setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
           }
         } catch { /* ignore */ }
+      } else if (!user && !currentEmpRef.current) {
+        // Restore stored-password sessions from localStorage
+        const savedId = localStorage.getItem('savedEmpId');
+        if (savedId) {
+          try {
+            const snap = await getDoc(doc(db, 'employees', savedId));
+            if (snap.exists()) {
+              const empData = { id: snap.id, ...snap.data() } as Employee;
+              currentEmpRef.current = empData;
+              startEmpListener();
+              setCurrentEmployee(empData);
+              setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
+            } else {
+              localStorage.removeItem('savedEmpId');
+            }
+          } catch { localStorage.removeItem('savedEmpId'); }
+        }
       }
     });
     return unsub;
@@ -151,6 +168,10 @@ export default function App() {
         setLoginError("You don't have admin access.");
         return;
       }
+      // Persist session for next visit
+      localStorage.setItem('lastEmail', email);
+      localStorage.setItem('lastRole', loginRole);
+      if (!emp.authUid) localStorage.setItem('savedEmpId', emp.id);
       setCurrentEmployee(emp);
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
       startEmpListener(); // start employees listener now that auth is active
@@ -165,12 +186,12 @@ export default function App() {
 
   const handleSignOut = async () => {
     try { await logoutAdmin(); } catch { /* ignore */ }
+    localStorage.removeItem('savedEmpId');
     empUnsubRef.current?.();
     empUnsubRef.current = null;
     setEmployees([]);
     setCurrentEmployee(null);
     setCurrentPage('dashboard');
-    setLoginEmail('');
     setLoginPass('');
   };
 
