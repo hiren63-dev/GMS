@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import type { Employee, Department, Role, Permission, PendingAccount } from '../../types';
+import { useState } from 'react';
+import type { Employee, Department, Role, Permission } from '../../types';
 import {
   updateEmployee, deleteEmployee,
   createEmployeeWithAuth, generatePassword,
-  onPendingAccountsChange, approvePendingAccount, rejectPendingAccount,
 } from '../../services/firebase';
 
 const ALL_PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
@@ -36,29 +35,9 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
   const [revealPw, setRevealPw]       = useState<Set<string>>(new Set());
   const [toast, setToast]             = useState('');
   const [createError, setCreateError] = useState('');
-  const [pending, setPending]         = useState<PendingAccount[]>([]);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-
-  useEffect(() => onPendingAccountsChange(setPending), []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
-  const handleApprove = async (p: PendingAccount) => {
-    setApprovingId(p.id);
-    try {
-      await approvePendingAccount(p);
-      showToast(`✓ ${p.name} approved — password copied to clipboard.`);
-      navigator.clipboard?.writeText(p.password).catch(() => {});
-    } catch (err: any) {
-      showToast(`Failed: ${err.message ?? 'Try again.'}`);
-    } finally { setApprovingId(null); }
-  };
-
-  const handleReject = async (p: PendingAccount) => {
-    if (!confirm(`Reject ${p.name}'s request?`)) return;
-    await rejectPendingAccount(p.id);
-    showToast(`${p.name}'s request rejected.`);
-  };
 
   const filtered = (allEmployees as EmpWithPw[]).filter(e => {
     const q = search.toLowerCase();
@@ -168,44 +147,6 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     <div style={{ padding: 24, animation: 'fadeIn 200ms ease' }}>
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
-
-      {/* Pending Approvals */}
-      {pending.length > 0 && (
-        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 16 }}>🔔</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#92400E' }}>Pending Account Requests</span>
-            <span style={{ marginLeft: 4, background: '#F59E0B', color: '#fff', borderRadius: 99, fontSize: 11, fontWeight: 700, padding: '1px 8px' }}>{pending.length}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pending.map(p => (
-              <div key={p.id} style={{ background: '#fff', border: '1px solid #FDE68A', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{p.name}</div>
-                  <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{p.email} · {p.department} · {p.role}</div>
-                  {p.note && <div style={{ fontSize: 12, color: '#888', marginTop: 4, fontStyle: 'italic' }}>"{p.note}"</div>}
-                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                    Requested {new Date(p.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace', background: '#F3F3F2', padding: '4px 10px', borderRadius: 6 }} title="Generated password">
-                    🔑 {p.password}
-                  </div>
-                  <button onClick={() => handleApprove(p)} disabled={approvingId === p.id}
-                    style={{ height: 34, padding: '0 16px', background: '#16A34A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: approvingId === p.id ? 0.6 : 1 }}>
-                    {approvingId === p.id ? '…' : '✓ Approve'}
-                  </button>
-                  <button onClick={() => handleReject(p)}
-                    style={{ height: 34, padding: '0 14px', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                    Reject
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>

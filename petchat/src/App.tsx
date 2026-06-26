@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createPendingAccount, generatePassword } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, generatePassword } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import type { Department, Role } from './types';
 import { db } from './services/firebase';
@@ -44,12 +44,16 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Sign-up form state
-  const [showSignUp, setShowSignUp]     = useState(false);
-  const [signUpForm, setSignUpForm]     = useState({ name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, password: '', note: '' });
+  // Sign-up / forgot-password panel: 'none' | 'signup' | 'forgot'
+  const [authPanel, setAuthPanel]       = useState<'none' | 'signup' | 'forgot'>('none');
+  const [signUpForm, setSignUpForm]     = useState({ name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, password: '' });
   const [signUpLoading, setSignUpLoading] = useState(false);
   const [signUpDone, setSignUpDone]     = useState(false);
   const [signUpError, setSignUpError]   = useState('');
+  // Forgot password
+  const [forgotEmail, setForgotEmail]   = useState('');
+  const [forgotResult, setForgotResult] = useState<{ password?: string; sent?: boolean; error?: string } | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Employees listener — only safe to start after auth (rules require auth).
   // We hold the unsubscribe in a ref so we can swap it on login/logout.
@@ -208,21 +212,45 @@ export default function App() {
     setSignUpError('');
     setSignUpLoading(true);
     try {
-      await loginAnon();
-      await createPendingAccount({
+      const pw = signUpForm.password.trim() || generatePassword();
+      await createEmployeeWithAuth({
         name: signUpForm.name.trim(),
         email: signUpForm.email.trim(),
         department: signUpForm.department,
         role: signUpForm.role,
-        password: signUpForm.password || generatePassword(),
-        note: signUpForm.note.trim(),
-        requestedAt: Date.now(),
+        status: 'offline',
+        password: pw,
+        permissions: [],
       });
       setSignUpDone(true);
     } catch (err: any) {
-      setSignUpError(err.message || 'Failed to submit request. Try again.');
+      setSignUpError(err.message || 'Failed to create account. Try again.');
     } finally {
       setSignUpLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotResult(null);
+    setForgotLoading(true);
+    try {
+      await loginAnon();
+      const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', forgotEmail.trim())));
+      if (snap.empty) {
+        setForgotResult({ error: 'No account found with this email.' });
+        return;
+      }
+      const emp = snap.docs[0].data() as any;
+      if (emp.password) {
+        setForgotResult({ password: emp.password });
+      } else {
+        setForgotResult({ error: 'No stored password found. Contact your admin.' });
+      }
+    } catch (err: any) {
+      setForgotResult({ error: err.message || 'Failed. Try again.' });
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -305,80 +333,118 @@ export default function App() {
 
             <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
 
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
-              <button onClick={() => { setShowSignUp(v => !v); setSignUpDone(false); setSignUpError(''); }}
-                style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                {showSignUp ? 'Already have an account? Sign in' : "Don't have an account? Request access"}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+              <button onClick={() => { setAuthPanel(p => p === 'forgot' ? 'none' : 'forgot'); setForgotResult(null); setForgotEmail(''); }}
+                style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
+                Forgot password?
+              </button>
+              <button onClick={() => { setAuthPanel(p => p === 'signup' ? 'none' : 'signup'); setSignUpDone(false); setSignUpError(''); }}
+                style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                {authPanel === 'signup' ? '← Back to sign in' : 'Create account →'}
               </button>
             </div>
           </div>
 
-          {/* Sign-up form */}
-          {showSignUp && (
-            <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 32, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
+          {/* Forgot password panel */}
+          {authPanel === 'forgot' && (
+            <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Reset Password</div>
+              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Enter your email and we'll show your stored password.</div>
+              {!forgotResult ? (
+                <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input type="email" required placeholder="you@company.com" value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
+                    onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                  <button type="submit" disabled={forgotLoading}
+                    style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                    {forgotLoading ? 'Looking up…' : 'Find my password →'}
+                  </button>
+                </form>
+              ) : forgotResult.error ? (
+                <div>
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>{forgotResult.error}</div>
+                  <button onClick={() => setForgotResult(null)} style={{ marginTop: 10, fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
+                </div>
+              ) : (
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
+                  <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 600, marginBottom: 6 }}>✓ Account found</div>
+                  <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>Your password for <strong>{forgotEmail}</strong>:</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: '#111', letterSpacing: '0.06em', background: '#fff', border: '1px solid #D1FAE5', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {forgotResult.password}
+                    <button onClick={() => navigator.clipboard?.writeText(forgotResult!.password!)}
+                      style={{ fontSize: 11, color: '#16A34A', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Copy</button>
+                  </div>
+                  <button onClick={() => { setAuthPanel('none'); setForgotResult(null); setLoginEmail(forgotEmail); }}
+                    style={{ marginTop: 12, width: '100%', height: 38, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                    Sign in now →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Create account panel */}
+          {authPanel === 'signup' && (
+            <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
               {signUpDone ? (
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 8 }}>Request submitted!</div>
-                  <div style={{ fontSize: 13, color: '#888' }}>An admin will review and approve your account. You'll be able to log in once approved.</div>
-                  <button onClick={() => { setShowSignUp(false); setSignUpDone(false); }}
-                    style={{ marginTop: 16, fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                    Back to sign in
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 6 }}>Account created!</div>
+                  <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>You can now sign in with your email and password.</div>
+                  <button onClick={() => { setAuthPanel('none'); setSignUpDone(false); setLoginEmail(signUpForm.email); }}
+                    style={{ width: '100%', height: 40, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                    Sign in →
                   </button>
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: '#111', marginBottom: 4 }}>Request Access</div>
-                  <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>Fill in your details. An admin will approve your account.</div>
-                  {signUpError && (
-                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 14 }}>{signUpError}</div>
-                  )}
-                  <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {([
-                      { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name', required: true },
-                      { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com', required: true },
-                    ] as const).map(f => (
+                  <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Create Account</div>
+                  <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Fill in your details to get started.</div>
+                  {signUpError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{signUpError}</div>}
+                  <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                    {[{ label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' }, { label: 'Email', key: 'email', type: 'email', placeholder: 'you@company.com' }].map(f => (
                       <div key={f.key}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>{f.label}</label>
-                        <input type={f.type} required={f.required} placeholder={f.placeholder}
-                          value={(signUpForm as any)[f.key]}
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
+                        <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
                           onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
-                          style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
-                          onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                          onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
-                        />
+                          style={{ width: '100%', height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
+                          onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
                       </div>
                     ))}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>Department</label>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
                         <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
-                          style={{ width: '100%', height: 42, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
-                          {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d} value={d}>{d}</option>)}
+                          style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
+                          {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d}>{d}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>Role</label>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Role</label>
                         <select value={signUpForm.role} onChange={e => setSignUpForm(s => ({ ...s, role: e.target.value as Role }))}
-                          style={{ width: '100%', height: 42, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
+                          style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
                           <option value="employee">Employee</option>
                           <option value="admin">Admin</option>
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>Note to admin (optional)</label>
-                      <input type="text" placeholder="e.g. Joining the engineering team on July 1st"
-                        value={signUpForm.note}
-                        onChange={e => setSignUpForm(s => ({ ...s, note: e.target.value }))}
-                        style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
-                        onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                        onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
-                      />
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Password</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input type="text" placeholder="Choose or generate a password" value={signUpForm.password}
+                          onChange={e => setSignUpForm(s => ({ ...s, password: e.target.value }))}
+                          style={{ flex: 1, height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'monospace', color: '#111', outline: 'none' }}
+                          onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                        <button type="button" onClick={() => setSignUpForm(s => ({ ...s, password: generatePassword() }))}
+                          style={{ height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 12, color: '#555', cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                          ⟳ Generate
+                        </button>
+                      </div>
                     </div>
                     <button type="submit" disabled={signUpLoading}
-                      style={{ width: '100%', height: 44, marginTop: 4, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
-                      {signUpLoading ? 'Submitting…' : 'Submit Request →'}
+                      style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
+                      {signUpLoading ? 'Creating account…' : 'Create Account →'}
                     </button>
                   </form>
                 </>
