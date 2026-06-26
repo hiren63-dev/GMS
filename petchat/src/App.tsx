@@ -314,22 +314,22 @@ export default function App() {
           {currentPage === 'screentime' && (
             <ScreentimePage employee={currentEmployee} targetEmployee={targetEmployee} allEmployees={employees} />
           )}
-          {currentPage === 'admin' && (
+          {currentPage === 'admin' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder' || currentEmployee.permissions?.includes('view_reports')) && (
             <AdminOverview employee={currentEmployee} allEmployees={employees} />
           )}
-          {currentPage === 'admin-team' && (
+          {currentPage === 'admin-team' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder') && (
             <AdminTeam employee={currentEmployee} allEmployees={employees} />
           )}
-          {currentPage === 'admin-tasks' && (
+          {currentPage === 'admin-tasks' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder' || currentEmployee.permissions?.includes('assign_tasks')) && (
             <AdminTasks employee={currentEmployee} allEmployees={employees} />
           )}
-          {currentPage === 'admin-shifts' && (
+          {currentPage === 'admin-shifts' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder' || currentEmployee.permissions?.includes('manage_shifts')) && (
             <AdminShifts employee={currentEmployee} allEmployees={employees} />
           )}
-          {currentPage === 'admin-integrations' && (
+          {currentPage === 'admin-integrations' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder') && (
             <IntegrationHub employee={currentEmployee} />
           )}
-          {currentPage === 'admin-health' && (
+          {currentPage === 'admin-health' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder' || currentEmployee.permissions?.includes('view_reports')) && (
             <AdminHealth employee={currentEmployee} allEmployees={employees} />
           )}
         </main>

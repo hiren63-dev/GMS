@@ -64,7 +64,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]     = useState({ title: '', body: '', audience: 'all' as AudienceTarget, pinned: false, expiresAt: '' });
   const [saving, setSaving] = useState(false);
-  const canPost = employee.role === 'admin' || employee.role === 'founder';
+  const canPost = employee.role === 'admin' || employee.role === 'founder' || !!(employee.permissions?.includes('post_announcements'));
 
   useEffect(() => {
     return onAnnouncementsChange(setAll);
