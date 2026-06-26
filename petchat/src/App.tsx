@@ -27,8 +27,6 @@ import TimeTracker from './components/TimeTracker';
 
 import './index.css';
 
-type LoginRole = 'employee' | 'admin' | 'founder';
-
 export default function App() {
   const [employees, setEmployees]             = useState<Employee[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
@@ -37,8 +35,7 @@ export default function App() {
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
 
-  // Login form state — pre-fill from last session
-  const [loginRole, setLoginRole]   = useState<LoginRole>(() => (localStorage.getItem('lastRole') as LoginRole) || 'employee');
+  // Login form state — pre-fill email from last session
   const [loginEmail, setLoginEmail] = useState(() => localStorage.getItem('lastEmail') || '');
   const [loginPass, setLoginPass]   = useState('');
   const [loginError, setLoginError] = useState('');
@@ -155,22 +152,8 @@ export default function App() {
         return;
       }
 
-      // Verify role matches selection (founders can access admin areas).
-      if (loginRole === 'founder' && emp.role !== 'founder') {
-        currentEmpRef.current = null;
-        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
-        setLoginError("You don't have founder access.");
-        return;
-      }
-      if (loginRole === 'admin' && emp.role === 'employee') {
-        currentEmpRef.current = null;
-        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
-        setLoginError("You don't have admin access.");
-        return;
-      }
       // Persist session for next visit
       localStorage.setItem('lastEmail', email);
-      localStorage.setItem('lastRole', loginRole);
       if (!emp.authUid) localStorage.setItem('savedEmpId', emp.id);
       setCurrentEmployee(emp);
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
@@ -206,23 +189,6 @@ export default function App() {
 
   // ── Login screen ──────────────────────────────────────────────────────────
   if (!currentEmployee) {
-    const roleTab = (role: LoginRole, label: string) => {
-      const active = loginRole === role;
-      return (
-        <button
-          type="button"
-          onClick={() => setLoginRole(role)}
-          style={{
-            flex: 1, height: 34, borderRadius: 6, border: 'none',
-            fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms',
-            background: active ? '#fff' : 'transparent',
-            color: active ? '#111' : '#888',
-            boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-          }}
-        >{label}</button>
-      );
-    };
-
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F6' }}>
         <div style={{ width: 380, animation: 'fadeIn 220ms ease both' }}>
@@ -233,14 +199,7 @@ export default function App() {
             </div>
 
             <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Sign in</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Select your role to access your workspace</div>
-
-            {/* Role toggle */}
-            <div style={{ display: 'flex', gap: 4, background: '#F3F3F2', padding: 4, borderRadius: 9, marginBottom: 24 }}>
-              {roleTab('employee', 'Employee')}
-              {roleTab('admin', 'Admin')}
-              {roleTab('founder', 'Founder')}
-            </div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Enter your email and password to continue</div>
 
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {loginError && (

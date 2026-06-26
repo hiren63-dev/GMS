@@ -1,5 +1,12 @@
-// ── Roles ──────────────────────────────────────────────
+// ── Roles & Permissions ────────────────────────────────
 export type Role = 'founder' | 'admin' | 'employee';
+export type Permission =
+  | 'assign_tasks'          // can assign tasks to anyone
+  | 'post_announcements'    // can create / pin announcements
+  | 'view_all_screentime'   // can view any employee's screentime
+  | 'manage_shifts'         // can edit shift schedules
+  | 'view_reports';         // can view admin overview & health
+
 export type Department = 'Tech' | 'Marketing' | 'Operations' | 'Sales' | 'CEO' | 'CFO' | 'CMO' | 'Design' | 'Engineering' | 'Other';
 export type ActivityStatus = 'active' | 'idle' | 'blocked' | 'offline';
 export type Priority = 'urgent' | 'high' | 'medium' | 'low';
@@ -21,6 +28,7 @@ export interface Employee {
   createdAt?: number;
   password?: string;     // stored plaintext for admin reference (internal tool)
   authUid?: string;      // Firebase Auth UID, if account created via createEmployeeWithAuth
+  permissions?: Permission[]; // extra permissions granted by admin to non-admin employees
 }
 
 export interface Message {
@@ -35,7 +43,7 @@ export interface Message {
   isGroupChat: boolean;
   timestamp: number;
   read?: boolean;
-  attachment?: { name: string; size: string; ext: string };
+  attachment?: { name: string; size: string; ext: string; url?: string };
 }
 
 export interface Task {
@@ -162,6 +170,20 @@ export interface AdminSettings {
   timezone: string;
   allowSelfClockIn: boolean;
   announcements?: Announcement[];
+}
+
+// ── Resource Files ────────────────────────────────────
+export interface ResourceFile {
+  id: string;
+  name: string;
+  url: string;
+  size: string;
+  ext: string;
+  mimeType: string;
+  uploadedBy: string;
+  uploadedByName: string;
+  uploadedAt: number;
+  category?: string;
 }
 
 // ── Integration ───────────────────────────────────────

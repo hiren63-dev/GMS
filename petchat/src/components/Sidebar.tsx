@@ -39,6 +39,8 @@ const Icon = ({ path, viewBox = '0 0 24 24' }: { path: string; viewBox?: string 
 export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, unreadCount = 0 }: SidebarProps) {
   const isAdmin   = employee.role === 'admin' || employee.role === 'founder';
   const isFounder = employee.role === 'founder';
+  const perms     = employee.permissions ?? [];
+  const isTeamLead = !isAdmin && perms.length > 0;
   const initials  = employee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const roleBadge = { founder: { bg: '#F3E8FF', fg: '#7C3AED' }, admin: { bg: '#EFF6FF', fg: '#2563EB' }, employee: { bg: '#F3F3F2', fg: '#555' } }[employee.role];
@@ -89,6 +91,32 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
         <NavBtn active={currentPage === 'resources'} onClick={() => onNavigate('resources')} label="Resources" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         } />
+
+        {isTeamLead && (
+          <>
+            <div style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Team Lead</div>
+            {perms.includes('view_reports') && (
+              <NavBtn active={currentPage === 'admin'} onClick={() => onNavigate('admin')} label="Reports" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              } />
+            )}
+            {perms.includes('assign_tasks') && (
+              <NavBtn active={currentPage === 'admin-tasks'} onClick={() => onNavigate('admin-tasks')} label="Assign Tasks" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>
+              } />
+            )}
+            {perms.includes('manage_shifts') && (
+              <NavBtn active={currentPage === 'admin-shifts'} onClick={() => onNavigate('admin-shifts')} label="Shift Control" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              } />
+            )}
+            {perms.includes('view_reports') && (
+              <NavBtn active={currentPage === 'admin-health'} onClick={() => onNavigate('admin-health')} label="System Health" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              } />
+            )}
+          </>
+        )}
 
         {isAdmin && (
           <>

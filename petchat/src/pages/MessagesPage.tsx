@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
-import { sendMessage, onMessagesChange, onConversationPartnersChange } from '../services/firebase';
+import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -13,6 +13,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
   const [messages, setMessages]   = useState<Message[]>([]);
   const [text, setText]           = useState('');
   const [sending, setSending]     = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [searchNew, setSearchNew] = useState('');
   const [convSearch, setConvSearch] = useState('');
   const [showNew, setShowNew]     = useState(false);
@@ -56,14 +57,30 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
 
   const handleFile = async (file: File) => {
     if (!selected) return;
-    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-    const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
-    await sendMessage({
-      senderId: employee.id, senderName: employee.name, recipientId: selected.id, isGroupChat: false,
-      content: `📎 ${file.name}`,
-      attachment: { name: file.name, size: `${sizeMB} MB`, ext },
-    });
-    if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
+    setUploading(true);
+    try {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+      const path = `messages/${[employee.id, selected.id].sort().join('_')}/${Date.now()}_${file.name}`;
+      const url = await uploadFile(file, path);
+      await sendMessage({
+        senderId: employee.id, senderName: employee.name, recipientId: selected.id, isGroupChat: false,
+        content: `📎 ${file.name}`,
+        attachment: { name: file.name, size: `${sizeMB} MB`, ext, url },
+      });
+      if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
+    } catch {
+      // If storage upload fails (e.g. unauthenticated user), fall back to metadata-only
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+      await sendMessage({
+        senderId: employee.id, senderName: employee.name, recipientId: selected.id, isGroupChat: false,
+        content: `📎 ${file.name}`,
+        attachment: { name: file.name, size: `${sizeMB} MB`, ext },
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleNewChat = (emp: Employee) => {
@@ -189,13 +206,27 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
                   <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
                     {showSender && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3, paddingLeft: 4 }}>{msg.senderName}</div>}
                     {att ? (
-                      <div title="File reference (name & size only — actual upload needs Firebase Storage)" style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
-                        <span style={{ width: 30, height: 30, borderRadius: 7, background: isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: isMe ? '#fff' : 'var(--text)', flexShrink: 0 }}>{att.ext}</span>
-                        <span style={{ minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isMe ? '#fff' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
-                          <span style={{ display: 'block', fontSize: 10, color: isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{att.size}</span>
-                        </span>
-                      </div>
+                      (() => {
+                        const isImage = att.url && ['JPG','JPEG','PNG','GIF','WEBP','SVG'].includes(att.ext);
+                        return isImage ? (
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', maxWidth: 220, borderRadius: 12, overflow: 'hidden', border: isMe ? 'none' : '1px solid var(--border)' }}>
+                            <img src={att.url} alt={att.name} style={{ width: '100%', display: 'block', maxHeight: 200, objectFit: 'cover' }} />
+                          </a>
+                        ) : (
+                          <div style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
+                            <span style={{ width: 30, height: 30, borderRadius: 7, background: isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: isMe ? '#fff' : 'var(--text)', flexShrink: 0 }}>{att.ext}</span>
+                            <span style={{ minWidth: 0, flex: 1 }}>
+                              <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isMe ? '#fff' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                              <span style={{ display: 'block', fontSize: 10, color: isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{att.size}</span>
+                            </span>
+                            {att.url && (
+                              <a href={att.url} download={att.name} target="_blank" rel="noopener noreferrer" style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', flexShrink: 0 }} title="Download">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div style={{ padding: '9px 13px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', color: isMe ? '#fff' : 'var(--text)', fontSize: 13, lineHeight: 1.5, borderBottomRightRadius: isMe ? 4 : 12, borderBottomLeftRadius: isMe ? 12 : 4 }}>
                         {msg.content}
@@ -211,10 +242,10 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
             {/* Input */}
             <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
               <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ''; } }} style={{ display: 'none' }} />
-              <button type="button" onClick={() => fileRef.current?.click()} title="Share a file reference (name & size). Actual file upload requires Firebase Storage."
-                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0, cursor: 'pointer' }}
-                onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'}
-                onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'}
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload a file"
+                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: uploading ? '#2563EB' : 'var(--text-muted)', flexShrink: 0, cursor: uploading ? 'wait' : 'pointer' }}
+                onMouseOver={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'; }}
+                onMouseOut={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               </button>

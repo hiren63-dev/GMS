@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import type { Employee, Department, Role } from '../../types';
+import type { Employee, Department, Role, Permission } from '../../types';
 import {
   updateEmployee, deleteEmployee,
   createEmployeeWithAuth, generatePassword,
 } from '../../services/firebase';
+
+const ALL_PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
+  { key: 'assign_tasks',       label: 'Assign Tasks',       desc: 'Can assign tasks to any team member' },
+  { key: 'post_announcements', label: 'Post Announcements', desc: 'Can create and pin announcements' },
+  { key: 'view_all_screentime',label: 'View All Screentime',desc: 'Can view any employee\'s screentime stats' },
+  { key: 'manage_shifts',      label: 'Manage Shifts',      desc: 'Can edit shift schedules' },
+  { key: 'view_reports',       label: 'View Reports',       desc: 'Can view admin overview and system health' },
+];
 
 interface Props {
   employee: Employee;
@@ -12,7 +20,7 @@ interface Props {
 
 const DEPARTMENTS: Department[] = ['Tech', 'Marketing', 'Operations', 'Sales', 'CEO', 'CFO', 'CMO', 'Design', 'Engineering', 'Other'];
 const ROLES: Role[] = ['employee', 'admin', 'founder'];
-const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '' };
+const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '', permissions: [] as Permission[] };
 
 type EmpWithPw = Employee & { password?: string };
 
@@ -50,6 +58,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
         const patch: Partial<EmpWithPw> = {
           name: form.name, email: form.email, department: form.department,
           role: form.role, shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
+          permissions: form.role === 'employee' ? form.permissions : [],
         };
         if (form.password) patch.password = form.password;
         await updateEmployee(editId, patch);
@@ -61,6 +70,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           role: form.role, status: 'offline',
           shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
           password: form.password,
+          permissions: form.role === 'employee' ? form.permissions : [],
         });
         // Don't print the password on screen (shoulder-surfing / screen-share risk).
         // Copy it to the clipboard instead; it also stays visible in the table for the admin.
@@ -78,7 +88,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     setForm({
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
-      password: emp.password ?? '',
+      password: emp.password ?? '', permissions: emp.permissions ?? [],
     });
     setEditId(emp.id);
     setShowForm(true);
@@ -204,6 +214,36 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
             </div>
           </div>
 
+          {/* Team Lead Permissions — only for employee role */}
+          {form.role === 'employee' && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Team Lead Permissions <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional — grants partial admin access)</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {ALL_PERMISSIONS.map(p => {
+                  const checked = form.permissions.includes(p.key);
+                  return (
+                    <label key={p.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: checked ? 'rgba(37,99,235,0.06)' : 'var(--bg)', border: `1px solid ${checked ? '#93C5FD' : 'var(--border)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 120ms' }}>
+                      <input type="checkbox" checked={checked} onChange={() => {
+                        setForm(f => ({
+                          ...f,
+                          permissions: checked
+                            ? f.permissions.filter(x => x !== p.key)
+                            : [...f.permissions, p.key],
+                        }));
+                      }} style={{ marginTop: 2, cursor: 'pointer', flexShrink: 0 }} />
+                      <span>
+                        <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{p.label}</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{p.desc}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Password row */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -316,7 +356,14 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                   <td style={{ padding: '12px 14px' }}>
                     <span style={{ fontSize: 11, padding: '2px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 99, color: 'var(--text-muted)' }}>{e.department}</span>
                   </td>
-                  <td style={{ padding: '12px 14px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{e.role}</td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{e.role}</span>
+                    {e.role === 'employee' && (e as any).permissions?.length > 0 && (
+                      <span title={(e as any).permissions.join(', ')} style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', background: '#EFF6FF', color: '#2563EB', borderRadius: 99, fontWeight: 600, cursor: 'default', border: '1px solid #BFDBFE' }}>
+                        {(e as any).permissions.length} perm{(e as any).permissions.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '12px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot[e.status ?? 'offline'], flexShrink: 0, display: 'inline-block' }} />

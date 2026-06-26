@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import type { Employee, Task, WorkloadEntry } from '../types';
-import { onAllTasksChange, updateTask } from '../services/firebase';
+import { useState, useEffect, useRef } from 'react';
+import type { Employee, Task, WorkloadEntry, ResourceFile } from '../types';
+import { onAllTasksChange, updateTask, uploadFile, addResourceFile, onResourceFilesChange, deleteResourceFile } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -73,11 +73,38 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dragTask, setDragTask] = useState<Task | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const canManage = employee.role === 'admin' || employee.role === 'founder';
+  const [tab, setTab] = useState<'workload' | 'files'>('workload');
+  const [files, setFiles] = useState<ResourceFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canManage = employee.role === 'admin' || employee.role === 'founder' || !!employee.permissions?.includes('assign_tasks');
 
   useEffect(() => {
-    return onAllTasksChange(setTasks);
+    const u1 = onAllTasksChange(setTasks);
+    const u2 = onResourceFilesChange(setFiles);
+    return () => { u1(); u2(); };
   }, []);
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError('');
+    try {
+      const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      const path = `resources/${Date.now()}_${file.name}`;
+      const url = await uploadFile(file, path);
+      await addResourceFile({
+        name: file.name, url, size: `${sizeMB} MB`, ext,
+        mimeType: file.type, uploadedBy: employee.id,
+        uploadedByName: employee.name, uploadedAt: Date.now(),
+      });
+    } catch {
+      setUploadError('Upload failed. Make sure you are signed in with a full account.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Build workload entries
   const workload: WorkloadEntry[] = allEmployees.map(emp => {
@@ -104,87 +131,165 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
 
   return (
     <div className="p-6 space-y-6 animate-slide-in">
-      <div>
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>📦 Resource Allocation</h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          Team workload overview · {canManage ? 'Drag tasks to reassign' : 'Read-only view'}
-        </p>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4 text-center border-t-4 border-red-400">
-          <p className="text-3xl font-bold text-red-500">{overloaded.length}</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Overloaded</p>
+      {/* Header + tabs */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>📦 Resources</h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            {tab === 'workload' ? `Team workload · ${canManage ? 'Drag tasks to reassign' : 'Read-only view'}` : 'Shared files & documents'}
+          </p>
         </div>
-        <div className="card p-4 text-center border-t-4 border-blue-400">
-          <p className="text-3xl font-bold text-blue-500">{balanced.length}</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Balanced</p>
-        </div>
-        <div className="card p-4 text-center border-t-4 border-green-400">
-          <p className="text-3xl font-bold text-green-500">{available.length}</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Available</p>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--surface2)', padding: 4, borderRadius: 9 }}>
+          {(['workload', 'files'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ height: 32, padding: '0 14px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms',
+                background: tab === t ? 'var(--surface)' : 'transparent',
+                color: tab === t ? 'var(--text)' : 'var(--text-muted)',
+                boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+              {t === 'workload' ? '⚖️ Workload' : '📁 Files'}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="space-y-6">
-            {overloaded.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-red-500">🔥 Overloaded</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {overloaded.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
-                </div>
-              </div>
-            )}
-            {balanced.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-blue-500">⚖️ Balanced</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {balanced.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
-                </div>
-              </div>
-            )}
-            {available.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-green-500">✅ Available</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {available.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
-                </div>
-              </div>
-            )}
+      {/* ── Files tab ── */}
+      {tab === 'files' && (
+        <div className="space-y-4">
+          <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }}
+            onChange={e => { Array.from(e.target.files ?? []).forEach(handleFileUpload); e.target.value = ''; }} />
+          <div className="flex items-center gap-3">
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition"
+              style={{ background: uploading ? '#888' : '#111', cursor: uploading ? 'wait' : 'pointer' }}>
+              {uploading ? '⏳ Uploading…' : '+ Upload File'}
+            </button>
+            {uploadError && <span style={{ fontSize: 12, color: '#DC2626' }}>{uploadError}</span>}
           </div>
-        </div>
 
-        {/* Draggable tasks sidebar */}
-        {canManage && (
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>
-              🎯 All Active Tasks
-            </h3>
-            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-              {tasks.filter(t => t.status !== 'done').map(task => (
-                <div key={task.id}
-                  draggable
-                  onDragStart={() => setDragTask(task)}
-                  onDragEnd={() => { setDragTask(null); setDragOver(null); }}
-                  className={`p-3 rounded-xl border text-sm cursor-grab active:cursor-grabbing transition hover:shadow-md ${dragTask?.id === task.id ? 'opacity-50' : ''}`}
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                >
-                  <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {task.assigneeName} · {task.priority}
-                  </p>
-                </div>
-              ))}
-              {tasks.filter(t => t.status !== 'done').length === 0 && (
-                <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>No active tasks</p>
-              )}
+          {files.length === 0 ? (
+            <div className="card p-12 text-center">
+              <p style={{ fontSize: 40, marginBottom: 12 }}>📂</p>
+              <p className="font-semibold" style={{ color: 'var(--text)' }}>No files yet</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Upload documents, images, or any file to share with the team</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {files.map(f => {
+                const isImage = ['JPG','JPEG','PNG','GIF','WEBP','SVG'].includes(f.ext);
+                const isMe = f.uploadedBy === employee.id;
+                return (
+                  <div key={f.id} className="card p-4 flex flex-col gap-2 group" style={{ position: 'relative' }}>
+                    {isImage ? (
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', height: 100, borderRadius: 8, overflow: 'hidden', background: 'var(--surface2)' }}>
+                        <img src={f.url} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </a>
+                    ) : (
+                      <div style={{ height: 100, borderRadius: 8, background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 700, color: 'var(--text-muted)' }}>{f.ext}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={f.name}>{f.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{f.size} · {f.uploadedByName.split(' ')[0]}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <a href={f.url} download={f.name} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 text-center py-1.5 rounded-lg text-xs font-medium transition"
+                        style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
+                        ↓ Download
+                      </a>
+                      {(isMe || canManage) && (
+                        <button onClick={() => { if (confirm(`Delete "${f.name}"?`)) deleteResourceFile(f.id); }}
+                          className="px-2 py-1.5 rounded-lg text-xs transition hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
+                          style={{ color: 'var(--text-muted)' }}>🗑️</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Workload tab ── */}
+      {tab === 'workload' && (
+        <>
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="card p-4 text-center border-t-4 border-red-400">
+              <p className="text-3xl font-bold text-red-500">{overloaded.length}</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Overloaded</p>
+            </div>
+            <div className="card p-4 text-center border-t-4 border-blue-400">
+              <p className="text-3xl font-bold text-blue-500">{balanced.length}</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Balanced</p>
+            </div>
+            <div className="card p-4 text-center border-t-4 border-green-400">
+              <p className="text-3xl font-bold text-green-500">{available.length}</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Available</p>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="space-y-6">
+                {overloaded.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-red-500">🔥 Overloaded</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {overloaded.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
+                    </div>
+                  </div>
+                )}
+                {balanced.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-blue-500">⚖️ Balanced</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {balanced.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
+                    </div>
+                  </div>
+                )}
+                {available.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-green-500">✅ Available</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {available.map(e => <WorkloadCard key={e.employee.id} entry={e} isDraggingOver={dragOver === e.employee.id} canManage={canManage} onDragOver={setDragOver} onDragLeave={() => setDragOver(null)} onDrop={handleDrop} />)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {canManage && (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>
+                  🎯 All Active Tasks
+                </h3>
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                  {tasks.filter(t => t.status !== 'done').map(task => (
+                    <div key={task.id}
+                      draggable
+                      onDragStart={() => setDragTask(task)}
+                      onDragEnd={() => { setDragTask(null); setDragOver(null); }}
+                      className={`p-3 rounded-xl border text-sm cursor-grab active:cursor-grabbing transition hover:shadow-md ${dragTask?.id === task.id ? 'opacity-50' : ''}`}
+                      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                    >
+                      <p className="font-medium truncate" style={{ color: 'var(--text)' }}>{task.title}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {task.assigneeName} · {task.priority}
+                      </p>
+                    </div>
+                  ))}
+                  {tasks.filter(t => t.status !== 'done').length === 0 && (
+                    <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>No active tasks</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

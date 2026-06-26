@@ -5,7 +5,8 @@ import {
   Timestamp, getDoc,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration } from '../types';
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,6 +20,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const snapList = <T>(ref: any, cb: (items: T[]) => void) =>
@@ -346,3 +348,32 @@ export const getAdminSettings = async () => {
 
 export const onAdminSettingsChange = (cb: (s: any) => void) =>
   onSnapshot(doc(db, 'adminSettings', 'config'), s => cb(s.exists() ? s.data() : {}));
+
+// ── File Storage ──────────────────────────────────────────────────────────
+/** Upload a file to Firebase Storage and return its public download URL. */
+export const uploadFile = async (file: File, path: string): Promise<string> => {
+  const r = sRef(storage, path);
+  await uploadBytes(r, file);
+  return getDownloadURL(r);
+};
+
+/** Delete a file from Firebase Storage by its full gs:// or download path. */
+export const deleteStorageFile = async (url: string) => {
+  try {
+    const r = sRef(storage, url);
+    await deleteObject(r);
+  } catch { /* already deleted or path-based — ignore */ }
+};
+
+// ── Resource Library ──────────────────────────────────────────────────────
+export const addResourceFile = (data: Omit<ResourceFile, 'id'>) =>
+  addDoc(collection(db, 'resourceFiles'), data);
+
+export const deleteResourceFile = async (id: string) => {
+  await deleteDoc(doc(db, 'resourceFiles', id));
+};
+
+export const onResourceFilesChange = (cb: (files: ResourceFile[]) => void) => {
+  const q = query(collection(db, 'resourceFiles'), orderBy('uploadedAt', 'desc'));
+  return snapList<ResourceFile>(q, cb);
+};
