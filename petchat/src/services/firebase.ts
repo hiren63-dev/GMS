@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry } from '../types';
+import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -434,6 +434,25 @@ export const logAudit = (entry: Omit<AuditEntry, 'id'>) =>
 
 export const onAuditLogChange = (cb: (entries: AuditEntry[]) => void) =>
   snapList<AuditEntry>(query(collection(db, 'auditLog'), orderBy('timestamp', 'desc'), limit(100)), cb);
+
+// ── Pending Accounts ──────────────────────────────────────────────────────
+export const createPendingAccount = (data: Omit<PendingAccount, 'id'>) =>
+  addDoc(collection(db, 'pendingAccounts'), data);
+
+export const onPendingAccountsChange = (cb: (items: PendingAccount[]) => void) =>
+  snapList<PendingAccount>(query(collection(db, 'pendingAccounts'), orderBy('requestedAt', 'desc')), cb);
+
+export const rejectPendingAccount = (id: string) =>
+  deleteDoc(doc(db, 'pendingAccounts', id));
+
+export const approvePendingAccount = async (pending: PendingAccount) => {
+  await createEmployeeWithAuth({
+    name: pending.name, email: pending.email, department: pending.department,
+    role: pending.role, status: 'offline', password: pending.password,
+    permissions: [],
+  });
+  await deleteDoc(doc(db, 'pendingAccounts', pending.id));
+};
 
 // ── Slack Webhook ──────────────────────────────────────────────────────────
 export const sendSlackNotification = async (webhookUrl: string, text: string) => {

@@ -252,3 +252,14 @@ export interface Integration {
   enabled: boolean;
   connectedAt?: number;
 }
+
+export interface PendingAccount {
+  id: string;
+  name: string;
+  email: string;
+  department: Department;
+  role: Role;
+  password: string;
+  requestedAt: number;
+  note?: string;
+}
