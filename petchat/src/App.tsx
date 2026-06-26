@@ -134,6 +134,10 @@ export default function App() {
     let firebaseSignedIn = false;
     try {
       const email = loginEmail.trim();
+      // Sign in anonymously first so Firestore rules (which require auth) allow
+      // the employee email lookup below. We'll swap to real auth if the account
+      // has a Firebase Auth UID; stored-password accounts keep the anon session.
+      try { await loginAnon(); } catch { /* continue even if anon auth fails */ }
       // Look up the employee first so we know whether to use Firebase Auth.
       const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', email)));
       if (snap.empty) {
