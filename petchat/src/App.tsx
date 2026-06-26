@@ -212,6 +212,8 @@ export default function App() {
     setSignUpError('');
     setSignUpLoading(true);
     try {
+      // Need a valid auth token before Firestore write in createEmployeeWithAuth
+      try { await loginAnon(); } catch { /* continue */ }
       const pw = signUpForm.password.trim() || generatePassword();
       await createEmployeeWithAuth({
         name: signUpForm.name.trim(),
