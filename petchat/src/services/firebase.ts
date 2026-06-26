@@ -2,11 +2,11 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getFirestore, collection, addDoc, query, where, onSnapshot,
   updateDoc, doc, getDocs, deleteDoc, setDoc, orderBy, limit,
-  Timestamp, getDoc,
+  Timestamp, getDoc, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile } from '../types';
+import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -381,4 +381,67 @@ export const deleteResourceFile = async (id: string) => {
 export const onResourceFilesChange = (cb: (files: ResourceFile[]) => void) => {
   const q = query(collection(db, 'resourceFiles'), orderBy('uploadedAt', 'desc'));
   return snapList<ResourceFile>(q, cb);
+};
+
+// ── Message Reactions ──────────────────────────────────────────────────────
+export const toggleReaction = async (messageId: string, emoji: string, userId: string, current: string[]) => {
+  const ref = doc(db, 'messages', messageId);
+  const field = `reactions.${emoji}`;
+  if (current.includes(userId)) {
+    await updateDoc(ref, { [field]: arrayRemove(userId) });
+  } else {
+    await updateDoc(ref, { [field]: arrayUnion(userId) });
+  }
+};
+
+// ── Task Comments ──────────────────────────────────────────────────────────
+export const addTaskComment = (c: Omit<TaskComment, 'id'>) =>
+  addDoc(collection(db, 'taskComments'), c).then(async ref => {
+    await updateDoc(doc(db, 'tasks', c.taskId), { commentCount: (await getDocs(query(collection(db, 'taskComments'), where('taskId', '==', c.taskId)))).size }).catch(() => {});
+    return ref;
+  });
+
+export const deleteTaskComment = (id: string) => deleteDoc(doc(db, 'taskComments', id));
+
+export const onTaskCommentsChange = (taskId: string, cb: (comments: TaskComment[]) => void) =>
+  snapList<TaskComment>(query(collection(db, 'taskComments'), where('taskId', '==', taskId), orderBy('createdAt', 'asc')), cb);
+
+// ── Announcement Replies ───────────────────────────────────────────────────
+export const addAnnouncementReply = (r: Omit<AnnouncementReply, 'id'>) =>
+  addDoc(collection(db, 'announcementReplies'), r);
+
+export const onAnnouncementRepliesChange = (announcementId: string, cb: (replies: AnnouncementReply[]) => void) =>
+  snapList<AnnouncementReply>(query(collection(db, 'announcementReplies'), where('announcementId', '==', announcementId), orderBy('createdAt', 'asc')), cb);
+
+// ── 1-on-1 Notes ──────────────────────────────────────────────────────────
+export const saveOneOnOneNote = (note: Omit<OneOnOneNote, 'id'>) =>
+  addDoc(collection(db, 'oneOnOneNotes'), note);
+
+export const updateOneOnOneNote = (id: string, content: string) =>
+  updateDoc(doc(db, 'oneOnOneNotes', id), { content, updatedAt: Date.now() });
+
+export const deleteOneOnOneNote = (id: string) => deleteDoc(doc(db, 'oneOnOneNotes', id));
+
+export const onOneOnOneNotesChange = (managerId: string, employeeId: string, cb: (notes: OneOnOneNote[]) => void) =>
+  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), where('employeeId', '==', employeeId), orderBy('createdAt', 'desc')), cb);
+
+export const onAllOneOnOneNotesChange = (managerId: string, cb: (notes: OneOnOneNote[]) => void) =>
+  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), orderBy('createdAt', 'desc')), cb);
+
+// ── Audit Log ─────────────────────────────────────────────────────────────
+export const logAudit = (entry: Omit<AuditEntry, 'id'>) =>
+  addDoc(collection(db, 'auditLog'), entry).catch(() => {});
+
+export const onAuditLogChange = (cb: (entries: AuditEntry[]) => void) =>
+  snapList<AuditEntry>(query(collection(db, 'auditLog'), orderBy('timestamp', 'desc'), limit(100)), cb);
+
+// ── Slack Webhook ──────────────────────────────────────────────────────────
+export const sendSlackNotification = async (webhookUrl: string, text: string) => {
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  } catch { /* non-critical */ }
 };

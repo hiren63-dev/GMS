@@ -22,6 +22,8 @@ import AdminTasks from './pages/admin/AdminTasks';
 import AdminShifts from './pages/admin/AdminShifts';
 import IntegrationHub from './pages/admin/IntegrationHub';
 import AdminHealth from './pages/admin/AdminHealth';
+import OrgChartPage from './pages/OrgChartPage';
+import OneOnOnePage from './pages/OneOnOnePage';
 import CheckInForm from './components/CheckInForm';
 import TimeTracker from './components/TimeTracker';
 
@@ -314,6 +316,12 @@ export default function App() {
           )}
           {currentPage === 'team' && (
             <TeamDirectory employee={currentEmployee} allEmployees={employees} onNavigate={navigate} />
+          )}
+          {currentPage === 'org-chart' && (
+            <OrgChartPage employee={currentEmployee} allEmployees={employees} />
+          )}
+          {currentPage === 'one-on-one' && (currentEmployee.role === 'admin' || currentEmployee.role === 'founder') && (
+            <OneOnOnePage employee={currentEmployee} allEmployees={employees} />
           )}
           {currentPage === 'messages' && (
             <MessagesPage employee={currentEmployee} allEmployees={employees} />

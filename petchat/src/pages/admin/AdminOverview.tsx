@@ -50,6 +50,9 @@ export default function AdminOverview({ allEmployees }: Props) {
   const [widgetActivity, setWidgetActivity] = useState(true);
   const [widgetQueue, setWidgetQueue]       = useState(true);
   const [showCustomize, setShowCustomize]   = useState(false);
+  const [deptFilter, setDeptFilter]         = useState<string>('all');
+
+  const departments = ['all', ...Array.from(new Set(allEmployees.map(e => e.department).filter(Boolean)))];
 
   useEffect(() => {
     const u1 = onAllTasksChange(setTasks);
@@ -68,8 +71,9 @@ export default function AdminOverview({ allEmployees }: Props) {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const activePres = allEmployees.filter(e => e.status === 'active' || e.status === 'idle').length;
-  const blockedPres = allEmployees.filter(e => e.status === 'blocked').length;
+  const deptEmployees = deptFilter === 'all' ? allEmployees : allEmployees.filter(e => e.department === deptFilter);
+  const activePres = deptEmployees.filter(e => e.status === 'active' || e.status === 'idle').length;
+  const blockedPres = deptEmployees.filter(e => e.status === 'blocked').length;
 
   const recentTasks = tasks
     .filter(t => t.status !== 'done')
@@ -127,6 +131,20 @@ export default function AdminOverview({ allEmployees }: Props) {
         </div>
       </div>
 
+      {/* Department filter tabs */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+        {departments.map(d => (
+          <button key={d} onClick={() => setDeptFilter(d)}
+            style={{ height: 30, padding: '0 14px', borderRadius: 99, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid', transition: 'all 150ms',
+              background: deptFilter === d ? '#111' : 'var(--surface)',
+              color: deptFilter === d ? '#fff' : 'var(--text-muted)',
+              borderColor: deptFilter === d ? '#111' : 'var(--border)',
+            }}>
+            {d === 'all' ? 'All Departments' : d}
+          </button>
+        ))}
+      </div>
+
       {/* Stats widget */}
       {widgetStats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
@@ -162,11 +180,11 @@ export default function AdminOverview({ allEmployees }: Props) {
             </span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 6 }}>{activePres} active · {blockedPres} blocked</span>
           </div>
-          {allEmployees.length === 0 ? (
+          {deptEmployees.length === 0 ? (
             <div style={{ padding: '24px 0', fontSize: 13, color: 'var(--text-muted)' }}>No employees yet.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(196px, 1fr))', gap: 12 }}>
-              {allEmployees.map(emp => {
+              {deptEmployees.map(emp => {
                 const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                 const status = emp.status ?? 'offline';
                 const todayLog = todayLogs.find(l => l.employeeId === emp.id && !l.logoutTime);

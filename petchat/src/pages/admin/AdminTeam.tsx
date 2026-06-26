@@ -20,7 +20,7 @@ interface Props {
 
 const DEPARTMENTS: Department[] = ['Tech', 'Marketing', 'Operations', 'Sales', 'CEO', 'CFO', 'CMO', 'Design', 'Engineering', 'Other'];
 const ROLES: Role[] = ['employee', 'admin', 'founder'];
-const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '', permissions: [] as Permission[] };
+const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '', permissions: [] as Permission[], jobTitle: '' };
 
 type EmpWithPw = Employee & { password?: string };
 
@@ -59,6 +59,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           name: form.name, email: form.email, department: form.department,
           role: form.role, shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
           permissions: form.role === 'employee' ? form.permissions : [],
+          ...(form.jobTitle ? { jobTitle: form.jobTitle } : {}),
         };
         if (form.password) patch.password = form.password;
         await updateEmployee(editId, patch);
@@ -71,7 +72,8 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
           password: form.password,
           permissions: form.role === 'employee' ? form.permissions : [],
-        });
+          ...(form.jobTitle ? { jobTitle: form.jobTitle } : {}),
+        } as any);
         // Don't print the password on screen (shoulder-surfing / screen-share risk).
         // Copy it to the clipboard instead; it also stays visible in the table for the admin.
         navigator.clipboard?.writeText(form.password).catch(() => {});
@@ -89,6 +91,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
       password: emp.password ?? '', permissions: emp.permissions ?? [],
+      jobTitle: (emp as any).jobTitle ?? '',
     });
     setEditId(emp.id);
     setShowForm(true);
@@ -203,6 +206,11 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))} style={{ ...inputStyle, cursor: 'pointer' }}>
                 {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Job Title</label>
+              <input value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. Senior Engineer" style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Shift Start</label>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
-import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile } from '../services/firebase';
+import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile, toggleReaction } from '../services/firebase';
+
+const EMOJIS = ['👍','❤️','😂','😮','🎉'];
 
 interface Props {
   employee: Employee;
@@ -18,8 +20,15 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
   const [convSearch, setConvSearch] = useState('');
   const [showNew, setShowNew]     = useState(false);
   const [dropOver, setDropOver]   = useState(false);
+  const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentions, setShowMentions] = useState(false);
   const bottomRef                 = useRef<HTMLDivElement>(null);
   const fileRef                   = useRef<HTMLInputElement>(null);
+
+  const mentionResults = showMentions
+    ? allEmployees.filter(e => e.id !== employee.id && e.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 5)
+    : [];
 
   // Stable ID string so the listener only re-subscribes when employees actually change.
   const allEmpIds = allEmployees.map(e => e.id).join(',');
@@ -44,13 +53,31 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleTextChange = (val: string) => {
+    setText(val);
+    const atIdx = val.lastIndexOf('@');
+    if (atIdx !== -1 && atIdx === val.length - 1) { setMentionQuery(''); setShowMentions(true); }
+    else if (atIdx !== -1 && !val.slice(atIdx + 1).includes(' ')) { setMentionQuery(val.slice(atIdx + 1)); setShowMentions(true); }
+    else { setShowMentions(false); }
+  };
+
+  const insertMention = (emp: Employee) => {
+    const atIdx = text.lastIndexOf('@');
+    setText(text.slice(0, atIdx) + `@${emp.name} `);
+    setShowMentions(false);
+  };
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!text.trim() || !selected || sending) return;
     setSending(true);
     const msg = text.trim();
-    setText('');
-    await sendMessage({ senderId: employee.id, senderName: employee.name, recipientId: selected.id, content: msg, isGroupChat: false });
+    setText(''); setShowMentions(false);
+    const mentionedIds = allEmployees.filter(e => msg.includes(`@${e.name}`)).map(e => e.id);
+    await sendMessage({
+      senderId: employee.id, senderName: employee.name, recipientId: selected.id, content: msg, isGroupChat: false,
+      ...(mentionedIds.length ? { mentions: mentionedIds } : {}),
+    });
     if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
     setSending(false);
   };
@@ -109,6 +136,19 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
     c.name.toLowerCase().includes(convSearch.toLowerCase()) ||
     c.department.toLowerCase().includes(convSearch.toLowerCase())
   );
+
+  const renderContent = (content: string) => {
+    const names = allEmployees.map(e => e.name);
+    if (!names.length) return <>{content}</>;
+    const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`(@(?:${escaped.join('|')}))`, 'g');
+    const parts = content.split(regex);
+    return <>{parts.map((p, i) =>
+      p.startsWith('@') && names.includes(p.slice(1))
+        ? <span key={i} style={{ color: '#2563EB', fontWeight: 600, background: 'rgba(37,99,235,0.08)', borderRadius: 3, padding: '0 2px' }}>{p}</span>
+        : p
+    )}</>;
+  };
 
   return (
     <div style={{ height: '100%', display: 'flex', overflow: 'hidden', animation: 'fadeIn 200ms ease' }}>
@@ -178,10 +218,17 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
             {/* Thread header */}
             <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0 }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(selected.name)}</div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{selected.name}</div>
                 <div style={{ fontSize: 11, color: statusOf(selected.status).color }}>● {statusOf(selected.status).label}</div>
               </div>
+              <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" title="Start Google Meet"
+                style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', textDecoration: 'none', flexShrink: 0 }}
+                onMouseOver={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#2563EB'; (e.currentTarget as HTMLAnchorElement).style.borderColor = '#2563EB'; }}
+                onMouseOut={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)'; }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              </a>
             </div>
 
             {/* Messages */}
@@ -202,9 +249,24 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
                 const isMe = msg.senderId === employee.id;
                 const showSender = !isMe && (i === 0 || messages[i - 1].senderId !== msg.senderId);
                 const att = (msg as any).attachment;
+                const msgReactions: Record<string, string[]> = (msg as any).reactions ?? {};
+                const reactionEntries = Object.entries(msgReactions).filter(([, uids]) => uids.length > 0);
                 return (
-                  <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
+                  <div key={msg.id} onMouseEnter={() => setHoveredMsg(msg.id)} onMouseLeave={() => setHoveredMsg(null)}
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
                     {showSender && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3, paddingLeft: 4 }}>{msg.senderName}</div>}
+                    {/* Hover reaction picker */}
+                    {hoveredMsg === msg.id && (
+                      <div style={{ position: 'absolute', [isMe ? 'right' : 'left']: 0, bottom: 'calc(100% + 2px)', display: 'flex', gap: 2, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '3px 5px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', zIndex: 10 }}>
+                        {EMOJIS.map(emoji => (
+                          <button key={emoji} onClick={() => toggleReaction(msg.id, emoji, employee.id, msgReactions[emoji] ?? [])}
+                            style={{ fontSize: 15, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 5, opacity: (msgReactions[emoji] ?? []).includes(employee.id) ? 1 : 0.55, transition: 'opacity 100ms' }}
+                            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
+                            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.opacity = (msgReactions[emoji] ?? []).includes(employee.id) ? '1' : '0.55'}
+                          >{emoji}</button>
+                        ))}
+                      </div>
+                    )}
                     {att ? (
                       (() => {
                         const isImage = att.url && ['JPG','JPEG','PNG','GIF','WEBP','SVG'].includes(att.ext);
@@ -229,7 +291,18 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
                       })()
                     ) : (
                       <div style={{ padding: '9px 13px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', color: isMe ? '#fff' : 'var(--text)', fontSize: 13, lineHeight: 1.5, borderBottomRightRadius: isMe ? 4 : 12, borderBottomLeftRadius: isMe ? 12 : 4 }}>
-                        {msg.content}
+                        {renderContent(msg.content)}
+                      </div>
+                    )}
+                    {/* Reactions row */}
+                    {reactionEntries.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        {reactionEntries.map(([emoji, uids]) => (
+                          <button key={emoji} onClick={() => toggleReaction(msg.id, emoji, employee.id, uids)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, background: uids.includes(employee.id) ? '#EFF6FF' : 'var(--surface)', border: `1px solid ${uids.includes(employee.id) ? '#2563EB' : 'var(--border)'}`, cursor: 'pointer', fontSize: 12, color: uids.includes(employee.id) ? '#2563EB' : 'var(--text-muted)', fontFamily: 'inherit' }}>
+                            {emoji} <span style={{ fontSize: 11 }}>{uids.length}</span>
+                          </button>
+                        ))}
                       </div>
                     )}
                     <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 3, padding: '0 4px' }}>{fmtTime(msg.timestamp)}</div>
@@ -239,8 +312,27 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
               <div ref={bottomRef} />
             </div>
 
+            {/* Input + @mention autocomplete wrapper */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {showMentions && mentionResults.length > 0 && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 20, overflow: 'hidden' }}>
+                  {mentionResults.map(emp => (
+                    <button key={emp.id} onMouseDown={e => { e.preventDefault(); insertMention(emp); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                      onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'}
+                      onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+                    >
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(emp.name)}</div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             {/* Input */}
-            <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+            <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
               <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ''; } }} style={{ display: 'none' }} />
               <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload a file"
                 style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: uploading ? '#2563EB' : 'var(--text-muted)', flexShrink: 0, cursor: uploading ? 'wait' : 'pointer' }}
@@ -249,12 +341,15 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               </button>
-              <input type="text" value={text} onChange={e => setText(e.target.value)}
-                placeholder={`Message ${selected.name.split(' ')[0]}…`}
+              <input type="text" value={text} onChange={e => handleTextChange(e.target.value)}
+                placeholder={`Message ${selected.name.split(' ')[0]}… (type @ to mention)`}
                 style={{ flex: 1, height: 40, padding: '0 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', minWidth: 0 }}
                 onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                onBlur={e => { (e.target.style.borderColor = 'var(--border)'); setTimeout(() => setShowMentions(false), 150); }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') { setShowMentions(false); return; }
+                  if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend(); }
+                }}
                 disabled={sending}
               />
               <button type="submit" disabled={!text.trim() || sending}
@@ -262,6 +357,7 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </form>
+            </div>
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-faint)' }}>

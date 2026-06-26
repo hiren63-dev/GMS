@@ -100,6 +100,18 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Birthday reminders — check next 7 days
+  const upcomingBirthdays = (() => {
+    const result: { emp: Employee; daysAway: number }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now); d.setDate(d.getDate() + i);
+      const md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      allEmployees.filter(e => e.id !== employee.id && e.birthday === md).forEach(e => result.push({ emp: e, daysAway: i }));
+    }
+    return result;
+  })();
+
   const statusDot = (status: string) => ({
     todo: '#D1D5DB', in_progress: '#CA8A04', done: '#16A34A', blocked: '#DC2626',
   }[status] ?? '#D1D5DB');
@@ -144,6 +156,23 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
           </div>
         </div>
       ))}
+
+      {/* Birthday reminders */}
+      {upcomingBirthdays.length > 0 && (
+        <div style={{ background: 'linear-gradient(135deg,#FFF7ED,#FEF3C7)', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <span style={{ fontSize: 20 }}>🎂</span>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', marginBottom: 2 }}>Upcoming Birthdays</div>
+            <div style={{ fontSize: 12, color: '#B45309', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {upcomingBirthdays.map(({ emp, daysAway }) => (
+                <span key={emp.id} style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 6, padding: '2px 8px' }}>
+                  {emp.name.split(' ')[0]} — {daysAway === 0 ? 'Today! 🎉' : daysAway === 1 ? 'Tomorrow' : `in ${daysAway} days`}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>

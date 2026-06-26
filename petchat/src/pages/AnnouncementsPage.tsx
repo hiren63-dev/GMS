@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Employee, Announcement, AudienceTarget } from '../types';
-import { onAnnouncementsChange, createAnnouncement, updateAnnouncement, deleteAnnouncement, filterAnnouncements } from '../services/firebase';
+import type { Employee, Announcement, AudienceTarget, AnnouncementReply, Integration } from '../types';
+import { onAnnouncementsChange, createAnnouncement, updateAnnouncement, deleteAnnouncement, filterAnnouncements, onAnnouncementRepliesChange, addAnnouncementReply, onIntegrationsChange, sendSlackNotification } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -10,17 +10,33 @@ interface Props {
 interface AnnouncementCardProps {
   a: Announcement;
   canPost: boolean;
+  employee: Employee;
   onPin: (a: Announcement) => void;
   onDelete: (id: string) => void;
 }
 
-function AnnouncementCard({ a, canPost, onPin, onDelete }: AnnouncementCardProps) {
+function AnnouncementCard({ a, canPost, employee, onPin, onDelete }: AnnouncementCardProps) {
+  const [showReplies, setShowReplies] = useState(false);
+  const [replies, setReplies] = useState<AnnouncementReply[]>([]);
+  const [replyText, setReplyText] = useState('');
+  const [replying, setReplying] = useState(false);
+
+  useEffect(() => {
+    if (!showReplies) return;
+    return onAnnouncementRepliesChange(a.id, setReplies);
+  }, [a.id, showReplies]);
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setReplying(true);
+    await addAnnouncementReply({ announcementId: a.id, authorId: employee.id, authorName: employee.name, content: replyText.trim(), createdAt: Date.now() });
+    setReplyText(''); setReplying(false);
+  };
+
   const expired = a.expiresAt && a.expiresAt < Date.now();
   if (expired) return null;
   return (
-    <div className={`card p-5 border-l-4 ${a.pinned ? 'border-l-blue-500' : 'border-l-transparent'} animate-slide-in`}
-      style={{ opacity: expired ? 0.5 : 1 }}
-    >
+    <div className={`card p-5 border-l-4 ${a.pinned ? 'border-l-blue-500' : 'border-l-transparent'} animate-slide-in`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -36,12 +52,7 @@ function AnnouncementCard({ a, canPost, onPin, onDelete }: AnnouncementCardProps
             <span>👤 {a.authorName}</span>
             <span>·</span>
             <span>{new Date(a.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            {a.expiresAt && (
-              <>
-                <span>·</span>
-                <span>Expires {new Date(a.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-              </>
-            )}
+            {a.expiresAt && (<><span>·</span><span>Expires {new Date(a.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></>)}
           </div>
         </div>
         {canPost && (
@@ -55,6 +66,45 @@ function AnnouncementCard({ a, canPost, onPin, onDelete }: AnnouncementCardProps
           </div>
         )}
       </div>
+
+      {/* Reply thread */}
+      <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <button onClick={() => setShowReplies(v => !v)} className="text-xs font-medium transition"
+          style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'}
+          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'}
+        >
+          💬 {showReplies ? 'Hide' : 'Reply'}{replies.length > 0 ? ` · ${replies.length}` : ''}
+        </button>
+        {showReplies && (
+          <div className="mt-3 space-y-2">
+            {replies.map(r => (
+              <div key={r.id} className="flex gap-2 items-start">
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {r.authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '6px 10px', flex: 1 }}>
+                  <div className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{r.authorName}</div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.content}</div>
+                </div>
+              </div>
+            ))}
+            <div className="flex gap-2 mt-2">
+              <input value={replyText} onChange={e => setReplyText(e.target.value)}
+                placeholder="Write a reply…"
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+                style={{ flex: 1, height: 34, padding: '0 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
+                onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+              />
+              <button onClick={handleReply} disabled={replying || !replyText.trim()}
+                style={{ height: 34, padding: '0 14px', background: '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: replyText.trim() ? 1 : 0.5 }}>
+                {replying ? '…' : 'Reply'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -64,10 +114,13 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]     = useState({ title: '', body: '', audience: 'all' as AudienceTarget, pinned: false, expiresAt: '' });
   const [saving, setSaving] = useState(false);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
   const canPost = employee.role === 'admin' || employee.role === 'founder' || !!(employee.permissions?.includes('post_announcements'));
 
   useEffect(() => {
-    return onAnnouncementsChange(setAll);
+    const u1 = onAnnouncementsChange(setAll);
+    const u2 = onIntegrationsChange(setIntegrations);
+    return () => { u1(); u2(); };
   }, []);
 
   const visible = filterAnnouncements(all, employee).filter(a => !a.expiresAt || a.expiresAt >= Date.now());
@@ -85,6 +138,10 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
       expiresAt: form.expiresAt ? new Date(form.expiresAt).getTime() : undefined,
       createdAt: Date.now(),
     });
+    const slackIntegration = integrations.find(i => i.type === 'slack' && i.webhookUrl);
+    if (slackIntegration?.webhookUrl) {
+      sendSlackNotification(slackIntegration.webhookUrl, `📢 *${form.title}* — ${form.body} _(posted by ${employee.name})_`);
+    }
     setForm({ title: '', body: '', audience: 'all', pinned: false, expiresAt: '' });
     setShowForm(false); setSaving(false);
   };
@@ -155,7 +212,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
       {pinned.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>📌 Pinned</h3>
-          {pinned.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} onPin={togglePin} onDelete={handleDelete} />)}
+          {pinned.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} employee={employee} onPin={togglePin} onDelete={handleDelete} />)}
         </div>
       )}
 
@@ -164,7 +221,7 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
         {pinned.length > 0 && normal.length > 0 && (
           <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Latest</h3>
         )}
-        {normal.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} onPin={togglePin} onDelete={handleDelete} />)}
+        {normal.map(a => <AnnouncementCard key={a.id} a={a} canPost={canPost} employee={employee} onPin={togglePin} onDelete={handleDelete} />)}
       </div>
 
       {visible.length === 0 && (

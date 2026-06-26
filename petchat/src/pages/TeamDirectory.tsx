@@ -15,11 +15,96 @@ const STATUS_COLORS = {
   offline: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 };
 
+function ProfileModal({ emp, onClose, onNavigate }: { emp: Employee; onClose: () => void; onNavigate: (page: string, id?: string) => void }) {
+  const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const statusKey = emp.status ?? 'offline';
+  const skills = Array.isArray((emp as any).skills) ? (emp as any).skills as string[] : [];
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}
+      onClick={onClose}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, width: 380, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeIn 150ms ease' }}
+        onClick={e => e.stopPropagation()}>
+        {/* Avatar + name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{emp.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{(emp as any).jobTitle || emp.department}</div>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${STATUS_COLORS[statusKey]}`}>{STATUS_LABELS[statusKey]}</span>
+          </div>
+          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-muted)', lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* Fields */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Email</span>
+            <span style={{ color: 'var(--text)', wordBreak: 'break-all' }}>{emp.email}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Department</span>
+            <span style={{ color: 'var(--text)' }}>{emp.department}</span>
+          </div>
+          {(emp as any).phone && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Phone</span>
+              <span style={{ color: 'var(--text)' }}>{(emp as any).phone}</span>
+            </div>
+          )}
+          {(emp as any).birthday && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Birthday</span>
+              <span style={{ color: 'var(--text)' }}>{(emp as any).birthday}</span>
+            </div>
+          )}
+          {(emp as any).bio && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Bio</span>
+              <span style={{ color: 'var(--text)', lineHeight: 1.5 }}>{(emp as any).bio}</span>
+            </div>
+          )}
+          {skills.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Skills</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {skills.map((s: string) => (
+                  <span key={s} style={{ padding: '2px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 99, fontSize: 11, color: 'var(--text-muted)' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {emp.shiftStart && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-muted)', width: 90, flexShrink: 0 }}>Shift</span>
+              <span style={{ color: 'var(--text)' }}>{emp.shiftStart} – {emp.shiftEnd ?? '?'}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <button onClick={() => { onNavigate('messages'); onClose(); }}
+            style={{ flex: 1, height: 36, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            💬 Message
+          </button>
+          <button onClick={() => { onNavigate('screentime', emp.id); onClose(); }}
+            style={{ flex: 1, height: 36, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            ⏱ Screentime
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TeamDirectory({ employee, allEmployees, onNavigate }: Props) {
   const [search, setSearch]       = useState('');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [layout, setLayout]       = useState<'grid' | 'list'>('grid');
+  const [profileEmp, setProfileEmp] = useState<Employee | null>(null);
 
   const departments = Array.from(new Set(allEmployees.map(e => e.department)));
 
@@ -42,7 +127,7 @@ export default function TeamDirectory({ employee, allEmployees, onNavigate }: Pr
         <div key={emp.id}
           className="flex items-center gap-4 p-4 rounded-xl border transition hover:shadow-md cursor-pointer"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          onClick={() => onNavigate('screentime', emp.id)}
+          onClick={() => setProfileEmp(emp)}
         >
           <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${ringClass}`}>
             {initials}
@@ -68,7 +153,7 @@ export default function TeamDirectory({ employee, allEmployees, onNavigate }: Pr
     return (
       <div key={emp.id}
         className="card p-5 flex flex-col items-center text-center transition hover:shadow-lg hover:-translate-y-1 cursor-pointer"
-        onClick={() => onNavigate('screentime', emp.id)}
+        onClick={() => setProfileEmp(emp)}
       >
         <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold mb-3 ${ringClass}`}>
           {initials}
@@ -95,6 +180,7 @@ export default function TeamDirectory({ employee, allEmployees, onNavigate }: Pr
 
   return (
     <div className="p-6 space-y-5 animate-slide-in">
+      {profileEmp && <ProfileModal emp={profileEmp} onClose={() => setProfileEmp(null)} onNavigate={onNavigate} />}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>👥 Team Directory</h2>

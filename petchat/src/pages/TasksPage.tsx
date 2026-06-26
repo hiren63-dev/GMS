@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Employee, Task, Priority, TaskStatus } from '../types';
-import { onUserTasksChange, createTask, updateTask, deleteTask, logTaskDone } from '../services/firebase';
+import type { Employee, Task, Priority, TaskStatus, Recurrence, TaskComment } from '../types';
+import { onUserTasksChange, createTask, updateTask, deleteTask, logTaskDone, onTaskCommentsChange, addTaskComment } from '../services/firebase';
 
 interface Props { employee: Employee; }
 
@@ -12,12 +12,15 @@ const COLS: Col[] = [
   { key: 'done',       label: 'Done',          dot: '#16A34A' },
 ];
 
-interface NewTask { title: string; description: string; priority: Priority; dueDate: string; }
-const EMPTY: NewTask = { title: '', description: '', priority: 'medium', dueDate: '' };
+interface NewTask { title: string; description: string; priority: Priority; dueDate: string; recurrence: Recurrence | ''; blockedBy: string[]; }
+const EMPTY: NewTask = { title: '', description: '', priority: 'medium', dueDate: '', recurrence: '', blockedBy: [] };
 
 export default function TasksPage({ employee }: Props) {
   const [tasks, setTasks]       = useState<Task[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [comments, setComments]  = useState<TaskComment[]>([]);
+  const [commentText, setCommentText] = useState('');
   const [form, setForm]         = useState<NewTask>(EMPTY);
   const [saving, setSaving]     = useState(false);
   const [createError, setCreateError] = useState('');
@@ -25,6 +28,11 @@ export default function TasksPage({ employee }: Props) {
   const [overCol, setOverCol]   = useState<TaskStatus | null>(null);
 
   useEffect(() => onUserTasksChange(employee.id, setTasks), [employee.id]);
+
+  useEffect(() => {
+    if (!expandedTask) { setComments([]); return; }
+    return onTaskCommentsChange(expandedTask, setComments);
+  }, [expandedTask]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +44,8 @@ export default function TasksPage({ employee }: Props) {
         assigneeId: employee.id, assigneeName: employee.name,
         priority: form.priority, status: 'todo',
         dueDate: form.dueDate ? new Date(form.dueDate).getTime() : undefined,
+        ...(form.recurrence ? { recurrence: form.recurrence } : {}),
+        ...(form.blockedBy.length ? { blockedBy: form.blockedBy } : {}),
       });
       setForm(EMPTY); setShowModal(false); setCreateError('');
     } catch (err) {
@@ -46,12 +56,25 @@ export default function TasksPage({ employee }: Props) {
     }
   };
 
+  const handleAddComment = async (taskId: string) => {
+    if (!commentText.trim()) return;
+    await addTaskComment({ taskId, authorId: employee.id, authorName: employee.name, content: commentText.trim(), createdAt: Date.now() });
+    setCommentText('');
+  };
+
   const moveTo = (task: Task, status: TaskStatus) => {
     updateTask(task.id, { status, ...(status === 'done' ? { completedAt: Date.now() } : {}) })
       .catch(err => console.error('Failed to update task:', err));
-    // Feed the Founder "Tasks Done" metric + activity log on completion.
     if (status === 'done' && task.status !== 'done') {
       logTaskDone(employee.id, employee.name, task.title);
+      // Auto-recreate recurring tasks
+      if (task.recurrence) {
+        const next = new Date();
+        if (task.recurrence === 'daily') next.setDate(next.getDate() + 1);
+        else if (task.recurrence === 'weekly') next.setDate(next.getDate() + 7);
+        else if (task.recurrence === 'monthly') next.setMonth(next.getMonth() + 1);
+        createTask({ title: task.title, description: task.description, assigneeId: task.assigneeId, assigneeName: task.assigneeName, priority: task.priority, status: 'todo', recurrence: task.recurrence, dueDate: next.getTime() }).catch(() => {});
+      }
     }
   };
 
@@ -155,13 +178,42 @@ export default function TasksPage({ employee }: Props) {
                       )}
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span className={`badge-${task.priority}`} style={{ textTransform: 'capitalize' }}>{task.priority}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className={`badge-${task.priority}`} style={{ textTransform: 'capitalize' }}>{task.priority}</span>
+                          {task.recurrence && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#EFF6FF', color: '#2563EB', fontWeight: 600, textTransform: 'uppercase' }}>↻ {task.recurrence}</span>}
+                          <button onClick={e => { e.stopPropagation(); setExpandedTask(expandedTask === task.id ? null : task.id); setCommentText(''); }}
+                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: expandedTask === task.id ? '#111' : 'var(--bg)', border: '1px solid var(--border)', color: expandedTask === task.id ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}>
+                            💬{task.commentCount ? ` ${task.commentCount}` : ''}
+                          </button>
+                        </div>
                         {task.dueDate && (
                           <span style={{ fontSize: 11, color: overdue ? '#DC2626' : 'var(--text-faint)', fontWeight: overdue ? 600 : 400 }}>
                             {overdue ? '⚠ ' : ''}{formatDate(task.dueDate)}
                           </span>
                         )}
                       </div>
+
+                      {/* Comments panel */}
+                      {expandedTask === task.id && (
+                        <div style={{ marginTop: 10, padding: '10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Comments</div>
+                          {comments.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 8 }}>No comments yet.</div>}
+                          {comments.map(c => (
+                            <div key={c.id} style={{ marginBottom: 6 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{c.authorName}: </span>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.content}</span>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                            <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                              placeholder="Add a comment…"
+                              onKeyDown={e => { if (e.key === 'Enter') handleAddComment(task.id); }}
+                              style={{ flex: 1, height: 28, padding: '0 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
+                            />
+                            <button onClick={() => handleAddComment(task.id)} style={{ height: 28, padding: '0 10px', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Post</button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Move buttons */}
                       <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
@@ -229,6 +281,25 @@ export default function TasksPage({ employee }: Props) {
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Due Date</label>
                   <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
                     style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Recurrence</label>
+                  <select value={form.recurrence} onChange={e => setForm(f => ({ ...f, recurrence: e.target.value as Recurrence | '' }))}
+                    style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
+                    <option value="">None</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Blocked By</label>
+                  <select multiple value={form.blockedBy} onChange={e => setForm(f => ({ ...f, blockedBy: Array.from(e.target.selectedOptions, o => o.value) }))}
+                    style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
+                    {tasks.filter(t => t.status !== 'done').map(t => <option key={t.id} value={t.id}>{t.title.slice(0, 28)}</option>)}
+                  </select>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
