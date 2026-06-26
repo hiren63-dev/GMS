@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, logoutAdmin, onAuthChange } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { db } from './services/firebase';
 import type { Employee } from './types';
@@ -72,18 +72,37 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthChange(async (user: any) => {
       if (user && !currentEmpRef.current) {
-        startEmpListener();
-        try {
-          const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', user.email)));
-          if (!snap.empty) {
-            const d = snap.docs[0];
-            const empData = { id: d.id, ...d.data() } as Employee;
-            setCurrentEmployee(empData);
-            setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
+        if (user.isAnonymous) {
+          // Anonymous = stored-password employee session restored — look up by savedEmpId
+          const savedId = localStorage.getItem('savedEmpId');
+          if (savedId) {
+            try {
+              const snap = await getDoc(doc(db, 'employees', savedId));
+              if (snap.exists()) {
+                const empData = { id: snap.id, ...snap.data() } as Employee;
+                currentEmpRef.current = empData;
+                startEmpListener();
+                setCurrentEmployee(empData);
+                setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
+              } else {
+                localStorage.removeItem('savedEmpId');
+              }
+            } catch { localStorage.removeItem('savedEmpId'); }
           }
-        } catch { /* ignore */ }
+        } else {
+          startEmpListener();
+          try {
+            const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', user.email)));
+            if (!snap.empty) {
+              const d = snap.docs[0];
+              const empData = { id: d.id, ...d.data() } as Employee;
+              setCurrentEmployee(empData);
+              setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
+            }
+          } catch { /* ignore */ }
+        }
       } else if (!user && !currentEmpRef.current) {
-        // Restore stored-password sessions from localStorage
+        // No auth at all — try savedEmpId as last resort (rules must allow unauthenticated reads)
         const savedId = localStorage.getItem('savedEmpId');
         if (savedId) {
           try {
@@ -154,7 +173,10 @@ export default function App() {
 
       // Persist session for next visit
       localStorage.setItem('lastEmail', email);
-      if (!emp.authUid) localStorage.setItem('savedEmpId', emp.id);
+      if (!emp.authUid) {
+        localStorage.setItem('savedEmpId', emp.id);
+        try { await loginAnon(); } catch { /* anonymous auth optional — writes still work if rules allow */ }
+      }
       setCurrentEmployee(emp);
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
       startEmpListener(); // start employees listener now that auth is active

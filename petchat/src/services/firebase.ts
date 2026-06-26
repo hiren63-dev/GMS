@@ -4,7 +4,7 @@ import {
   updateDoc, doc, getDocs, deleteDoc, setDoc, orderBy, limit,
   Timestamp, getDoc,
 } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile } from '../types';
 
@@ -46,6 +46,7 @@ export const todayKey = (d: Date = new Date()): string => {
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const registerAdmin = (email: string, pw: string) => createUserWithEmailAndPassword(auth, email, pw);
 export const loginAdmin    = (email: string, pw: string) => signInWithEmailAndPassword(auth, email, pw);
+export const loginAnon     = () => signInAnonymously(auth);
 export const logoutAdmin   = () => signOut(auth);
 export const onAuthChange  = (cb: (u: any) => void) => onAuthStateChanged(auth, cb);
 
@@ -173,8 +174,12 @@ export const onConversationPartnersChange = (
 };
 
 // ── Tasks ─────────────────────────────────────────────────────────────────
-export const createTask = (t: Omit<Task, 'id'>) =>
-  addDoc(collection(db, 'tasks'), { ...t, createdAt: Date.now() });
+export const createTask = (t: Omit<Task, 'id'>) => {
+  const data = Object.fromEntries(
+    Object.entries({ ...t, createdAt: Date.now() }).filter(([, v]) => v !== undefined)
+  );
+  return addDoc(collection(db, 'tasks'), data);
+};
 
 export const updateTask = (id: string, data: Partial<Task>) =>
   updateDoc(doc(db, 'tasks', id), data as any);
