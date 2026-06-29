@@ -26,7 +26,7 @@ import IntegrationHub from './pages/admin/IntegrationHub';
 import AdminHealth from './pages/admin/AdminHealth';
 import OrgChartPage from './pages/OrgChartPage';
 import OneOnOnePage from './pages/OneOnOnePage';
-import CheckInForm from './components/CheckInForm';
+import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInModal';
 import TimeTracker from './components/TimeTracker';
 
 import './index.css';
@@ -38,6 +38,7 @@ export default function App() {
   const [screentimeId, setScreentimeId]       = useState<string | null>(null);
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
+  const [showCheckin, setShowCheckin]         = useState(false);
 
   // Profile picker — cached profiles for 1-click login
   type SavedProfile = { name: string; email: string; initials: string; department: string; lastLogin: number };
@@ -95,6 +96,12 @@ export default function App() {
       setMascotMsg(`${greet}, ${currentEmployee.name.split(' ')[0]}! 🐾`);
       setTimeout(() => setMascotMsg(''), 4000);
     }
+  }, [currentEmployee?.id]);
+
+  // Show daily check-in popup once per day on first login
+  useEffect(() => {
+    if (!currentEmployee) return;
+    setShowCheckin(!checkinDoneToday(currentEmployee.id));
   }, [currentEmployee?.id]);
 
   useEffect(() => {
@@ -569,9 +576,6 @@ export default function App() {
           {currentPage === 'time' && (
             <TimeTracker employee={currentEmployee} />
           )}
-          {currentPage === 'checkin' && (
-            <CheckInForm employee={currentEmployee} onDone={() => setCurrentPage('dashboard')} />
-          )}
           {currentPage === 'announcements' && (
             <AnnouncementsPage employee={currentEmployee} allEmployees={employees} />
           )}
@@ -601,6 +605,10 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {showCheckin && (
+        <DailyCheckInModal employee={currentEmployee} onDone={() => setShowCheckin(false)} />
+      )}
 
       <Mascot
         onTap={() => {

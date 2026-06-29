@@ -2,7 +2,7 @@ import type { Employee } from '../types';
 
 type Page =
   | 'dashboard' | 'founder' | 'team' | 'messages' | 'tasks' | 'groups'
-  | 'time' | 'checkin' | 'announcements' | 'resources' | 'screentime'
+  | 'time' | 'announcements' | 'resources' | 'screentime'
   | 'org-chart' | 'one-on-one'
   | 'admin' | 'admin-team' | 'admin-tasks' | 'admin-shifts' | 'admin-integrations' | 'admin-health';
 
@@ -88,9 +88,6 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
         } />
         <NavBtn active={currentPage === 'announcements'} onClick={() => onNavigate('announcements')} label="Announcements" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-        } />
-        <NavBtn active={currentPage === 'checkin'} onClick={() => onNavigate('checkin')} label="Check-In" icon={
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         } />
         <NavBtn active={currentPage === 'time'} onClick={() => onNavigate('time')} label="Time Tracker" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
