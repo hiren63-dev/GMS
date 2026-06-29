@@ -1,8 +1,9 @@
 import type { Employee } from '../types';
 
 type Page =
-  | 'dashboard' | 'founder' | 'team' | 'messages' | 'tasks'
+  | 'dashboard' | 'founder' | 'team' | 'messages' | 'tasks' | 'groups'
   | 'time' | 'checkin' | 'announcements' | 'resources' | 'screentime'
+  | 'org-chart' | 'one-on-one'
   | 'admin' | 'admin-team' | 'admin-tasks' | 'admin-shifts' | 'admin-integrations' | 'admin-health';
 
 interface SidebarProps {
@@ -39,6 +40,8 @@ const Icon = ({ path, viewBox = '0 0 24 24' }: { path: string; viewBox?: string 
 export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, unreadCount = 0 }: SidebarProps) {
   const isAdmin   = employee.role === 'admin' || employee.role === 'founder';
   const isFounder = employee.role === 'founder';
+  const perms     = employee.permissions ?? [];
+  const isTeamLead = !isAdmin && perms.length > 0;
   const initials  = employee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const roleBadge = { founder: { bg: '#F3E8FF', fg: '#7C3AED' }, admin: { bg: '#EFF6FF', fg: '#2563EB' }, employee: { bg: '#F3F3F2', fg: '#555' } }[employee.role];
@@ -77,6 +80,9 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
         <NavBtn active={currentPage === 'team'} onClick={() => onNavigate('team')} label="Team" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         } />
+        <NavBtn active={currentPage === 'org-chart'} onClick={() => onNavigate('org-chart')} label="Org Chart" icon={
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="1" y="18" width="6" height="4" rx="1"/><rect x="9" y="18" width="6" height="4" rx="1"/><rect x="17" y="18" width="6" height="4" rx="1"/><path d="M4 18v-3h16v3"/><path d="M12 6v9"/></svg>
+        } />
         <NavBtn active={currentPage === 'announcements'} onClick={() => onNavigate('announcements')} label="Announcements" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
         } />
@@ -90,6 +96,32 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         } />
 
+        {isTeamLead && (
+          <>
+            <div style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Team Lead</div>
+            {perms.includes('view_reports') && (
+              <NavBtn active={currentPage === 'admin'} onClick={() => onNavigate('admin')} label="Reports" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              } />
+            )}
+            {perms.includes('assign_tasks') && (
+              <NavBtn active={currentPage === 'admin-tasks'} onClick={() => onNavigate('admin-tasks')} label="Assign Tasks" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>
+              } />
+            )}
+            {perms.includes('manage_shifts') && (
+              <NavBtn active={currentPage === 'admin-shifts'} onClick={() => onNavigate('admin-shifts')} label="Shift Control" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              } />
+            )}
+            {perms.includes('view_reports') && (
+              <NavBtn active={currentPage === 'admin-health'} onClick={() => onNavigate('admin-health')} label="System Health" icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              } />
+            )}
+          </>
+        )}
+
         {isAdmin && (
           <>
             <div style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Admin</div>
@@ -98,6 +130,9 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
             } />
             <NavBtn active={currentPage === 'admin-team'} onClick={() => onNavigate('admin-team')} label="Team" icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            } />
+            <NavBtn active={currentPage === 'one-on-one'} onClick={() => onNavigate('one-on-one')} label="1-on-1 Notes" icon={
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M14 15h2a2 2 0 0 1 2 2v2"/><line x1="18" y1="8" x2="22" y2="8"/><line x1="20" y1="6" x2="20" y2="10"/></svg>
             } />
             <NavBtn active={currentPage === 'admin-tasks'} onClick={() => onNavigate('admin-tasks')} label="Assign Tasks" icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>

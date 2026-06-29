@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Props {
   onTap?: () => void;
@@ -9,17 +9,24 @@ export default function Mascot({ onTap, message }: Props) {
   const [isWagging, setIsWagging] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [showBubble, setShowBubble] = useState(!!message);
+  const wagTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const wagInterval = setInterval(() => {
       setIsWagging(true);
-      setTimeout(() => setIsWagging(false), 600);
+      wagTimerRef.current = setTimeout(() => setIsWagging(false), 600);
     }, 4000);
     const blinkInterval = setInterval(() => {
       setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 150);
+      blinkTimerRef.current = setTimeout(() => setIsBlinking(false), 150);
     }, 3500);
-    return () => { clearInterval(wagInterval); clearInterval(blinkInterval); };
+    return () => {
+      clearInterval(wagInterval);
+      clearInterval(blinkInterval);
+      if (wagTimerRef.current) clearTimeout(wagTimerRef.current);
+      if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -28,7 +35,7 @@ export default function Mascot({ onTap, message }: Props) {
 
   const handleClick = () => {
     setIsWagging(true);
-    setTimeout(() => setIsWagging(false), 600);
+    wagTimerRef.current = setTimeout(() => setIsWagging(false), 600);
     onTap?.();
   };
 

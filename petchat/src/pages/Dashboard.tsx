@@ -3,7 +3,7 @@ import type { Employee, Task, LoginLog, CheckInResponse, Announcement } from '..
 import {
   onUserTasksChange, getTodaysLog, logLogin, logLogout,
   getTodaysCheckIn, filterAnnouncements, onAnnouncementsChange,
-  getTodaysActiveCount, onMessagesChange,
+  onMessagesChange,
 } from '../services/firebase';
 
 interface Props {
@@ -17,18 +17,21 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const [log, setLog]                   = useState<LoginLog | null>(null);
   const [checkin, setCheckin]           = useState<CheckInResponse | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [activeCount, setActiveCount]   = useState(0);
   const [workHours, setWorkHours]       = useState('0h 0m');
   const [clockLoading, setClockLoading] = useState(false);
   const [clockError, setClockError]     = useState('');
   const [recentConvs, setRecentConvs]   = useState<{ emp: Employee; lastMsg: string; time: string }[]>([]);
+
+  // Popups for accountability
+  const [showMorningPopup, setShowMorningPopup] = useState(false);
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const [hasSeenMorning, setHasSeenMorning] = useState(false);
 
   useEffect(() => {
     const unsub  = onUserTasksChange(employee.id, setTasks);
     const unsubA = onAnnouncementsChange(items => setAnnouncements(filterAnnouncements(items, employee)));
     getTodaysLog(employee.id).then(setLog);
     getTodaysCheckIn(employee.id).then(setCheckin);
-    getTodaysActiveCount().then(setActiveCount);
     return () => { unsub(); unsubA(); };
   }, [employee.id]);
 
@@ -71,7 +74,38 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     return () => clearInterval(id);
   }, [log]);
 
+  // Evaluate incomplete tasks from previous days for morning popup
+  useEffect(() => {
+    if (hasSeenMorning || tasks.length === 0) return;
+    const now = new Date();
+    // A task is "yesterday's" if its createdAt was before today at 00:00:00 (if we had it, but we can just check if we have any incomplete overdue tasks, or tasks older than 12h)
+    // Actually we can just show the morning popup if it's morning (hour < 12), they just clocked in, and have ANY incomplete tasks.
+    const hour = now.getHours();
+    if (hour < 12 && log && !log.logoutTime && tasks.some(t => t.status !== 'done')) {
+      const msSinceLogin = Date.now() - (typeof log.loginTime === 'number' ? log.loginTime : Date.now());
+      if (msSinceLogin < 10000) { // If they just logged in < 10 seconds ago
+        setShowMorningPopup(true);
+        setHasSeenMorning(true);
+      }
+    }
+  }, [tasks, log, hasSeenMorning]);
+
   const handleClock = async () => {
+    // If they are clocking out and have incomplete tasks, show warning first
+    if (log && !log.logoutTime) {
+      const open = tasks.filter(t => t.status !== 'done');
+      if (open.length > 0) {
+        setShowLogoutWarning(true);
+        return;
+      }
+    }
+    
+    // Normal clock flow
+    executeClock();
+  };
+
+  const executeClock = async () => {
+    setShowLogoutWarning(false);
     setClockLoading(true);
     setClockError('');
     try {
@@ -89,17 +123,39 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     } finally { setClockLoading(false); }
   };
 
-  const todo       = tasks.filter(t => t.status === 'todo').length;
-  const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-  const done       = tasks.filter(t => t.status === 'done').length;
-  const urgent     = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
+  const normalizeStatus = (s?: string) => {
+    if (!s) return 'todo';
+    const str = s.toLowerCase().replace(/[\s-]/g, '_');
+    if (str === 'in_progress' || str === 'inprogress') return 'in_progress';
+    if (str === 'done' || str === 'completed') return 'done';
+    if (str === 'blocked') return 'blocked';
+    return 'todo';
+  };
+
+  const todo       = tasks.filter(t => normalizeStatus(t.status) === 'todo').length;
+  const inProgress = tasks.filter(t => normalizeStatus(t.status) === 'in_progress').length;
+  const done       = tasks.filter(t => normalizeStatus(t.status) === 'done').length;
+  const urgent     = tasks.filter(t => t.priority === 'urgent' && normalizeStatus(t.status) !== 'done').length;
   const total      = tasks.length;
   const pct        = total ? Math.round((done / total) * 100) : 0;
+  const activeCount = allEmployees.filter(e => e.status === 'active').length;
   const isClockedIn = log && !log.logoutTime;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  // Birthday reminders — check next 7 days
+  const upcomingBirthdays = (() => {
+    const result: { emp: Employee; daysAway: number }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now); d.setDate(d.getDate() + i);
+      const md = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      allEmployees.filter(e => e.id !== employee.id && e.birthday === md).forEach(e => result.push({ emp: e, daysAway: i }));
+    }
+    return result;
+  })();
 
   const statusDot = (status: string) => ({
     todo: '#D1D5DB', in_progress: '#CA8A04', done: '#16A34A', blocked: '#DC2626',
@@ -146,6 +202,23 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
         </div>
       ))}
 
+      {/* Birthday reminders */}
+      {upcomingBirthdays.length > 0 && (
+        <div style={{ background: 'linear-gradient(135deg,#FFF7ED,#FEF3C7)', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <span style={{ fontSize: 20 }}>🎂</span>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', marginBottom: 2 }}>Upcoming Birthdays</div>
+            <div style={{ fontSize: 12, color: '#B45309', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {upcomingBirthdays.map(({ emp, daysAway }) => (
+                <span key={emp.id} style={{ background: 'rgba(255,255,255,0.7)', borderRadius: 6, padding: '2px 8px' }}>
+                  {emp.name.split(' ')[0]} — {daysAway === 0 ? 'Today! 🎉' : daysAway === 1 ? 'Tomorrow' : `in ${daysAway} days`}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
@@ -170,10 +243,10 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px', marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>Today's progress</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{done} of {total} tasks</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{total === 0 ? 'No tasks yet' : `${done} of ${total} tasks`}</span>
         </div>
         <div style={{ height: 5, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden' }}>
-          <div style={{ height: '100%', background: 'var(--text)', borderRadius: 99, width: `${pct}%`, transition: 'width 600ms ease' }} />
+          <div style={{ height: '100%', background: total === 0 ? 'transparent' : 'var(--text)', borderRadius: 99, width: `${pct}%`, transition: 'width 600ms ease' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
           <span>{todo} to do</span>
@@ -306,6 +379,38 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
           )}
         </div>
       </div>
+      {/* Modals */}
+      {showMorningPopup && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowMorningPopup(false)}>
+          <div style={{ width: 380, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'scaleIn 150ms ease' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>☕</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Good morning!</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.5 }}>
+              You have <strong>{tasks.filter(t => t.status !== 'done').length} open tasks</strong> waiting for you. Let's get things done today!
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setShowMorningPopup(false); onNavigate('tasks'); }} style={{ flex: 1, height: 40, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>View Tasks</button>
+              <button onClick={() => setShowMorningPopup(false)} style={{ flex: 1, height: 40, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogoutWarning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowLogoutWarning(false)}>
+          <div style={{ width: 380, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'scaleIn 150ms ease' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🛑</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Wait! You still have open tasks.</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.5 }}>
+              You have <strong>{tasks.filter(t => t.status !== 'done').length} tasks</strong> still marked as incomplete. Are you sure you want to clock out?
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={executeClock} style={{ flex: 1, height: 40, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Clock out anyway</button>
+              <button onClick={() => { setShowLogoutWarning(false); onNavigate('tasks'); }} style={{ flex: 1, height: 40, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Finish tasks</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

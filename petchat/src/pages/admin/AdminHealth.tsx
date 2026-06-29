@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getDocs, collection, query, limit, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../../services/firebase';
-import type { Employee } from '../../types';
+import { db, auth, onAuditLogChange } from '../../services/firebase';
+import type { Employee, AuditEntry } from '../../types';
 
 interface Props {
   employee: Employee;
@@ -29,6 +29,13 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
   const [checks, setChecks] = useState<Check[]>([]);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<Date | null>(null);
+  const ranWithEmployees = useRef(false);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [logLimit, setLogLimit] = useState(100);
+
+  useEffect(() => {
+    return onAuditLogChange(setAuditLog, logLimit);
+  }, [logLimit]);
 
   const runChecks = async () => {
     setRunning(true);
@@ -146,6 +153,15 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
 
   useEffect(() => { runChecks(); }, []);
 
+  // Re-run once employees arrive if the initial run had no employees to test with
+  useEffect(() => {
+    if (allEmployees.length > 0 && !ranWithEmployees.current) {
+      ranWithEmployees.current = true;
+      runChecks();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEmployees.length]);
+
   const okCount    = checks.filter(c => c.status === 'ok').length;
   const warnCount  = checks.filter(c => c.status === 'warn').length;
   const errorCount = checks.filter(c => c.status === 'error').length;
@@ -245,6 +261,40 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
           </div>
         </div>
       )}
+
+      {/* Audit Log */}
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Audit Log</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>{auditLog.length} event{auditLog.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
+          {auditLog.length === 0 ? (
+            <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>No audit events yet.</div>
+          ) : auditLog.map((entry, i) => (
+            <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 16px', borderBottom: i < auditLog.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {entry.actorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 600 }}>{entry.actorName}</span>
+                  {' '}<span style={{ color: 'var(--text-muted)' }}>{entry.action}</span>
+                  {entry.target && <span style={{ color: 'var(--text)' }}> · {entry.target}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {new Date(entry.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+          ))}
+          {auditLog.length >= logLimit && (
+            <button onClick={() => setLogLimit(l => l + 100)} style={{ width: '100%', padding: '12px 16px', background: 'var(--bg)', border: 'none', borderTop: '1px solid var(--border-subtle)', color: 'var(--text)', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'background 120ms' }} onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'} onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'}>
+              Load more
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Known limitations */}
       <div style={{ marginTop: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>

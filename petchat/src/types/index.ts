@@ -1,10 +1,18 @@
-// ── Roles ──────────────────────────────────────────────
+// ── Roles & Permissions ────────────────────────────────
 export type Role = 'founder' | 'admin' | 'employee';
+export type Permission =
+  | 'assign_tasks'          // can assign tasks to anyone
+  | 'post_announcements'    // can create / pin announcements
+  | 'view_all_screentime'   // can view any employee's screentime
+  | 'manage_shifts'         // can edit shift schedules
+  | 'view_reports';         // can view admin overview & health
+
 export type Department = 'Tech' | 'Marketing' | 'Operations' | 'Sales' | 'CEO' | 'CFO' | 'CMO' | 'Design' | 'Engineering' | 'Other';
 export type ActivityStatus = 'active' | 'idle' | 'blocked' | 'offline';
 export type Priority = 'urgent' | 'high' | 'medium' | 'low';
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked';
 export type Mood = 'great' | 'good' | 'okay' | 'rough' | 'bad';
+export type Recurrence = 'daily' | 'weekly' | 'monthly';
 
 // ── Core Entities ──────────────────────────────────────
 export interface Employee {
@@ -21,7 +29,17 @@ export interface Employee {
   createdAt?: number;
   password?: string;     // stored plaintext for admin reference (internal tool)
   authUid?: string;      // Firebase Auth UID, if account created via createEmployeeWithAuth
+  permissions?: Permission[]; // extra permissions granted by admin to non-admin employees
+  // Profile fields
+  bio?: string;
+  skills?: string[];
+  phone?: string;
+  birthday?: string;     // 'MM-DD' for annual recurring reminder
+  jobTitle?: string;     // display label, e.g. "Senior Engineer"
+  managerId?: string;    // org chart parent
 }
+
+export interface Group { id: string; name: string; description: string; adminId: string; memberIds: string[]; createdAt: number; }
 
 export interface Message {
   id: string;
@@ -35,10 +53,12 @@ export interface Message {
   isGroupChat: boolean;
   timestamp: number;
   read?: boolean;
-  attachment?: { name: string; size: string; ext: string };
+  attachment?: { name: string; size: string; ext: string; url?: string };
+  reactions?: Record<string, string[]>; // emoji → [userId, ...]
+  mentions?: string[];                  // employee IDs mentioned with @name
 }
 
-export interface Task {
+export interface Task { groupId?: string;
   id: string;
   title: string;
   description?: string;
@@ -54,6 +74,52 @@ export interface Task {
   tags?: string[];
   createdAt?: number;
   completedAt?: number;
+  recurrence?: Recurrence;   // auto-recreate on completion
+  blockedBy?: string[];      // task IDs this task is blocked by
+  commentCount?: number;
+}
+
+// ── Task Comments ─────────────────────────────────────
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: number;
+}
+
+// ── Announcement Replies ──────────────────────────────
+export interface AnnouncementReply {
+  id: string;
+  announcementId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: number;
+}
+
+// ── 1-on-1 Notes ─────────────────────────────────────
+export interface OneOnOneNote {
+  id: string;
+  managerId: string;
+  employeeId: string;
+  managerName: string;
+  employeeName: string;
+  content: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+// ── Audit Log ─────────────────────────────────────────
+export interface AuditEntry {
+  id: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  target: string;
+  details?: string;
+  timestamp: number;
 }
 
 export interface LoginLog {
@@ -164,6 +230,20 @@ export interface AdminSettings {
   announcements?: Announcement[];
 }
 
+// ── Resource Files ────────────────────────────────────
+export interface ResourceFile { groupId?: string;
+  id: string;
+  name: string;
+  url: string;
+  size: string;
+  ext: string;
+  mimeType: string;
+  uploadedBy: string;
+  uploadedByName: string;
+  uploadedAt: number;
+  category?: string;
+}
+
 // ── Integration ───────────────────────────────────────
 export interface Integration {
   id: string;
@@ -174,3 +254,16 @@ export interface Integration {
   enabled: boolean;
   connectedAt?: number;
 }
+
+export interface PendingAccount {
+  id: string;
+  name: string;
+  email: string;
+  department: Department;
+  role: Role;
+  password: string;
+  requestedAt: number;
+  note?: string;
+}
+
+

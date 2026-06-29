@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Employee, LoginLog } from '../types';
 import { logLogin, logLogout, getTodaysLog, getTimeLogs, todayKey } from '../services/firebase';
+import { toast } from '../utils/toast';
 
 interface Props { employee: Employee; }
 
@@ -10,6 +11,7 @@ export default function TimeTracker({ employee }: Props) {
   const [loading, setLoading]     = useState(true);
   const [working, setWorking]     = useState(false);
   const [elapsed, setElapsed]     = useState('');
+  const [clockError, setClockError] = useState('');
 
   useEffect(() => {
     const run = async () => {
@@ -40,21 +42,31 @@ export default function TimeTracker({ employee }: Props) {
 
   const handleClockIn = async () => {
     setWorking(true);
+    setClockError('');
     try {
       await logLogin(employee.id, employee.name);
       const log = await getTodaysLog(employee.id);
       setTodayLog(log);
+      toast('Clocked in successfully ⏱️');
+    } catch (err) {
+      console.error('Clock-in failed:', err);
+      setClockError('Could not clock in. Check your connection and try again.');
     } finally { setWorking(false); }
   };
 
   const handleClockOut = async () => {
     if (!todayLog?.id) return;
     setWorking(true);
+    setClockError('');
     try {
       await logLogout(todayLog.id, employee.id);
       setTodayLog(prev => prev ? { ...prev, logoutTime: Date.now() } : null);
       const hist = await getTimeLogs(employee.id, 7);
       setHistory(hist);
+      toast('Clocked out successfully 👋');
+    } catch (err) {
+      console.error('Clock-out failed:', err);
+      setClockError('Could not clock out. Check your connection and try again.');
     } finally { setWorking(false); }
   };
 
@@ -73,6 +85,11 @@ export default function TimeTracker({ employee }: Props) {
         <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>⏱️ Time Tracker</h2>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Track your work hours</p>
       </div>
+      {clockError && (
+        <div className="rounded-lg px-4 py-3 text-sm" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626' }}>
+          {clockError}
+        </div>
+      )}
 
       {/* Clock */}
       <div className="card p-8 text-center">

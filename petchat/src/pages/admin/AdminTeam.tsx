@@ -1,9 +1,18 @@
-import { useState } from 'react';
-import type { Employee, Department, Role } from '../../types';
+import { useState, useEffect } from 'react';
+import type { Employee, Department, Role, Permission, PendingAccount } from '../../types';
 import {
   updateEmployee, deleteEmployee,
   createEmployeeWithAuth, generatePassword,
+  onPendingAccountsChange, approvePendingAccount, rejectPendingAccount
 } from '../../services/firebase';
+
+const ALL_PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
+  { key: 'assign_tasks',       label: 'Assign Tasks',       desc: 'Can assign tasks to any team member' },
+  { key: 'post_announcements', label: 'Post Announcements', desc: 'Can create and pin announcements' },
+  { key: 'view_all_screentime',label: 'View All Screentime',desc: 'Can view any employee\'s screentime stats' },
+  { key: 'manage_shifts',      label: 'Manage Shifts',      desc: 'Can edit shift schedules' },
+  { key: 'view_reports',       label: 'View Reports',       desc: 'Can view admin overview and system health' },
+];
 
 interface Props {
   employee: Employee;
@@ -12,7 +21,7 @@ interface Props {
 
 const DEPARTMENTS: Department[] = ['Tech', 'Marketing', 'Operations', 'Sales', 'CEO', 'CFO', 'CMO', 'Design', 'Engineering', 'Other'];
 const ROLES: Role[] = ['employee', 'admin', 'founder'];
-const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '' };
+const EMPTY = { name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, shiftStart: '', shiftEnd: '', password: '', permissions: [] as Permission[], jobTitle: '' };
 
 type EmpWithPw = Employee & { password?: string };
 
@@ -27,8 +36,15 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
   const [revealPw, setRevealPw]       = useState<Set<string>>(new Set());
   const [toast, setToast]             = useState('');
   const [createError, setCreateError] = useState('');
+  const [pending, setPending]         = useState<PendingAccount[]>([]);
+  const [approving, setApproving]     = useState<string | null>(null);
+
+  useEffect(() => {
+    return onPendingAccountsChange(setPending);
+  }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
 
   const filtered = (allEmployees as EmpWithPw[]).filter(e => {
     const q = search.toLowerCase();
@@ -50,6 +66,8 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
         const patch: Partial<EmpWithPw> = {
           name: form.name, email: form.email, department: form.department,
           role: form.role, shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
+          permissions: form.role === 'employee' ? form.permissions : [],
+          ...(form.jobTitle ? { jobTitle: form.jobTitle } : {}),
         };
         if (form.password) patch.password = form.password;
         await updateEmployee(editId, patch);
@@ -61,7 +79,9 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           role: form.role, status: 'offline',
           shiftStart: form.shiftStart, shiftEnd: form.shiftEnd,
           password: form.password,
-        });
+          permissions: form.role === 'employee' ? form.permissions : [],
+          ...(form.jobTitle ? { jobTitle: form.jobTitle } : {}),
+        } as any);
         // Don't print the password on screen (shoulder-surfing / screen-share risk).
         // Copy it to the clipboard instead; it also stays visible in the table for the admin.
         navigator.clipboard?.writeText(form.password).catch(() => {});
@@ -78,7 +98,8 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     setForm({
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, shiftStart: emp.shiftStart ?? '', shiftEnd: emp.shiftEnd ?? '',
-      password: emp.password ?? '',
+      password: emp.password ?? '', permissions: emp.permissions ?? [],
+      jobTitle: (emp as any).jobTitle ?? '',
     });
     setEditId(emp.id);
     setShowForm(true);
@@ -97,13 +118,14 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     if (ids.length === 0) { showToast("You can't remove your own account here."); return; }
     const count = ids.length;
     if (!confirm(`Remove ${count} employee${count > 1 ? 's' : ''}?`)) return;
-    try {
-      await Promise.all(ids.map(id => deleteEmployee(id)));
-      setSelected(new Set());
-      showToast(`${count} employee${count > 1 ? 's' : ''} removed.`);
-    } catch (err) {
-      console.error('Bulk delete failed:', err);
-      showToast('Some removals failed. Please try again.');
+    const results = await Promise.allSettled(ids.map(id => deleteEmployee(id)));
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const succeeded = ids.length - failed;
+    setSelected(new Set());
+    if (failed > 0) {
+      showToast(`${succeeded} removed, ${failed} could not be deleted — try again.`);
+    } else {
+      showToast(`${succeeded} employee${succeeded > 1 ? 's' : ''} removed.`);
     }
   };
 
@@ -117,7 +139,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
-  const toggleAll = () => setSelected(s => s.size === filtered.length ? new Set() : new Set(filtered.map(e => e.id)));
+  const toggleAll = () => setSelected(() => filtered.every(e => selected.has(e.id)) ? new Set() : new Set(filtered.map(e => e.id)));
 
   const statusDot: Record<string, string> = { active: '#22C55E', idle: '#F59E0B', blocked: '#EF4444', offline: '#D1D5DB' };
 
@@ -132,6 +154,51 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
     <div style={{ padding: 24, animation: 'fadeIn 200ms ease' }}>
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
+
+      {/* Pending Approvals */}
+      {pending.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+            Pending Approvals ({pending.length})
+          </div>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {pending.map(p => (
+              <div key={p.id} style={{ background: 'var(--surface)', border: '1px solid #FCD34D', borderRadius: 10, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {p.email} • {p.department} • Requested {new Date(p.requestedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={async () => {
+                    if (confirm(`Reject request from ${p.name}?`)) {
+                      await rejectPendingAccount(p.id);
+                      showToast(`Rejected ${p.name}`);
+                    }
+                  }} disabled={!!approving} style={{ height: 32, padding: '0 12px', background: 'var(--bg)', color: '#DC2626', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer' }}>
+                    Reject
+                  </button>
+                  <button onClick={async () => {
+                    setApproving(p.id);
+                    try {
+                      await approvePendingAccount(p);
+                      showToast(`Approved ${p.name}`);
+                    } catch (err: any) {
+                      showToast(`Error: ${err.message}`);
+                    } finally {
+                      setApproving(null);
+                    }
+                  }} disabled={!!approving} style={{ height: 32, padding: '0 12px', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer' }}>
+                    {approving === p.id ? 'Approving…' : 'Approve & Add'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -194,6 +261,11 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               </select>
             </div>
             <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Job Title</label>
+              <input value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. Senior Engineer" style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+            </div>
+            <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Shift Start</label>
               <input type="time" value={form.shiftStart} onChange={e => setForm(f => ({ ...f, shiftStart: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }} />
             </div>
@@ -202,6 +274,36 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               <input type="time" value={form.shiftEnd} onChange={e => setForm(f => ({ ...f, shiftEnd: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }} />
             </div>
           </div>
+
+          {/* Team Lead Permissions — only for employee role */}
+          {form.role === 'employee' && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Team Lead Permissions <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional — grants partial admin access)</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {ALL_PERMISSIONS.map(p => {
+                  const checked = form.permissions.includes(p.key);
+                  return (
+                    <label key={p.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: checked ? 'rgba(37,99,235,0.06)' : 'var(--bg)', border: `1px solid ${checked ? '#93C5FD' : 'var(--border)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 120ms' }}>
+                      <input type="checkbox" checked={checked} onChange={() => {
+                        setForm(f => ({
+                          ...f,
+                          permissions: checked
+                            ? f.permissions.filter(x => x !== p.key)
+                            : [...f.permissions, p.key],
+                        }));
+                      }} style={{ marginTop: 2, cursor: 'pointer', flexShrink: 0 }} />
+                      <span>
+                        <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{p.label}</span>
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{p.desc}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Password row */}
           <div style={{ marginBottom: 16 }}>
@@ -283,7 +385,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
           <thead>
             <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
               <th style={{ padding: '10px 14px', textAlign: 'left', width: 40 }}>
-                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} style={{ cursor: 'pointer' }} />
+                <input type="checkbox" checked={filtered.length > 0 && filtered.every(e => selected.has(e.id))} onChange={toggleAll} style={{ cursor: 'pointer' }} />
               </th>
               {['Employee', 'Department', 'Role', 'Status', 'Shift', 'Password', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{h}</th>
@@ -315,7 +417,14 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                   <td style={{ padding: '12px 14px' }}>
                     <span style={{ fontSize: 11, padding: '2px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 99, color: 'var(--text-muted)' }}>{e.department}</span>
                   </td>
-                  <td style={{ padding: '12px 14px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{e.role}</td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{e.role}</span>
+                    {e.role === 'employee' && (e as any).permissions?.length > 0 && (
+                      <span title={(e as any).permissions.join(', ')} style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', background: '#EFF6FF', color: '#2563EB', borderRadius: 99, fontWeight: 600, cursor: 'default', border: '1px solid #BFDBFE' }}>
+                        {(e as any).permissions.length} perm{(e as any).permissions.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '12px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot[e.status ?? 'offline'], flexShrink: 0, display: 'inline-block' }} />

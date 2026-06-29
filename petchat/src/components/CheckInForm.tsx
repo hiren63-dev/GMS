@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Employee, Mood } from '../types';
 import { submitCheckIn, logActivity } from '../services/firebase';
+import { toast } from '../utils/toast';
 
 interface Props {
   employee: Employee;
@@ -48,6 +49,7 @@ export default function CheckInForm({ employee, onDone }: Props) {
       type: 'check_in', detail: `Checked in — mood: ${mood}`, timestamp: Date.now(),
     });
     setSaving(false);
+    toast('Check-in submitted! 📋');
     onDone();
   };
 

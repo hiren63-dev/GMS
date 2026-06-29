@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Employee, Objective, KeyResult, ActivityEntry, LoginLog } from '../types';
-import { onObjectivesChange, createObjective, updateObjective, deleteObjective, onActivityChange, onLoginLogsChange, todayKey } from '../services/firebase';
+import type { Employee, Objective, KeyResult, ActivityEntry, LoginLog, CheckInResponse, Task } from '../types';
+import { onObjectivesChange, createObjective, updateObjective, deleteObjective, onActivityChange, onLoginLogsChange, todayKey, onCheckInsChange, onAllTasksChange } from '../services/firebase';
 
 interface Props {
   employee: Employee;
@@ -14,26 +14,13 @@ const OKR_STATUS_COLORS = {
   achieved: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 };
 
-function KRBar({ kr }: { kr: KeyResult }) {
-  const pct = kr.target > 0 ? Math.min(100, Math.round((kr.current / kr.target) * 100)) : 0;
-  const color = pct >= 80 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
-  return (
-    <div className="mb-3">
-      <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-        <span>{kr.title}</span>
-        <span className="font-semibold" style={{ color: 'var(--text)' }}>{kr.current}/{kr.target} {kr.unit}</span>
-      </div>
-      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
 
 export default function FounderView({ employee, allEmployees }: Props) {
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [activity, setActivity]     = useState<ActivityEntry[]>([]);
   const [logs, setLogs]             = useState<LoginLog[]>([]);
+  const [checkIns, setCheckIns]     = useState<CheckInResponse[]>([]);
+  const [allTasks, setAllTasks]     = useState<Task[]>([]);
   const [showNewOKR, setShowNewOKR] = useState(false);
   const [editingKR, setEditingKR]   = useState<{ objId: string; krIdx: number; value: string } | null>(null);
   const [newTitle, setNewTitle]     = useState('');
@@ -46,7 +33,9 @@ export default function FounderView({ employee, allEmployees }: Props) {
     const u1 = onObjectivesChange(setObjectives);
     const u2 = onActivityChange(setActivity);
     const u3 = onLoginLogsChange(setLogs);
-    return () => { u1(); u2(); u3(); };
+    const u4 = onCheckInsChange(setCheckIns);
+    const u5 = onAllTasksChange(setAllTasks);
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
 
   // Refresh "X ago" labels every minute.
@@ -122,16 +111,110 @@ export default function FounderView({ employee, allEmployees }: Props) {
       {/* Pulse Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { icon: '🟢', label: 'Active Now',   value: activeToday,        color: 'text-green-600' },
-          { icon: '👥', label: 'Total Team',   value: allEmployees.length, color: 'text-blue-600' },
-          { icon: '✅', label: 'Tasks Done',   value: tasksCompleted,      color: 'text-purple-600' },
-          { icon: '📋', label: 'Clock-ins',    value: todayLogins,         color: 'text-orange-600' },
+          { icon: '🟢', label: 'Active Now',   value: activeToday,        color: '#16A34A' },
+          { icon: '👥', label: 'Total Team',   value: allEmployees.length, color: '#2563EB' },
+          { icon: '✅', label: 'Tasks Done',   value: tasksCompleted,      color: '#7C3AED' },
+          { icon: '📋', label: 'Clock-ins',    value: todayLogins,         color: '#C2410C' },
         ].map(s => (
-          <div key={s.label} className="card p-5">
-            <div className={`text-3xl font-extrabold ${s.color}`}>{s.value}</div>
-            <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
+          <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px' }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: s.color, letterSpacing: '-0.02em' }}>{s.value}</div>
+            <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-muted)' }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Team Accountability Today ───────────────────────────────────── */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Team Accountability — Today</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Login times, active hours, and task completion for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Employee', 'Dept', 'Logged In', 'Active', 'Tasks Done', 'Check-In', 'Status'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allEmployees.filter(e => e.role !== 'founder').map(emp => {
+                const todayLog = logs
+                  .filter(l => l.employeeId === emp.id && l.date === todayKey())
+                  .sort((a, b) => (b.loginTime ?? 0) - (a.loginTime ?? 0))[0];
+                const loginStr = todayLog?.loginTime
+                  ? new Date(todayLog.loginTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                  : null;
+                const activeMs = todayLog
+                  ? ((todayLog.logoutTime ?? Date.now()) - (todayLog.loginTime ?? Date.now()))
+                  : 0;
+                const activeH = Math.floor(activeMs / 3600000);
+                const activeM = Math.floor((activeMs % 3600000) / 60000);
+                const activeStr = activeMs > 0 ? `${activeH}h ${activeM}m` : null;
+                const empTasks = allTasks.filter(t => t.assigneeId === emp.id);
+                const doneTasks = empTasks.filter(t => t.status === 'done').length;
+                const totalTasks = empTasks.length;
+                const todayCheckin = checkIns.find(c => c.employeeId === emp.id && (c.dateKey === todayKey() || todayKey(new Date(c.date)) === todayKey()));
+                const status = !todayLog ? 'absent' : todayLog.logoutTime ? 'done' : 'active';
+                return (
+                  <tr key={emp.id} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseOver={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseOut={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+                          {emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
+                          {emp.jobTitle && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.jobTitle}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)' }}>{emp.department}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: loginStr ? 'var(--text)' : '#DC2626', fontWeight: loginStr ? 400 : 500 }}>
+                      {loginStr ?? '— Not in'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text)' }}>
+                      {activeStr ?? <span style={{ color: 'var(--text-faint)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {totalTasks > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12, color: 'var(--text)' }}>{doneTasks}/{totalTasks}</span>
+                          <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 99, minWidth: 40 }}>
+                            <div style={{ height: '100%', background: doneTasks === totalTasks ? '#16A34A' : '#2563EB', borderRadius: 99, width: `${Math.round((doneTasks / totalTasks) * 100)}%`, transition: 'width 600ms' }} />
+                          </div>
+                        </div>
+                      ) : <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>No tasks</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {todayCheckin
+                        ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#F0FDF4', color: '#16A34A', fontWeight: 600 }}>✓ Done</span>
+                        : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#F7F7F6', color: 'var(--text-muted)' }}>Pending</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{
+                        fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 600,
+                        ...(status === 'active' ? { background: '#F0FDF4', color: '#16A34A' } :
+                            status === 'done' ? { background: '#EFF6FF', color: '#2563EB' } :
+                            { background: '#FEF2F2', color: '#DC2626' })
+                      }}>
+                        {status === 'active' ? '● Active' : status === 'done' ? '✓ Done' : '✗ Absent'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {allEmployees.filter(e => e.role !== 'founder').length === 0 && (
+                <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>No employees yet. Add team members in Admin → Team.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -197,7 +280,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                       <option value="off_track">Off Track</option>
                       <option value="achieved">Achieved</option>
                     </select>
-                    <button onClick={() => deleteObjective(obj.id)}
+                    <button onClick={() => { if (confirm(`Delete objective "${obj.title}"? All key results will be removed.`)) deleteObjective(obj.id); }}
                       className="text-xs text-red-400 hover:text-red-600 transition">✕</button>
                   </div>
                 </div>
@@ -229,8 +312,12 @@ export default function FounderView({ employee, allEmployees }: Props) {
                         <input type="number" value={editingKR.value}
                           onChange={e => setEditingKR({ ...editingKR, value: e.target.value })}
                           className="input flex-1 text-xs py-1" />
-                        <button onClick={() => { handleUpdateKR(obj, i, parseFloat(editingKR.value)); setEditingKR(null); }}
-                          className="text-xs px-3 py-1 bg-green-500 text-white rounded-lg">Save</button>
+                        <button onClick={() => {
+                          const val = parseFloat(editingKR.value);
+                          if (!Number.isFinite(val) || val < 0) return;
+                          handleUpdateKR(obj, i, val);
+                          setEditingKR(null);
+                        }} className="text-xs px-3 py-1 bg-green-500 text-white rounded-lg">Save</button>
                         <button onClick={() => setEditingKR(null)}
                           className="text-xs px-3 py-1 rounded-lg" style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>✕</button>
                       </div>
@@ -285,7 +372,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                   const icon = { login: '🟢', logout: '🔴', task_done: '✅', check_in: '📋', message: '💬', task_created: '📌' }[a.type] ?? '•';
                   const color = { login: 'text-green-500', logout: 'text-red-500', task_done: 'text-blue-500', check_in: 'text-purple-500', message: 'text-indigo-500', task_created: 'text-orange-500' }[a.type] ?? '';
                   const mins = Math.round((Date.now() - a.timestamp) / 60000);
-                  const timeStr = mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
+                  const timeStr = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`;
                   return (
                     <div key={a.id} className="flex items-start gap-2 text-xs">
                       <span className="mt-0.5">{icon}</span>

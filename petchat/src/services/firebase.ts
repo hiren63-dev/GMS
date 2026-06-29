@@ -2,10 +2,11 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getFirestore, collection, addDoc, query, where, onSnapshot,
   updateDoc, doc, getDocs, deleteDoc, setDoc, orderBy, limit,
-  Timestamp, getDoc,
+  Timestamp, getDoc, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration } from '../types';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,6 +20,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const snapList = <T>(ref: any, cb: (items: T[]) => void) =>
@@ -44,6 +46,7 @@ export const todayKey = (d: Date = new Date()): string => {
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const registerAdmin = (email: string, pw: string) => createUserWithEmailAndPassword(auth, email, pw);
 export const loginAdmin    = (email: string, pw: string) => signInWithEmailAndPassword(auth, email, pw);
+export const loginAnon     = () => signInAnonymously(auth);
 export const logoutAdmin   = () => signOut(auth);
 export const onAuthChange  = (cb: (u: any) => void) => onAuthStateChanged(auth, cb);
 
@@ -74,6 +77,8 @@ export const createEmployeeWithAuth = async (
   const secondaryAuth = getAuth(secondaryApp);
   try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, emp.email, emp.password);
+    // Sign the new user into the MAIN app so Firestore rules (request.auth != null) pass
+    await signInWithEmailAndPassword(auth, emp.email, emp.password);
     const ref = await addDoc(collection(db, 'employees'), {
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, status: 'offline',
@@ -121,7 +126,10 @@ export const sendMessage = (msg: Record<string, any>) =>
     timestamp: Date.now(),
   });
 
-export const onMessagesChange = (userId: string, otherId: string, cb: (msgs: any[]) => void) => {
+export const onMessagesChange = (userId: string, otherId: string, cb: (msgs: any[]) => void, groupId?: string) => {
+  if (groupId) {
+    return snapList<any>(query(collection(db, 'messages'), where('groupId', '==', groupId), orderBy('timestamp', 'asc')), cb);
+  }
   // Only fetch messages this user is part of, then narrow to the pair + sort
   // client-side (avoids a composite index requirement on participants+timestamp).
   const q = query(collection(db, 'messages'), where('participants', 'array-contains', userId));
@@ -171,8 +179,12 @@ export const onConversationPartnersChange = (
 };
 
 // ── Tasks ─────────────────────────────────────────────────────────────────
-export const createTask = (t: Omit<Task, 'id'>) =>
-  addDoc(collection(db, 'tasks'), { ...t, createdAt: Date.now() });
+export const createTask = (t: Omit<Task, 'id'>) => {
+  const data = Object.fromEntries(
+    Object.entries({ ...t, createdAt: Date.now() }).filter(([, v]) => v !== undefined)
+  );
+  return addDoc(collection(db, 'tasks'), data);
+};
 
 export const updateTask = (id: string, data: Partial<Task>) =>
   updateDoc(doc(db, 'tasks', id), data as any);
@@ -187,7 +199,7 @@ export const getAllTasks = async (): Promise<Task[]> => {
 export const onUserTasksChange = (userId: string, cb: (tasks: Task[]) => void) =>
   snapList<Task>(query(collection(db, 'tasks'), where('assigneeId', '==', userId)), cb);
 
-export const onAllTasksChange = (cb: (tasks: Task[]) => void) =>
+export const onAllTasksChange = (cb: (tasks: Task[]) => void, groupId?: string) =>
   snapList<Task>(collection(db, 'tasks'), cb);
 
 // ── Login / Time Tracking ─────────────────────────────────────────────────
@@ -195,7 +207,11 @@ export const logLogin = async (employeeId: string, employeeName: string): Promis
   const today = todayKey();
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
-  if (!s.empty) return s.docs[0].id;
+  if (!s.empty) {
+    const existing = s.docs[0].data() as any;
+    // Return existing log only if still clocked in; if clocked out, fall through to create a new entry
+    if (!existing.logoutTime) return s.docs[0].id;
+  }
   const ref = await addDoc(collection(db, 'loginLogs'), {
     employeeId, employeeName,
     loginTime: Date.now(), logoutTime: null, date: today,
@@ -220,7 +236,9 @@ export const getTodaysLog = async (employeeId: string): Promise<LoginLog | null>
   const q = query(collection(db, 'loginLogs'), where('employeeId', '==', employeeId), where('date', '==', today));
   const s = await getDocs(q);
   if (s.empty) return null;
-  return { id: s.docs[0].id, ...s.docs[0].data() } as LoginLog;
+  // Sort client-side to get the most recent log (handles multiple clock-ins in one day)
+  const sorted = [...s.docs].sort((a, b) => ((b.data() as any).loginTime ?? 0) - ((a.data() as any).loginTime ?? 0));
+  return { id: sorted[0].id, ...sorted[0].data() } as LoginLog;
 };
 
 export const getTimeLogs = async (employeeId: string, limitN = 7): Promise<LoginLog[]> => {
@@ -340,3 +358,133 @@ export const getAdminSettings = async () => {
 
 export const onAdminSettingsChange = (cb: (s: any) => void) =>
   onSnapshot(doc(db, 'adminSettings', 'config'), s => cb(s.exists() ? s.data() : {}));
+
+// ── File Storage ──────────────────────────────────────────────────────────
+/** Upload a file to Firebase Storage and return its public download URL. */
+export const uploadFile = async (file: File, path: string): Promise<string> => {
+  const r = sRef(storage, path);
+  await uploadBytes(r, file);
+  return getDownloadURL(r);
+};
+
+/** Delete a file from Firebase Storage by its full gs:// or download path. */
+export const deleteStorageFile = async (url: string) => {
+  try {
+    const r = sRef(storage, url);
+    await deleteObject(r);
+  } catch { /* already deleted or path-based — ignore */ }
+};
+
+// ── Resource Library ──────────────────────────────────────────────────────
+export const addResourceFile = (data: Omit<ResourceFile, 'id'>) =>
+  addDoc(collection(db, 'resourceFiles'), data);
+
+export const deleteResourceFile = async (id: string) => {
+  await deleteDoc(doc(db, 'resourceFiles', id));
+};
+
+export const onResourceFilesChange = (cb: (files: ResourceFile[]) => void, groupId?: string) => {
+  const q = query(collection(db, 'resourceFiles'), orderBy('uploadedAt', 'desc'));
+  return snapList<ResourceFile>(q, cb);
+};
+
+// ── Message Reactions ──────────────────────────────────────────────────────
+export const toggleReaction = async (messageId: string, emoji: string, userId: string, current: string[]) => {
+  const ref = doc(db, 'messages', messageId);
+  const field = `reactions.${emoji}`;
+  if (current.includes(userId)) {
+    await updateDoc(ref, { [field]: arrayRemove(userId) });
+  } else {
+    await updateDoc(ref, { [field]: arrayUnion(userId) });
+  }
+};
+
+// ── Task Comments ──────────────────────────────────────────────────────────
+export const addTaskComment = (c: Omit<TaskComment, 'id'>) =>
+  addDoc(collection(db, 'taskComments'), c).then(async ref => {
+    await updateDoc(doc(db, 'tasks', c.taskId), { commentCount: (await getDocs(query(collection(db, 'taskComments'), where('taskId', '==', c.taskId)))).size }).catch(() => {});
+    return ref;
+  });
+
+export const deleteTaskComment = (id: string) => deleteDoc(doc(db, 'taskComments', id));
+
+export const onTaskCommentsChange = (taskId: string, cb: (comments: TaskComment[]) => void) =>
+  snapList<TaskComment>(query(collection(db, 'taskComments'), where('taskId', '==', taskId), orderBy('createdAt', 'asc')), cb);
+
+// ── Announcement Replies ───────────────────────────────────────────────────
+export const addAnnouncementReply = (r: Omit<AnnouncementReply, 'id'>) =>
+  addDoc(collection(db, 'announcementReplies'), r);
+
+export const onAnnouncementRepliesChange = (announcementId: string, cb: (replies: AnnouncementReply[]) => void) =>
+  snapList<AnnouncementReply>(query(collection(db, 'announcementReplies'), where('announcementId', '==', announcementId), orderBy('createdAt', 'asc')), cb);
+
+// ── 1-on-1 Notes ──────────────────────────────────────────────────────────
+export const saveOneOnOneNote = (note: Omit<OneOnOneNote, 'id'>) =>
+  addDoc(collection(db, 'oneOnOneNotes'), note);
+
+export const updateOneOnOneNote = (id: string, content: string) =>
+  updateDoc(doc(db, 'oneOnOneNotes', id), { content, updatedAt: Date.now() });
+
+export const deleteOneOnOneNote = (id: string) => deleteDoc(doc(db, 'oneOnOneNotes', id));
+
+export const onOneOnOneNotesChange = (managerId: string, employeeId: string, cb: (notes: OneOnOneNote[]) => void) =>
+  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), where('employeeId', '==', employeeId), orderBy('createdAt', 'desc')), cb);
+
+export const onAllOneOnOneNotesChange = (managerId: string, cb: (notes: OneOnOneNote[]) => void) =>
+  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), orderBy('createdAt', 'desc')), cb);
+
+// ── Audit Log ─────────────────────────────────────────────────────────────
+export const logAudit = (entry: Omit<AuditEntry, 'id'>) =>
+  addDoc(collection(db, 'auditLog'), entry).catch(() => {});
+
+export const onAuditLogChange = (cb: (logs: AuditEntry[]) => void, limitN = 100) => {
+  return snapList<AuditEntry>(query(collection(db, 'auditLog'), orderBy('timestamp', 'desc'), limit(limitN)), cb);
+};
+
+// ── Pending Accounts ──────────────────────────────────────────────────────
+export const createPendingAccount = (data: Omit<PendingAccount, 'id'>) =>
+  addDoc(collection(db, 'pendingAccounts'), data);
+
+export const onPendingAccountsChange = (cb: (items: PendingAccount[]) => void) =>
+  snapList<PendingAccount>(query(collection(db, 'pendingAccounts'), orderBy('requestedAt', 'desc')), cb);
+
+export const rejectPendingAccount = (id: string) =>
+  deleteDoc(doc(db, 'pendingAccounts', id));
+
+export const approvePendingAccount = async (pending: PendingAccount) => {
+  await createEmployeeWithAuth({
+    name: pending.name, email: pending.email, department: pending.department,
+    role: pending.role, status: 'offline', password: pending.password,
+    permissions: [],
+  });
+  await deleteDoc(doc(db, 'pendingAccounts', pending.id));
+};
+
+// ── Slack Webhook ──────────────────────────────────────────────────────────
+export const sendSlackNotification = async (webhookUrl: string, text: string) => {
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  } catch { /* non-critical */ }
+};
+
+
+// ── Groups ──────────────────────────────────────────────
+export const createGroup = (g: Omit<import('../types').Group, 'id' | 'createdAt'>) =>
+  addDoc(collection(db, 'groups'), { ...g, createdAt: Date.now() });
+
+export const getGroups = async (userId: string) => {
+  const s = await getDocs(query(collection(db, 'groups'), where('memberIds', 'array-contains', userId)));
+  return s.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').Group));
+};
+
+export const updateGroup = (id: string, data: Partial<import('../types').Group>) =>
+  updateDoc(doc(db, 'groups', id), data as any);
+
+export const deleteGroup = (id: string) => deleteDoc(doc(db, 'groups', id));
+
+export const onGroupsChange = (userId: string, cb: (groups: import('../types').Group[]) => void) =>
+  snapList<import('../types').Group>(query(collection(db, 'groups'), where('memberIds', 'array-contains', userId)), cb);
