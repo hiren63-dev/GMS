@@ -29,36 +29,35 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
   const [feelingGood, setFeelingGood] = useState<boolean | null>(null);
   const [feelingOkay, setFeelingOkay] = useState<boolean | null>(null);
   const [canWork, setCanWork]         = useState<boolean | null>(null);
-  const [saving, setSaving]           = useState(false);
 
   const allAnswered = mood !== null && feelingGood !== null && feelingOkay !== null && canWork !== null;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!mood) return;
-    setSaving(true);
-    try {
-      await submitCheckIn({
-        employeeId: employee.id,
-        employeeName: employee.name,
-        date: Date.now(),
-        dateKey: todayKey(),
-        mood,
-        isFeelingGood: feelingGood ?? true,
-        workDone: canWork ? 'yes' : 'no',
-        hasProblems: !feelingOkay,
-        status: 'completed',
-      });
-      await logActivity({
-        employeeId: employee.id,
-        employeeName: employee.name,
-        type: 'check_in',
-        detail: `Daily check-in — mood: ${mood}, can work: ${canWork ? 'yes' : 'no'}`,
-        timestamp: Date.now(),
-      });
-    } catch { /* non-critical — still mark done */ }
+
+    // Mark done and dismiss immediately — no waiting on network
     localStorage.setItem(`checkin_${employee.id}_${todayKey()}`, '1');
-    setSaving(false);
     onDone();
+
+    // Fire Firestore writes in the background; SDK queues them if offline
+    submitCheckIn({
+      employeeId: employee.id,
+      employeeName: employee.name,
+      date: Date.now(),
+      dateKey: todayKey(),
+      mood,
+      isFeelingGood: feelingGood ?? true,
+      workDone: canWork ? 'yes' : 'no',
+      hasProblems: !feelingOkay,
+      status: 'completed',
+    }).catch(() => {});
+    logActivity({
+      employeeId: employee.id,
+      employeeName: employee.name,
+      type: 'check_in',
+      detail: `Daily check-in — mood: ${mood}, can work: ${canWork ? 'yes' : 'no'}`,
+      timestamp: Date.now(),
+    }).catch(() => {});
   };
 
   const hour = new Date().getHours();
@@ -140,16 +139,16 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
 
           <button
             onClick={handleSubmit}
-            disabled={!allAnswered || saving}
+            disabled={!allAnswered}
             style={{
               width: '100%', height: 46, marginTop: 4, border: 'none', borderRadius: 10,
-              background: allAnswered && !saving ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : '#E9E9E7',
-              color: allAnswered && !saving ? '#fff' : '#AAA',
+              background: allAnswered ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : '#E9E9E7',
+              color: allAnswered ? '#fff' : '#AAA',
               fontSize: 14, fontWeight: 600,
-              cursor: allAnswered && !saving ? 'pointer' : 'not-allowed',
+              cursor: allAnswered ? 'pointer' : 'not-allowed',
               transition: 'all 150ms',
             }}>
-            {saving ? 'Saving…' : "✅ Let's go!"}
+            {"✅ Let's go!"}
           </button>
         </div>
       </div>
