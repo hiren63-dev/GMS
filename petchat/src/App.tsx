@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, generatePassword, createPendingAccount, logActivity, logLogin } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import type { Department, Role } from './types';
@@ -68,9 +68,6 @@ export default function App() {
   // Sign-up locked to employee role — founders/admins are created by an admin in AdminTeam
   const [signUpForm, setSignUpForm]     = useState({ name: '', email: '', department: 'Tech' as Department, role: 'employee' as Role, password: '' });
   const [signUpLoading, setSignUpLoading] = useState(false);
-  const [signUpDone, setSignUpDone]     = useState(false);
-  const [showLogin, setShowLogin]       = useState(false);
-  const [signUpPending, setSignUpPending] = useState(false); // true = sent to pending-approval queue
   const [signUpError, setSignUpError]   = useState('');
   // Forgot password — never shows stored passwords; contacts admin instead
   const [forgotEmail, setForgotEmail]   = useState('');
@@ -251,35 +248,23 @@ export default function App() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpError('');
+    const pw   = signUpForm.password.trim();
+    const name = signUpForm.name.trim();
+    const email = signUpForm.email.trim();
+    if (!name || !email) { setSignUpError('Please fill in all fields.'); return; }
+    if (pw.length < 6) { setSignUpError('Password must be at least 6 characters.'); return; }
     setSignUpLoading(true);
     try {
-      const pw = signUpForm.password.trim() || generatePassword();
-      const name = signUpForm.name.trim();
-      const email = signUpForm.email.trim();
-      if (!name || !email) { setSignUpError('Please fill in all fields.'); return; }
-      
-      const empId = await createEmployeeWithAuth({
+      await createEmployeeWithAuth({
         name, email,
         department: signUpForm.department,
-        role: signUpForm.role,
+        role: 'employee',
         password: pw,
         permissions: [],
       });
-      
-      // Save profile to localStorage for Chrome-like selector
-      const profiles = JSON.parse(localStorage.getItem('savedProfiles') || '[]');
-      if (!profiles.find((p: any) => p.email === email)) {
-        profiles.push({ id: empId, name, email, password: pw, role: signUpForm.role, initial: name.charAt(0).toUpperCase() });
-        localStorage.setItem('savedProfiles', JSON.stringify(profiles));
-      }
-      
-      // Login directly
-      setLoginEmail(email);
-      setLoginPass(pw);
-      await loginAdmin(email, pw);
-      // It will transition via the auth listener automatically.
+      // createEmployeeWithAuth signs in via Firebase Auth → auth listener sets currentEmployee
     } catch (err: any) {
-      setSignUpError(err.message || 'Failed to submit request. Try again.');
+      setSignUpError(err.message || 'Failed to create account. Try again.');
     } finally {
       setSignUpLoading(false);
     }
@@ -416,7 +401,7 @@ export default function App() {
                 style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
                 Forgot password?
               </button>
-              <button onClick={() => { setAuthPanel(p => p === 'signup' ? 'none' : 'signup'); setSignUpDone(false); setSignUpError(''); }}
+              <button onClick={() => { setAuthPanel(p => p === 'signup' ? 'none' : 'signup'); setSignUpError(''); }}
                 style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
                 {authPanel === 'signup' ? '← Back to sign in' : 'Create account →'}
               </button>
@@ -463,50 +448,35 @@ export default function App() {
           {/* Create account panel */}
           {authPanel === 'signup' && (
             <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
-              {signUpDone ? (
-                <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#111', marginBottom: 6 }}>Request submitted!</div>
-                  <div style={{ fontSize: 13, color: '#555', marginBottom: 6, lineHeight: 1.5 }}>
-                    Your account request for <strong>{signUpForm.email}</strong> has been sent to your admin for approval.
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Create Account</div>
+              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Fill in your details — your account is created immediately.</div>
+              {signUpError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{signUpError}</div>}
+              <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {[
+                  { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' },
+                  { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com' },
+                  { label: 'Password', key: 'password', type: 'password', placeholder: 'Min. 6 characters' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
+                    <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
+                      onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
+                      style={{ width: '100%', height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
+                      onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
                   </div>
-                  <div style={{ fontSize: 12, color: '#888', marginBottom: 16, background: '#F7F7F6', borderRadius: 8, padding: '10px 14px', textAlign: 'left' }}>
-                    ℹ️ You will receive your login credentials once an admin approves your request. This typically takes a few hours.
-                  </div>
-                  <button onClick={() => { setAuthPanel('none'); setSignUpDone(false); setSignUpPending(false); }}
-                    style={{ width: '100%', height: 40, background: '#F7F7F6', color: '#111', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                    ← Back to sign in
-                  </button>
+                ))}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
+                  <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
+                    style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
+                    {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d}>{d}</option>)}
+                  </select>
                 </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Request Access</div>
-                  <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Fill in your details — an admin will approve your account.</div>
-                  {signUpError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{signUpError}</div>}
-                  <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                    {[{ label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' }, { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com' }].map(f => (
-                      <div key={f.key}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
-                        <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
-                          onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
-                          style={{ width: '100%', height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
-                          onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
-                      </div>
-                    ))}
-                    <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
-                      <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
-                        style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
-                        {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d}>{d}</option>)}
-                      </select>
-                    </div>
-                    <button type="submit" disabled={signUpLoading}
-                      style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
-                      {signUpLoading ? 'Submitting…' : 'Request Access →'}
-                    </button>
-                  </form>
-                </>
-              )}
+                <button type="submit" disabled={signUpLoading}
+                  style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
+                  {signUpLoading ? 'Creating account…' : 'Create Account →'}
+                </button>
+              </form>
             </div>
           )}
 

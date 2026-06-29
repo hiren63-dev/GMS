@@ -150,6 +150,14 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
             }}>
             {"✅ Let's go!"}
           </button>
+          <button
+            onClick={() => {
+              localStorage.setItem(`checkin_${employee.id}_${todayKey()}`, 'skipped');
+              onDone();
+            }}
+            style={{ width: '100%', marginTop: 8, background: 'none', border: 'none', fontSize: 12, color: '#BBB', cursor: 'pointer' }}>
+            Skip for today
+          </button>
         </div>
       </div>
     </div>

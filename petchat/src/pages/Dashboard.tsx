@@ -22,10 +22,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
   const [clockError, setClockError]     = useState('');
   const [recentConvs, setRecentConvs]   = useState<{ emp: Employee; lastMsg: string; time: string }[]>([]);
 
-  // Popups for accountability
-  const [showMorningPopup, setShowMorningPopup] = useState(false);
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
-  const [hasSeenMorning, setHasSeenMorning] = useState(false);
 
   useEffect(() => {
     const unsub  = onUserTasksChange(employee.id, setTasks);
@@ -74,21 +71,6 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     return () => clearInterval(id);
   }, [log]);
 
-  // Evaluate incomplete tasks from previous days for morning popup
-  useEffect(() => {
-    if (hasSeenMorning || tasks.length === 0) return;
-    const now = new Date();
-    // A task is "yesterday's" if its createdAt was before today at 00:00:00 (if we had it, but we can just check if we have any incomplete overdue tasks, or tasks older than 12h)
-    // Actually we can just show the morning popup if it's morning (hour < 12), they just clocked in, and have ANY incomplete tasks.
-    const hour = now.getHours();
-    if (hour < 12 && log && !log.logoutTime && tasks.some(t => t.status !== 'done')) {
-      const msSinceLogin = Date.now() - (typeof log.loginTime === 'number' ? log.loginTime : Date.now());
-      if (msSinceLogin < 10000) { // If they just logged in < 10 seconds ago
-        setShowMorningPopup(true);
-        setHasSeenMorning(true);
-      }
-    }
-  }, [tasks, log, hasSeenMorning]);
 
   const handleClock = async () => {
     // If they are clocking out and have incomplete tasks, show warning first
@@ -337,11 +319,13 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               Message
             </button>
-            <button onClick={() => onNavigate('checkin')}
-              style={{ padding: 10, background: checkin ? '#F0FDF4' : 'var(--bg)', border: `1px solid ${checkin ? '#BBF7D0' : 'var(--border)'}`, borderRadius: 8, fontSize: 12, fontWeight: 500, color: checkin ? '#16A34A' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+            <button onClick={() => onNavigate('resources')}
+              style={{ padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+              onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--border)'}
+              onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              {checkin ? 'Checked in ✓' : 'Check-In'}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              Resources
             </button>
             <button onClick={() => onNavigate('announcements')}
               style={{ padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
@@ -380,22 +364,6 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
         </div>
       </div>
       {/* Modals */}
-      {showMorningPopup && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowMorningPopup(false)}>
-          <div style={{ width: 380, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'scaleIn 150ms ease' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>☕</div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Good morning!</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.5 }}>
-              You have <strong>{tasks.filter(t => t.status !== 'done').length} open tasks</strong> waiting for you. Let's get things done today!
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setShowMorningPopup(false); onNavigate('tasks'); }} style={{ flex: 1, height: 40, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>View Tasks</button>
-              <button onClick={() => setShowMorningPopup(false)} style={{ flex: 1, height: 40, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Dismiss</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showLogoutWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowLogoutWarning(false)}>
           <div style={{ width: 380, background: 'var(--surface)', borderRadius: 12, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'scaleIn 150ms ease' }} onClick={e => e.stopPropagation()}>
