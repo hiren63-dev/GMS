@@ -1,12 +1,12 @@
 // BuddyDesk Service Worker
-const CACHE = 'buddydesk-v1';
+const CACHE = 'buddydesk-v2';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
-      return cache.addAll(['/', '/manifest.json', '/icon.svg']);
-    }).catch(function() {})
+      return cache.addAll(['/', '/manifest.json', '/icon.svg']).catch(function() {});
+    })
   );
 });
 
@@ -22,16 +22,15 @@ self.addEventListener('activate', function(e) {
 
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
+  // Network-first: always try the network, fall back to cache
   e.respondWith(
     fetch(e.request).then(function(res) {
-      // Cache index and static assets
       if (res.ok) {
         var clone = res.clone();
         caches.open(CACHE).then(function(cache) { cache.put(e.request, clone); });
       }
       return res;
     }).catch(function() {
-      // Offline fallback
       return caches.match(e.request).then(function(cached) {
         return cached || caches.match('/');
       });
