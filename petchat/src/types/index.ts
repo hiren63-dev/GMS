@@ -39,8 +39,6 @@ export interface Employee {
   managerId?: string;    // org chart parent
 }
 
-export interface Group { id: string; name: string; description: string; adminId: string; memberIds: string[]; createdAt: number; }
-
 export interface Message {
   id: string;
   senderId: string;
@@ -58,7 +56,7 @@ export interface Message {
   mentions?: string[];                  // employee IDs mentioned with @name
 }
 
-export interface Task { groupId?: string;
+export interface Task {
   id: string;
   title: string;
   description?: string;

@@ -26,7 +26,6 @@ import IntegrationHub from './pages/admin/IntegrationHub';
 import AdminHealth from './pages/admin/AdminHealth';
 import OrgChartPage from './pages/OrgChartPage';
 import OneOnOnePage from './pages/OneOnOnePage';
-import GroupsPage from './pages/GroupsPage';
 import CheckInForm from './components/CheckInForm';
 import TimeTracker from './components/TimeTracker';
 
