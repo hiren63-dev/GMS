@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, generatePassword, createPendingAccount, logActivity, logLogin } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import type { Department, Role } from './types';
-import { db } from './services/firebase';
+import { db, auth } from './services/firebase';
 import type { Employee } from './types';
 import type { Page } from './components/Sidebar';
 import Sidebar from './components/Sidebar';
@@ -289,17 +290,14 @@ export default function App() {
     setForgotResult(null);
     setForgotLoading(true);
     try {
-      await loginAnon();
-      const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', forgotEmail.trim())));
-      if (snap.empty) {
-        setForgotResult({ error: 'No account found with this email. Ask your admin to add you.' });
-        return;
-      }
-      // Never display the stored password — just confirm the account exists
-      // and tell them to contact their admin for a reset
+      await sendPasswordResetEmail(auth, forgotEmail.trim());
       setForgotResult({ sent: true });
     } catch (err: any) {
-      setForgotResult({ error: err.message || 'Failed. Try again.' });
+      if (err.code === 'auth/user-not-found') {
+        setForgotResult({ error: 'No account found for this email. It may use a stored password — ask your admin to reset it in Admin → Team.' });
+      } else {
+        setForgotResult({ error: err.message || 'Failed to send reset email. Try again.' });
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -429,7 +427,7 @@ export default function App() {
           {authPanel === 'forgot' && (
             <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
               <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Reset Password</div>
-              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Enter your email and your admin will reset your password.</div>
+              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Enter your email and we'll send a reset link instantly.</div>
               {!forgotResult ? (
                 <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <input type="email" required placeholder="you@company.com" value={forgotEmail}
@@ -438,7 +436,7 @@ export default function App() {
                     onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
                   <button type="submit" disabled={forgotLoading}
                     style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Checking…' : 'Verify account →'}
+                    {forgotLoading ? 'Sending…' : 'Send reset link →'}
                   </button>
                 </form>
               ) : forgotResult.error ? (
@@ -448,10 +446,10 @@ export default function App() {
                 </div>
               ) : (
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
-                  <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 600, marginBottom: 6 }}>✓ Account found</div>
-                  <div style={{ fontSize: 13, color: '#555', marginBottom: 14 }}>
-                    We found an account for <strong>{forgotEmail}</strong>.<br/>
-                    <span style={{ color: '#888', fontSize: 12 }}>Contact your admin to get your password reset. They can view and update it in the Admin Team panel.</span>
+                  <div style={{ fontSize: 14, color: '#16A34A', fontWeight: 600, marginBottom: 6 }}>✉️ Check your inbox</div>
+                  <div style={{ fontSize: 13, color: '#555', marginBottom: 14, lineHeight: 1.5 }}>
+                    A password reset link has been sent to <strong>{forgotEmail}</strong>.<br/>
+                    <span style={{ color: '#888', fontSize: 12 }}>Click the link in the email to set a new password. Check your spam folder if you don't see it.</span>
                   </div>
                   <button onClick={() => { setAuthPanel('none'); setForgotResult(null); setLoginEmail(forgotEmail); }}
                     style={{ marginTop: 4, width: '100%', height: 38, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
