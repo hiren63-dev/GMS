@@ -26,6 +26,7 @@ import IntegrationHub from './pages/admin/IntegrationHub';
 import AdminHealth from './pages/admin/AdminHealth';
 import OrgChartPage from './pages/OrgChartPage';
 import OneOnOnePage from './pages/OneOnOnePage';
+import GroupsPage from './pages/GroupsPage';
 import CheckInForm from './components/CheckInForm';
 import TimeTracker from './components/TimeTracker';
 
@@ -38,6 +39,22 @@ export default function App() {
   const [screentimeId, setScreentimeId]       = useState<string | null>(null);
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
+
+  // Profile picker — cached profiles for 1-click login
+  type SavedProfile = { name: string; email: string; initials: string; department: string; lastLogin: number };
+  const [savedProfiles] = useState<SavedProfile[]>(() => {
+    try { return JSON.parse(localStorage.getItem('buddydesk_profiles') || '[]'); } catch { return []; }
+  });
+  const saveProfile = (emp: Employee) => {
+    try {
+      const ini = emp.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+      const profiles: SavedProfile[] = JSON.parse(localStorage.getItem('buddydesk_profiles') || '[]');
+      const idx = profiles.findIndex(p => p.email === emp.email);
+      const entry: SavedProfile = { name: emp.name, email: emp.email, initials: ini, department: emp.department, lastLogin: Date.now() };
+      if (idx >= 0) profiles[idx] = entry; else profiles.unshift(entry);
+      localStorage.setItem('buddydesk_profiles', JSON.stringify(profiles.slice(0, 5)));
+    } catch { /* non-critical */ }
+  };
 
   // Login form state — pre-fill email from last session
   const [loginEmail, setLoginEmail] = useState(() => localStorage.getItem('lastEmail') || '');
@@ -206,7 +223,8 @@ export default function App() {
       }
 
       // Persist session for next visit
-      localStorage.setItem('lastEmail', email); const profiles = JSON.parse(localStorage.getItem('savedProfiles') || '[]'); if (!profiles.find((p: any) => p.email === email)) { profiles.push({ id: emp.id, name: emp.name, email, password: loginPass, role: emp.role, initial: emp.name.charAt(0).toUpperCase() }); localStorage.setItem('savedProfiles', JSON.stringify(profiles)); }
+      localStorage.setItem('lastEmail', email);
+      saveProfile(emp);
       if (!emp.authUid) {
         localStorage.setItem('savedEmpId', emp.id);
         try { await loginAnon(); } catch { /* anonymous auth optional — writes still work if rules allow */ }
@@ -322,25 +340,29 @@ export default function App() {
               <span style={{ fontSize: 16, fontWeight: 600, color: '#111', letterSpacing: '-0.01em' }}>BuddyDesk</span>
             </div>
 
-            {(!showLogin && JSON.parse(localStorage.getItem('savedProfiles') || '[]').length > 0) ? (
-              <div style={{ padding: '10px 0' }}>
-                <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6, textAlign: 'center' }}>Who's working?</div>
-                <div style={{ fontSize: 13, color: '#888', marginBottom: 24, textAlign: 'center' }}>Select your profile to continue</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 16, marginBottom: 20 }}>
-                  {JSON.parse(localStorage.getItem('savedProfiles') || '[]').map((p: any) => (
-                    <div key={p.email} onClick={() => { setLoginEmail(p.email); setLoginPass(p.password); handleLogin({ preventDefault: () => {} } as any); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
-                      <div style={{ width: 64, height: 64, borderRadius: 32, background: '#111', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'transform 150ms' }} onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.05)')} onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}>{p.initial || p.name.charAt(0)}</div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#111', textAlign: 'center' }}>{p.name.split(' ')[0]}</div>
-                    </div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Sign in</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: savedProfiles.length > 0 ? 16 : 24 }}>Enter your email and password to continue</div>
+
+            {savedProfiles.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Recent accounts</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {savedProfiles.map(p => (
+                    <button key={p.email} type="button"
+                      onClick={() => { setLoginEmail(p.email); setLoginPass(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 6px', background: loginEmail === p.email ? '#F0F4FF' : '#F7F7F6', border: `1px solid ${loginEmail === p.email ? '#2563EB' : '#E9E9E7'}`, borderRadius: 99, cursor: 'pointer', transition: 'all 150ms' }}>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{p.initials}</div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#111', lineHeight: 1.3 }}>{p.name}</div>
+                        <div style={{ fontSize: 10, color: '#888' }}>{p.department}</div>
+                      </div>
+                    </button>
                   ))}
                 </div>
-                <button onClick={() => setShowLogin(true)} style={{ width: '100%', height: 40, background: '#F7F7F6', color: '#111', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Add Account / Sign in</button>
               </div>
-            ) : (
-              <>
-                <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Sign in</div>
-                <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Enter your email and password to continue</div>
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            )}
+
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {loginError && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>
                   {loginError}
@@ -382,8 +404,6 @@ export default function App() {
                 {loginLoading ? 'Signing in…' : 'Sign in →'}
               </button>
             </form>
-            </>
-            )}
 
             <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
 

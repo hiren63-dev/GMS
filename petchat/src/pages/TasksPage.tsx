@@ -5,6 +5,18 @@ import { toast } from '../utils/toast';
 
 interface Props { employee: Employee; }
 
+// Normalize legacy status strings (e.g. "To Do", "In Progress") to enum values
+const normalizeStatus = (s: string): TaskStatus => {
+  const key = s.toLowerCase().replace(/[\s-]+/g, '_');
+  const map: Record<string, TaskStatus> = {
+    todo: 'todo', to_do: 'todo',
+    in_progress: 'in_progress', inprogress: 'in_progress',
+    blocked: 'blocked',
+    done: 'done', completed: 'done', complete: 'done',
+  };
+  return map[key] ?? 'todo';
+};
+
 type Col = { key: TaskStatus; label: string; dot: string };
 const COLS: Col[] = [
   { key: 'todo',        label: 'To Do',       dot: '#D1D5DB' },
@@ -28,7 +40,9 @@ export default function TasksPage({ employee }: Props) {
   const [dragId, setDragId]     = useState<string | null>(null);
   const [overCol, setOverCol]   = useState<TaskStatus | null>(null);
 
-  useEffect(() => onUserTasksChange(employee.id, setTasks), [employee.id]);
+  useEffect(() => onUserTasksChange(employee.id, raw =>
+    setTasks(raw.map(t => ({ ...t, status: normalizeStatus(t.status as string) })))
+  ), [employee.id]);
 
   useEffect(() => {
     if (!expandedTask) { setComments([]); return; }

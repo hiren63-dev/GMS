@@ -77,6 +77,18 @@ export interface Task { groupId?: string;
   recurrence?: Recurrence;   // auto-recreate on completion
   blockedBy?: string[];      // task IDs this task is blocked by
   commentCount?: number;
+  groupId?: string;          // if set, task belongs to a group
+}
+
+// ── Groups ────────────────────────────────────────────────────────────────
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  memberIds: string[];
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
 }
 
 // ── Task Comments ─────────────────────────────────────

@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Employee, Task, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
+import type { Employee, Task, Group, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -471,20 +471,34 @@ export const sendSlackNotification = async (webhookUrl: string, text: string) =>
   } catch { /* non-critical */ }
 };
 
-
-// ── Groups ──────────────────────────────────────────────
-export const createGroup = (g: Omit<import('../types').Group, 'id' | 'createdAt'>) =>
+// ── Groups ────────────────────────────────────────────────────────────────
+export const createGroup = (g: Omit<Group, 'id'>) =>
   addDoc(collection(db, 'groups'), { ...g, createdAt: Date.now() });
 
-export const getGroups = async (userId: string) => {
-  const s = await getDocs(query(collection(db, 'groups'), where('memberIds', 'array-contains', userId)));
-  return s.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').Group));
-};
-
-export const updateGroup = (id: string, data: Partial<import('../types').Group>) =>
+export const updateGroup = (id: string, data: Partial<Group>) =>
   updateDoc(doc(db, 'groups', id), data as any);
 
 export const deleteGroup = (id: string) => deleteDoc(doc(db, 'groups', id));
 
-export const onGroupsChange = (userId: string, cb: (groups: import('../types').Group[]) => void) =>
-  snapList<import('../types').Group>(query(collection(db, 'groups'), where('memberIds', 'array-contains', userId)), cb);
+export const onGroupsChange = (employeeId: string, cb: (groups: Group[]) => void) =>
+  onSnapshot(
+    query(collection(db, 'groups'), where('memberIds', 'array-contains', employeeId)),
+    s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }) as Group))
+  );
+
+// ── Group Messages ────────────────────────────────────────────────────────
+export const sendGroupMessage = (msg: { groupId: string; senderId: string; senderName: string; content: string; attachment?: { name: string; size: string; ext: string; url?: string } }) =>
+  addDoc(collection(db, 'groupMessages'), { ...msg, timestamp: Date.now() });
+
+export const onGroupMessagesChange = (groupId: string, cb: (msgs: any[]) => void) =>
+  onSnapshot(
+    query(collection(db, 'groupMessages'), where('groupId', '==', groupId)),
+    s => cb(
+      s.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+    )
+  );
+
+// ── Group Tasks ───────────────────────────────────────────────────────────
+export const onGroupTasksChange = (groupId: string, cb: (tasks: Task[]) => void) =>
+  snapList<Task>(query(collection(db, 'tasks'), where('groupId', '==', groupId)), cb);
