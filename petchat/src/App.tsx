@@ -58,10 +58,12 @@ export default function App() {
   };
 
   // Login form state — pre-fill email from last session
-  const [loginEmail, setLoginEmail] = useState(() => localStorage.getItem('lastEmail') || '');
-  const [loginPass, setLoginPass]   = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [loginEmail, setLoginEmail]   = useState(() => localStorage.getItem('lastEmail') || '');
+  const [loginPass, setLoginPass]     = useState('');
+  const [loginError, setLoginError]   = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showPass, setShowPass]       = useState(false);
+  const [showSignUpPass, setShowSignUpPass] = useState(false);
 
   // Sign-up / forgot-password panel: 'none' | 'signup' | 'forgot'
   const [authPanel, setAuthPanel]       = useState<'none' | 'signup' | 'forgot'>('none');
@@ -178,47 +180,47 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
-    // Tracks whether we successfully signed into Firebase Auth during this attempt,
-    // so we can sign back out if the role check or password check fails.
     let firebaseSignedIn = false;
     try {
       const email = loginEmail.trim();
-      // Sign in anonymously first so Firestore rules (which require auth) allow
-      // the employee email lookup below. We'll swap to real auth if the account
-      // has a Firebase Auth UID; stored-password accounts keep the anon session.
-      try { await loginAnon(); } catch { /* continue even if anon auth fails */ }
-      // Look up the employee first so we know whether to use Firebase Auth.
+
+      // Try Firebase Auth FIRST — if the account has an authUid this gives us a
+      // valid token for Firestore reads, avoiding the anonymous-auth dependency
+      // that was causing "Missing or insufficient permissions" errors.
+      // Block the auth listener with a sentinel so it doesn't race-navigate.
+      currentEmpRef.current = { id: '_pending' } as Employee;
+      try {
+        await loginAdmin(email, loginPass);
+        firebaseSignedIn = true;
+      } catch {
+        // No Firebase Auth account, or wrong password — fall back to anonymous
+        // so stored-password accounts can still look up their Firestore doc.
+        currentEmpRef.current = null;
+        try { await loginAnon(); } catch { /* ignore */ }
+      }
+
       const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', email)));
+      currentEmpRef.current = null; // clear sentinel regardless
+
       if (snap.empty) {
+        if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
         setLoginError('No account found for this email. Ask your admin to add you.');
         return;
       }
       const empDoc = snap.docs[0];
       const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
 
-      // Verify the password. Accounts with a Firebase Auth UID verify through
-      // Auth; otherwise we verify against the stored password.
-      let verified = false;
-      if (emp.authUid) {
-        // Pre-assign the ref so that the onAuthStateChanged callback triggered by
-        // loginAdmin() sees a non-null value and skips session-restore logic.
-        // Without this, the auth listener would race ahead and log the user in
-        // before the role check below can run.
-        currentEmpRef.current = emp;
-        try {
-          await loginAdmin(email, loginPass);
-          verified = true;
-          firebaseSignedIn = true;
-        } catch {
-          // Firebase Auth failed; fall through to stored-password check.
-          currentEmpRef.current = null;
-        }
+      let verified = firebaseSignedIn;
+
+      if (!verified && emp.authUid) {
+        // Has Firebase Auth but loginAdmin failed → wrong password
+        setLoginError('Incorrect password. Try again or reset via Forgot password.');
+        return;
       }
       if (!verified && emp.password) {
         verified = loginPass === emp.password;
       }
       if (!verified) {
-        currentEmpRef.current = null;
         if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
         setLoginError(emp.password || emp.authUid
           ? 'Incorrect password. Try again or ask your admin to reset it.'
@@ -226,16 +228,17 @@ export default function App() {
         return;
       }
 
-      // Persist session for next visit
+      // Success — persist session
       localStorage.setItem('lastEmail', email);
       saveProfile(emp);
       if (!emp.authUid) {
         localStorage.setItem('savedEmpId', emp.id);
-        try { await loginAnon(); } catch { /* anonymous auth optional — writes still work if rules allow */ }
+        try { await loginAnon(); } catch { }
       }
+      currentEmpRef.current = emp;
       setCurrentEmployee(emp);
       setCurrentPage(emp.role === 'founder' ? 'founder' : emp.role === 'admin' ? 'admin' : 'dashboard');
-      startEmpListener(); // start employees listener now that auth is active
+      startEmpListener();
     } catch (err: any) {
       currentEmpRef.current = null;
       if (firebaseSignedIn) { try { await logoutAdmin(); } catch {} }
@@ -372,16 +375,25 @@ export default function App() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Password</label>
-                <input
-                  type="password"
-                  value={loginPass}
-                  onChange={e => setLoginPass(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                  onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={loginPass}
+                    onChange={e => setLoginPass(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    style={{ width: '100%', height: 42, padding: '0 42px 0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms', boxSizing: 'border-box' }}
+                    onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                    onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
+                  />
+                  <button type="button" onClick={() => setShowPass(v => !v)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
+                    {showPass
+                      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    }
+                  </button>
+                </div>
               </div>
               <button
                 type="submit"
@@ -455,7 +467,6 @@ export default function App() {
                 {[
                   { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' },
                   { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com' },
-                  { label: 'Password', key: 'password', type: 'password', placeholder: 'Min. 6 characters' },
                 ].map(f => (
                   <div key={f.key}>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
@@ -465,6 +476,23 @@ export default function App() {
                       onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
                   </div>
                 ))}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input type={showSignUpPass ? 'text' : 'password'} required placeholder="Min. 6 characters"
+                      value={signUpForm.password}
+                      onChange={e => setSignUpForm(s => ({ ...s, password: e.target.value }))}
+                      style={{ width: '100%', height: 40, padding: '0 42px 0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                    <button type="button" onClick={() => setShowSignUpPass(v => !v)}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
+                      {showSignUpPass
+                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      }
+                    </button>
+                  </div>
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
                   <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
