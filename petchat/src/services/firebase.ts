@@ -77,6 +77,8 @@ export const createEmployeeWithAuth = async (
   const secondaryAuth = getAuth(secondaryApp);
   try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, emp.email, emp.password);
+    // Sign the new user into the MAIN app so Firestore rules (request.auth != null) pass
+    await signInWithEmailAndPassword(auth, emp.email, emp.password);
     const ref = await addDoc(collection(db, 'employees'), {
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, status: 'offline',

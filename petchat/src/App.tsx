@@ -212,19 +212,31 @@ export default function App() {
     setSignUpError('');
     setSignUpLoading(true);
     try {
-      // Need a valid auth token before Firestore write in createEmployeeWithAuth
-      try { await loginAnon(); } catch { /* continue */ }
       const pw = signUpForm.password.trim() || generatePassword();
+      const name = signUpForm.name.trim();
+      const email = signUpForm.email.trim();
+      // createEmployeeWithAuth signs into MAIN auth with new credentials before writing to Firestore
       await createEmployeeWithAuth({
-        name: signUpForm.name.trim(),
-        email: signUpForm.email.trim(),
+        name, email,
         department: signUpForm.department,
         role: signUpForm.role,
         status: 'offline',
         password: pw,
         permissions: [],
       });
-      setSignUpDone(true);
+      // Account created + signed in — look up the new employee doc and log them in
+      const snap = await getDocs(query(collection(db, 'employees'), where('email', '==', email)));
+      if (!snap.empty) {
+        const d = snap.docs[0];
+        const empData = { id: d.id, ...d.data() } as Employee;
+        currentEmpRef.current = empData;
+        startEmpListener();
+        setCurrentEmployee(empData);
+        setAuthPanel('none');
+        setCurrentPage(empData.role === 'founder' ? 'founder' : empData.role === 'admin' ? 'admin' : 'dashboard');
+      } else {
+        setSignUpDone(true);
+      }
     } catch (err: any) {
       setSignUpError(err.message || 'Failed to create account. Try again.');
     } finally {
