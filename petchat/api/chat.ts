@@ -9,12 +9,17 @@
 //
 // ── To activate ────────────────────────────────────────────────────────────
 //  1. In Vercel → Project → Settings → Environment Variables, add ONE of:
-//        OPENAI_API_KEY   = sk-...        (uses gpt-4o-mini)
-//        ANTHROPIC_API_KEY = sk-ant-...   (uses claude-haiku-4-5)
-//  2. Also add a build-time env var:  VITE_AI_ENABLED = true
-//  3. Redeploy. No other code changes needed.
+//        OPENROUTER_API_KEY = sk-or-...   (recommended — model set by OPENROUTER_MODEL below)
+//        OPENAI_API_KEY      = sk-...     (uses gpt-4o-mini directly)
+//        ANTHROPIC_API_KEY   = sk-ant-... (uses claude-haiku-4-5 directly)
+//  2. Optional: OPENROUTER_MODEL = openai/gpt-4o-mini (default) — swap to any
+//     OpenRouter model slug (e.g. google/gemini-2.0-flash-001) with no code change.
+//  3. Also add a build-time env var:  VITE_AI_ENABLED = true
+//  4. Redeploy. No other code changes needed.
 //
-// The API key lives ONLY here (server-side). It is never sent to the browser.
+// The API key lives ONLY here (server-side, Vercel env var). It is never sent
+// to the browser. Do NOT store this key in the Integration Hub / Firestore —
+// that collection is readable by every signed-in employee per firestore.rules.
 // ─────────────────────────────────────────────────────────────────────────
 
 interface ReqBody {
@@ -38,6 +43,32 @@ Allowed actions (return JSON matching one shape):
 Rules: personQuery/fileQuery are fuzzy human phrases, not IDs. If the user names a
 person vaguely (first name, partial), pass it as personQuery verbatim. If it's not
 a clear command, use "chat". Respond with JSON only.`;
+
+async function callOpenRouter(body: ReqBody): Promise<any> {
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://gms-seven-black.vercel.app',
+      'X-Title': 'BuddyDesk',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: `Team: ${body.employees.map(e => e.name).join(', ')}\nUser (${body.me.name}, ${body.me.role}): ${body.text}` },
+      ],
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error?.message || `OpenRouter error ${res.status}`);
+  const raw = json.choices?.[0]?.message?.content ?? '{}';
+  return JSON.parse(raw.replace(/^```json\s*|\s*```$/g, ''));
+}
 
 async function callOpenAI(body: ReqBody): Promise<any> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -84,7 +115,8 @@ export default async function handler(req: any, res: any) {
   try {
     const body: ReqBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     let action;
-    if (process.env.OPENAI_API_KEY) action = await callOpenAI(body);
+    if (process.env.OPENROUTER_API_KEY) action = await callOpenRouter(body);
+    else if (process.env.OPENAI_API_KEY) action = await callOpenAI(body);
     else if (process.env.ANTHROPIC_API_KEY) action = await callAnthropic(body);
     else { res.status(200).json({ kind: 'chat', text: 'AI backend not configured.' }); return; }
     res.status(200).json(action);
