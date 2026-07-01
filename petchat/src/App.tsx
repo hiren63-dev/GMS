@@ -29,6 +29,7 @@ import OrgChartPage from './pages/OrgChartPage';
 import OneOnOnePage from './pages/OneOnOnePage';
 import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInModal';
 import TimeTracker from './components/TimeTracker';
+import ChatDock from './components/ChatDock';
 
 import './index.css';
 
@@ -605,6 +606,8 @@ export default function App() {
       {showCheckin && (
         <DailyCheckInModal employee={currentEmployee} onDone={() => setShowCheckin(false)} />
       )}
+
+      <ChatDock employee={currentEmployee} employees={employees} />
 
       <Mascot
         onTap={() => {
