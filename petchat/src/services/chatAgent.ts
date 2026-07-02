@@ -332,7 +332,16 @@ export async function interpret(text: string, ctx: AgentContext): Promise<AgentA
   await loadPrefs(ctx.me.id);                    // nickname memory ready for BOTH brains
   pushTurn('user', text);
   if (LLM_ENABLED) {
-    try { return await parseWithLLM(text, ctx); }
+    try {
+      const action = await parseWithLLM(text, ctx);
+      // Deterministic guard: if the router LLM dodges an obvious data question
+      // ("I can't provide…"), reroute it to the analyst instead of the user
+      // ever seeing a refusal. Strong data words only, so real chat stays chat.
+      if (action.kind === 'chat' && /\b(blocker|blocked|working on|overdue|workload|progress|status of|summar|checked in)\b/i.test(text)) {
+        return { kind: 'ask_data', question: text };
+      }
+      return action;
+    }
     catch { return parseLocally(text); }   // graceful fallback keeps the dock working
   }
   return parseLocally(text);
