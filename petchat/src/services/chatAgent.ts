@@ -21,7 +21,7 @@
 //   • parseWithLLM()  — calls /api/chat. Understands ANY phrasing. Activated by
 //                       VITE_AI_ENABLED=true + a key in Vercel. Falls back local.
 // ─────────────────────────────────────────────────────────────────────────
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import {
   db, createTask, updateTask, deleteTask, createAnnouncement, deleteAnnouncement,
   sendMessage, getAllTasks, getTodaysCheckIn, logAudit, logTaskDone,
@@ -42,7 +42,42 @@ export type AgentAction =
   | { kind: 'find_file'; fileQuery: string }
   | { kind: 'announce'; body: string }
   | { kind: 'who_checked_in' }
+  | { kind: 'remember_nickname'; nickname: string; personQuery: string }
   | { kind: 'chat'; text: string };
+
+// ── Per-user AI memory (persists across sessions in Firestore) ────────────
+// aiPrefs/{employeeId} = { nicknames: { "ak": "Raj Kumar", ... } }
+// Nicknames the user teaches in chat ("we call ananya nyu") are saved here and
+// loaded on every session — so the assistant remembers people the way YOU do.
+interface AiPrefs { nicknames: Record<string, string> } // normalized nickname → employee full name
+
+let _prefs: AiPrefs | null = null;
+let _prefsFor: string | null = null;
+// short conversation memory (this session) so the LLM can resolve "him"/"that task"
+const _turns: { role: 'user' | 'assistant'; content: string }[] = [];
+
+async function loadPrefs(meId: string): Promise<AiPrefs> {
+  if (_prefs && _prefsFor === meId) return _prefs;
+  try {
+    const snap = await getDoc(doc(db, 'aiPrefs', meId));
+    _prefs = (snap.exists() ? (snap.data() as AiPrefs) : { nicknames: {} });
+    if (!_prefs.nicknames) _prefs.nicknames = {};
+  } catch { _prefs = { nicknames: {} }; }
+  _prefsFor = meId;
+  return _prefs;
+}
+
+async function saveNickname(meId: string, nickname: string, realName: string): Promise<void> {
+  const p = await loadPrefs(meId);
+  p.nicknames[norm(nickname)] = realName;
+  try { await setDoc(doc(db, 'aiPrefs', meId), { nicknames: p.nicknames, updatedAt: Date.now() }, { merge: true }); }
+  catch { /* memory still works for this session */ }
+}
+
+function pushTurn(role: 'user' | 'assistant', content: string) {
+  _turns.push({ role, content });
+  if (_turns.length > 8) _turns.splice(0, _turns.length - 8);
+}
 
 export interface AgentResult {
   reply: string;
@@ -92,6 +127,18 @@ function bestEmployee(queryStr: string, employees: Employee[], excludeId?: strin
   return bestScore >= 40 ? best : null;
 }
 
+// Nickname-aware person resolution: learned nicknames win, then fuzzy match.
+// Used by BOTH brains, so even the offline keyword parser understands "ak".
+function resolvePerson(queryStr: string, employees: Employee[], excludeId?: string): Employee | null {
+  const nickTarget = _prefs?.nicknames?.[norm(queryStr)];
+  if (nickTarget) {
+    const hit = employees.find(e => norm(e.name) === norm(nickTarget) && (!excludeId || e.id !== excludeId))
+      ?? (() => { const f = bestEmployee(nickTarget, employees, excludeId); return f; })();
+    if (hit) return hit;
+  }
+  return bestEmployee(queryStr, employees, excludeId);
+}
+
 // suggestions when a person match is ambiguous — powers "did you mean…"
 function employeeSuggestions(queryStr: string, employees: Employee[], excludeId?: string): string[] {
   return employees
@@ -138,6 +185,16 @@ function audit(me: Employee, action: string, target: string, details?: string) {
 export function parseLocally(text: string): AgentAction {
   const t = text.trim();
   const low = t.toLowerCase();
+
+  // teach a nickname: "we call ananya nyu" / "raj is called ak" / "remember sri as lucky"
+  const teach =
+    low.match(/^\s*we\s+call\s+(.+?)\s+["']?([\w.-]+)["']?\s*$/i) ||
+    low.match(/^\s*(.+?)\s+is\s+(?:also\s+)?(?:called|known\s+as)\s+["']?([\w.-]+)["']?\s*$/i) ||
+    low.match(/^\s*remember\s+(.+?)\s+as\s+["']?([\w.-]+)["']?\s*$/i) ||
+    low.match(/^\s*(.+?)(?:'s|s)\s+nickname\s+is\s+["']?([\w.-]+)["']?\s*$/i);
+  if (teach) {
+    return { kind: 'remember_nickname', personQuery: teach[1].trim(), nickname: teach[2].trim() };
+  }
 
   // delete <task>  (checked before "complete" so "delete" wins)
   const delMatch = low.match(/(?:delete|remove|cancel|drop)\s+(?:the\s+)?(?:task\s+)?(.+?)\s*(?:task)?$/);
@@ -215,6 +272,8 @@ async function parseWithLLM(text: string, ctx: AgentContext): Promise<AgentActio
       text,
       me: { id: ctx.me.id, name: ctx.me.name, role: ctx.me.role },
       employees: ctx.employees.map(e => ({ id: e.id, name: e.name, department: e.department })),
+      history: _turns.slice(-8),                 // lets the LLM resolve "him" / "that task"
+      nicknames: _prefs?.nicknames ?? {},        // learned nicknames, so it never re-asks
     }),
   });
   if (!res.ok) throw new Error('llm-unavailable');
@@ -225,6 +284,8 @@ const LLM_ENABLED = import.meta.env.VITE_AI_ENABLED === 'true';
 
 /** Step 1 — turn text into a structured action (LLM if available, else local). */
 export async function interpret(text: string, ctx: AgentContext): Promise<AgentAction> {
+  await loadPrefs(ctx.me.id);                    // nickname memory ready for BOTH brains
+  pushTurn('user', text);
   if (LLM_ENABLED) {
     try { return await parseWithLLM(text, ctx); }
     catch { return parseLocally(text); }   // graceful fallback keeps the dock working
@@ -238,7 +299,7 @@ export function assess(action: AgentAction, ctx: AgentContext): Assessment {
   const { me, employees } = ctx;
   switch (action.kind) {
     case 'create_task': {
-      const who = action.personQuery ? bestEmployee(action.personQuery, employees) : me;
+      const who = action.personQuery ? resolvePerson(action.personQuery, employees) : me;
       const assigningToOther = !!who && who.id !== me.id;
       if (assigningToOther && !can(me, 'assign_tasks')) {
         return { permitted: false, risky: false, denyReason: `You can only add tasks to your own list. Ask an admin for the "assign tasks" permission to hand work to others. Want me to add "${action.title}" to your list instead?` };
@@ -253,6 +314,8 @@ export function assess(action: AgentAction, ctx: AgentContext): Assessment {
     }
     case 'delete_task':
       return { permitted: true, risky: true, confirmText: `🗑️ Delete the task matching "${action.taskQuery}"? This can't be undone.` };
+    case 'remember_nickname':
+      return { permitted: true, risky: false };
     default:
       return { permitted: true, risky: false };
   }
@@ -260,11 +323,32 @@ export function assess(action: AgentAction, ctx: AgentContext): Assessment {
 
 // ── Execution: the single source of truth ─────────────────────────────────
 export async function execute(action: AgentAction, ctx: AgentContext): Promise<AgentResult> {
+  const result = await executeInner(action, ctx);
+  pushTurn('assistant', result.reply);   // keep conversation memory for "him"/"that task"
+  return result;
+}
+
+async function executeInner(action: AgentAction, ctx: AgentContext): Promise<AgentResult> {
   const { me, employees } = ctx;
 
   switch (action.kind) {
+    case 'remember_nickname': {
+      const person = resolvePerson(action.personQuery, employees);
+      if (!person) {
+        const hint = employeeSuggestions(action.personQuery, employees);
+        return { ok: false, reply: `I couldn't find "${action.personQuery}" in the team.${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ''}` };
+      }
+      await saveNickname(me.id, action.nickname, person.name);
+      audit(me, 'remember_nickname', person.name, `"${action.nickname}"`);
+      return {
+        ok: true,
+        reply: `Got it — "${action.nickname}" means ${person.name}. I'll remember that from now on. 🧠`,
+        historyLabel: `Learned nickname “${action.nickname}” = ${person.name}`,
+      };
+    }
+
     case 'create_task': {
-      const assignee = action.personQuery ? bestEmployee(action.personQuery, employees) : me;
+      const assignee = action.personQuery ? resolvePerson(action.personQuery, employees) : me;
       if (action.personQuery && !assignee) {
         const hint = employeeSuggestions(action.personQuery, employees);
         return { ok: false, reply: `I couldn't find "${action.personQuery}".${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ' Who should I assign it to?'}` };
@@ -335,7 +419,7 @@ export async function execute(action: AgentAction, ctx: AgentContext): Promise<A
     }
 
     case 'send_file': {
-      const person = bestEmployee(action.personQuery, employees, me.id);
+      const person = resolvePerson(action.personQuery, employees, me.id);
       if (!person) {
         const hint = employeeSuggestions(action.personQuery, employees, me.id);
         return { ok: false, reply: `I couldn't find "${action.personQuery}" in the team.${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ''}` };
