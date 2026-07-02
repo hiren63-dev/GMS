@@ -43,7 +43,14 @@ export type AgentAction =
   | { kind: 'announce'; body: string }
   | { kind: 'who_checked_in' }
   | { kind: 'remember_nickname'; nickname: string; personQuery: string }
+  | { kind: 'set_priority'; taskQuery: string; priority: Priority }
+  | { kind: 'add_note'; taskQuery: string; note: string }
+  | { kind: 'ask_data'; question: string }
   | { kind: 'chat'; text: string };
+
+// Tappable quick-reply (WhatsApp-business style): either runs an action
+// directly, or prefills the composer so the user only types the free part.
+export interface QuickOption { label: string; act?: AgentAction; prefill?: string }
 
 // ── Per-user AI memory (persists across sessions in Firestore) ────────────
 // aiPrefs/{employeeId} = { nicknames: { "ak": "Raj Kumar", ... } }
@@ -84,6 +91,7 @@ export interface AgentResult {
   ok: boolean;
   undo?: () => Promise<void>;   // present when the action is safely reversible
   historyLabel?: string;        // short label for the action-history list
+  options?: QuickOption[];      // tappable next steps (slot-filling, disambiguation)
 }
 
 export interface Assessment {
@@ -205,6 +213,16 @@ export function parseLocally(text: string): AgentAction {
   const t = text.trim();
   const low = t.toLowerCase();
 
+  // note for "task": ... (produced by the ✍️ Add details quick-reply prefill)
+  const noteMatch = t.match(/^note for ["“](.+?)["”]:\s*(.+)$/i);
+  if (noteMatch) return { kind: 'add_note', taskQuery: noteMatch[1], note: noteMatch[2].trim() };
+
+  // set priority: "make the obula task urgent" / "set report to high priority"
+  const prioMatch = low.match(/(?:make|set|mark)\s+(?:the\s+)?(.+?)\s+(?:task\s+)?(?:to\s+|as\s+)?(urgent|high|medium|low)(?:\s+priority)?$/);
+  if (prioMatch && /priority|urgent|high|medium|low/.test(low) && !/\b(add|create|new)\b/.test(low)) {
+    return { kind: 'set_priority', taskQuery: prioMatch[1].replace(/\btask\b/g, '').trim(), priority: prioMatch[2] as Priority };
+  }
+
   // teach a nickname: "we call ananya nyu" / "raj is called ak" / "remember sri as lucky"
   const teach =
     low.match(/^\s*we\s+call\s+(.+?)\s+["']?([\w.-]+)["']?\s*$/i) ||
@@ -277,6 +295,14 @@ export function parseLocally(text: string): AgentAction {
     const prio: Priority | undefined = /urgent|asap/.test(low) ? 'urgent' : /high priority|important/.test(low) ? 'high' : undefined;
     if (!title) title = t;
     return { kind: 'create_task', title, personQuery, priority: prio, today };
+  }
+
+  // data questions → the analyst ("who is working on what", "any blockers today")
+  if (
+    /^(who|what|which|how many|how is|why|is|are|any)\b/.test(low) ||
+    /\b(blocker|blocked|working on|overdue|progress|summar|workload|status of)\b/.test(low)
+  ) {
+    return { kind: 'ask_data', question: t };
   }
 
   return { kind: 'chat', text: t };
@@ -370,7 +396,14 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       const assignee = action.personQuery ? resolvePerson(action.personQuery, employees) : me;
       if (action.personQuery && !assignee) {
         const hint = employeeSuggestions(action.personQuery, employees);
-        return { ok: false, reply: `I couldn't find "${action.personQuery}".${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ' Who should I assign it to?'}` };
+        return {
+          ok: false,
+          reply: `I couldn't find "${action.personQuery}".${hint.length ? ' Did you mean:' : ' Who should I assign it to?'}`,
+          options: hint.length ? [
+            ...hint.map(n => ({ label: n, act: { ...action, personQuery: n } as AgentAction })),
+            { label: 'Assign to me', act: { ...action, personQuery: undefined } as AgentAction },
+          ] : undefined,
+        };
       }
       const target = assignee ?? me;
       if (target.id !== me.id && !can(me, 'assign_tasks')) {
@@ -390,12 +423,80 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       audit(me, 'create_task', action.title, `→ ${target.name}${action.today ? ' (today)' : ''}`);
       const who = target.id === me.id ? 'your list' : target.name;
       const when = action.today ? ' (due today)' : '';
+      // Slot-filling: if they didn't say a priority, offer one-tap refinement
+      // (WhatsApp-business style) instead of making them type again.
+      const options: QuickOption[] | undefined = action.priority ? undefined : [
+        { label: '🔴 Urgent', act: { kind: 'set_priority', taskQuery: action.title, priority: 'urgent' } },
+        { label: '🟠 High', act: { kind: 'set_priority', taskQuery: action.title, priority: 'high' } },
+        { label: '✍️ Add details', prefill: `note for "${action.title}": ` },
+      ];
       return {
         ok: true,
-        reply: `✅ Added "${action.title}" to ${who}${when}. It's on the board now.`,
+        reply: `✅ Added "${action.title}" to ${who}${when}.${options ? ' Priority is medium — want to change it?' : ''}`,
         historyLabel: `Task “${action.title}” → ${target.id === me.id ? 'you' : target.name}`,
-        undo: async () => { await deleteTask((ref as any).id); },
+        undo: async () => { await deleteTask((ref as any).id); invalidateTasks(); },
+        options,
       };
+    }
+
+    case 'set_priority': {
+      const tasks = await cachedTasks();
+      const mine = tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
+      const match = bestTask(action.taskQuery, mine.length ? mine : tasks);
+      if (!match) return { ok: false, reply: `I couldn't find a task matching "${action.taskQuery}".` };
+      await updateTask(match.id, { priority: action.priority });
+      invalidateTasks();
+      audit(me, 'set_priority', match.title, action.priority);
+      const icon = action.priority === 'urgent' ? '🔴' : action.priority === 'high' ? '🟠' : '🔵';
+      return { ok: true, reply: `${icon} "${match.title}" is now ${action.priority} priority.`, historyLabel: `Priority ${action.priority} → “${match.title}”` };
+    }
+
+    case 'add_note': {
+      const tasks = await cachedTasks();
+      const mine = tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
+      const match = bestTask(action.taskQuery, mine.length ? mine : tasks);
+      if (!match) return { ok: false, reply: `I couldn't find a task matching "${action.taskQuery}".` };
+      const description = match.description ? `${match.description}\n${action.note}` : action.note;
+      await updateTask(match.id, { description });
+      invalidateTasks();
+      audit(me, 'add_note', match.title);
+      return { ok: true, reply: `📝 Noted on "${match.title}": ${action.note}`, historyLabel: `Note → “${match.title}”` };
+    }
+
+    case 'ask_data': {
+      if (!LLM_ENABLED) return { ok: false, reply: `Data questions need the AI brain (VITE_AI_ENABLED). Ask me to list your tasks instead.` };
+      const isMgr = me.role === 'founder' || me.role === 'admin' || can(me, 'view_reports');
+      const tasks = await cachedTasks();
+      const scoped = isMgr ? tasks : tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
+      // today's check-ins (mood + blockers are the qualitative signal)
+      const today = new Date();
+      const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      let checkins: any[] = [];
+      try {
+        const s = await getDocs(query(collection(db, 'checkIns'), where('dateKey', '==', dateKey)));
+        checkins = s.docs.map(d => d.data() as any)
+          .filter(c => isMgr || c.employeeId === me.id)
+          .map(c => ({ name: c.employeeName, mood: c.mood, workDone: c.workDone, problem: c.hasProblems ? (c.problemDetails || 'yes') : null }));
+      } catch { /* snapshot still useful without checkins */ }
+      const snapshot = {
+        today: dateKey,
+        employees: isMgr ? employees.map(e => ({ name: e.name, department: e.department, role: e.role })) : undefined,
+        tasks: scoped.slice(0, 120).map(t => ({
+          title: t.title, assignee: t.assigneeName, status: t.status, priority: t.priority,
+          due: t.dueDate ? new Date(t.dueDate).toISOString().slice(0, 10) : null,
+          overdue: !!(t.dueDate && t.status !== 'done' && t.dueDate < Date.now()),
+        })),
+        checkinsToday: checkins,
+      };
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: action.question, me: { id: me.id, name: me.name, role: me.role }, snapshot }),
+      });
+      if (!res.ok) return { ok: false, reply: `I couldn't analyze that right now — try again in a moment.` };
+      const { answer } = await res.json();
+      audit(me, 'ask_data', action.question.slice(0, 60));
+      return { ok: true, reply: answer || 'No answer.', historyLabel: `Asked: “${action.question.slice(0, 40)}${action.question.length > 40 ? '…' : ''}”` };
     }
 
     case 'complete_task': {
@@ -444,7 +545,11 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       const person = resolvePerson(action.personQuery, employees, me.id);
       if (!person) {
         const hint = employeeSuggestions(action.personQuery, employees, me.id);
-        return { ok: false, reply: `I couldn't find "${action.personQuery}" in the team.${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ''}` };
+        return {
+          ok: false,
+          reply: `I couldn't find "${action.personQuery}" in the team.${hint.length ? ' Did you mean:' : ''}`,
+          options: hint.length ? hint.map(n => ({ label: n, act: { ...action, personQuery: n } as AgentAction })) : undefined,
+        };
       }
       const files = await loadResourceFiles();
       const file = bestFile(action.fileQuery, files);
@@ -551,7 +656,7 @@ export async function buildGreeting(ctx: AgentContext): Promise<{ text: string; 
     ? ['What are my tasks today?', 'Mark my top task done']
     : ['Add a task for today', 'What are my tasks today?'];
   if (!checkedIn) chips.push('I want to check in');
-  if (canManage) chips.push('Who checked in today?');
+  if (canManage) { chips.unshift('Who is working on what?'); chips.push('Any blockers today?'); }
   else chips.push('Send a file to a teammate');
 
   return { text: line, chips: chips.slice(0, 4) };

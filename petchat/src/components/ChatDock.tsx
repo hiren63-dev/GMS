@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Employee } from '../types';
-import { interpret, assess, execute, buildGreeting, type AgentAction, type AgentResult } from '../services/chatAgent';
+import { interpret, assess, execute, buildGreeting, type AgentAction, type AgentResult, type QuickOption } from '../services/chatAgent';
 
 // ─────────────────────────────────────────────────────────────────────────
-// BuddyDesk Assistant dock.
-// Design: follows the dashboard's own token system (--surface/--border/--text,
-// SF-style type, restrained single blue accent) instead of the generic
-// AI-gradient look. Daily-use ergonomics: Ctrl/Cmd+K to toggle, Esc to close,
-// autofocused input, capped message list, cleaned-up timers (no leaks).
+// BuddyDesk Assistant — full-height side panel (not a support-bot bubble).
+// Occupies ~1/3 of the horizontal screen on desktop, full width on mobile.
+// The dashboard stays visible and LIVE next to it, so actions render in
+// real time as the assistant does them. WhatsApp-business-style quick-reply
+// buttons remove typing friction (slot-filling, disambiguation, next steps).
+// Design: the dashboard's own tokens — restrained, single blue accent.
 // ─────────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -21,13 +22,14 @@ interface ChatMsg {
   text: string;
   ok?: boolean;
   undo?: () => Promise<void>;
+  options?: QuickOption[];
 }
 
 interface HistoryItem { label: string; at: number }
 
-const MAX_MSGS = 60;          // cap so a full workday never bloats the DOM
-const UNDO_WINDOW = 6000;     // ms the Undo button stays available
-const ACCENT = '#2563EB';     // the dashboard's one accent — used sparingly
+const MAX_MSGS = 60;
+const UNDO_WINDOW = 6000;
+const ACCENT = '#2563EB';
 
 let _mid = 0;
 const nextId = () => ++_mid;
@@ -44,10 +46,10 @@ export default function ChatDock({ employee, employees }: Props) {
   const [pending, setPending] = useState<{ action: AgentAction; text: string; count: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timersRef = useRef<number[]>([]);   // undo-expiry timers → cleared on unmount
+  const timersRef = useRef<number[]>([]);
   const ctx = { me: employee, employees };
 
-  // Global keyboard: Ctrl/Cmd+K toggles, Esc closes. Power-user path for daily use.
+  // Global keyboard: Ctrl/Cmd+K toggles, Esc closes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen(o => !o); }
@@ -57,10 +59,10 @@ export default function ChatDock({ employee, employees }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Clear all pending timers on unmount (leak guard)
+  // Clear pending timers on unmount (leak guard)
   useEffect(() => () => { timersRef.current.forEach(t => window.clearTimeout(t)); }, []);
 
-  // Autofocus the composer whenever the dock opens
+  // Autofocus composer when the panel opens
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 60); }, [open]);
 
   // Proactive, personalized greeting on first open
@@ -89,7 +91,7 @@ export default function ChatDock({ employee, employees }: Props) {
 
   const pushBot = (r: AgentResult) => {
     const id = nextId();
-    setMsgs(m => [...m.slice(-(MAX_MSGS - 1)), { id, role: 'bot', text: r.reply, ok: r.ok, undo: r.undo }]);
+    setMsgs(m => [...m.slice(-(MAX_MSGS - 1)), { id, role: 'bot', text: r.reply, ok: r.ok, undo: r.undo, options: r.options }]);
     if (r.ok && r.historyLabel) setHistory(h => [{ label: r.historyLabel!, at: Date.now() }, ...h].slice(0, 20));
     if (r.undo) {
       const t = window.setTimeout(() => setMsgs(m => m.map(x => x.id === id ? { ...x, undo: undefined } : x)), UNDO_WINDOW);
@@ -103,6 +105,19 @@ export default function ChatDock({ employee, employees }: Props) {
     catch (e: any) { pushBot({ ok: false, reply: `Something went wrong: ${e?.message || 'unknown'}. Nothing was changed.` }); }
     setBusy(false);
     inputRef.current?.focus();
+  };
+
+  // Quick-reply tapped: either run its action through the same safety gate,
+  // or prefill the composer so the user only types the free-text part.
+  const handleOption = async (msgId: number, opt: QuickOption) => {
+    setMsgs(m => m.map(x => x.id === msgId ? { ...x, options: undefined } : x)); // consume
+    if (opt.prefill) { setInput(opt.prefill); inputRef.current?.focus(); return; }
+    if (!opt.act) return;
+    setMsgs(m => [...m.slice(-(MAX_MSGS - 1)), { id: nextId(), role: 'user', text: opt.label }]);
+    const gate = assess(opt.act, ctx);
+    if (!gate.permitted) { pushBot({ ok: false, reply: gate.denyReason ?? 'You cannot do that.' }); return; }
+    if (gate.risky) { setPending({ action: opt.act, text: gate.confirmText ?? 'Confirm this action?', count: 3 }); return; }
+    await commit(opt.act);
   };
 
   const send = async (raw?: string) => {
@@ -135,7 +150,7 @@ export default function ChatDock({ employee, employees }: Props) {
 
   return (
     <>
-      {/* Floating launcher — quiet, on-brand, hints the shortcut */}
+      {/* Floating launcher */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -148,7 +163,7 @@ export default function ChatDock({ employee, employees }: Props) {
             background: 'var(--text, #111)', color: 'var(--surface, #fff)',
             border: '1px solid transparent',
             display: 'flex', alignItems: 'center', gap: 8,
-            fontSize: 13.5, fontWeight: 600,
+            fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit',
             boxShadow: 'var(--card-shadow-hover, 0 4px 16px rgba(0,0,0,.14))',
           }}
         >
@@ -160,43 +175,44 @@ export default function ChatDock({ employee, employees }: Props) {
         </button>
       )}
 
+      {/* Full-height side panel — the agent's third of the screen */}
       {open && (
         <div
           className="bd-panel"
           style={{
-            position: 'fixed', right: 24, bottom: 24, zIndex: 60,
-            width: 396, maxWidth: 'calc(100vw - 32px)', height: 600, maxHeight: 'calc(100vh - 48px)',
+            position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 60,
+            width: 'clamp(360px, 33vw, 520px)', maxWidth: '100vw',
             display: 'flex', flexDirection: 'column',
             background: 'var(--surface, #fff)', color: 'var(--text, #111)',
-            borderRadius: 14, overflow: 'hidden',
-            boxShadow: '0 24px 64px rgba(0,0,0,.22)', border: '1px solid var(--border, #E9E9E7)',
+            borderLeft: '1px solid var(--border, #E9E9E7)',
+            boxShadow: '-12px 0 40px rgba(0,0,0,.10)',
           }}
         >
-          {/* Header — surface + hairline, not a gradient banner */}
+          {/* Header */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+            display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
             background: 'var(--surface, #fff)', borderBottom: '1px solid var(--border, #E9E9E7)',
           }}>
             <span style={{
-              width: 30, height: 30, borderRadius: 8, background: ACCENT, color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+              width: 32, height: 32, borderRadius: 9, background: ACCENT, color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
             }}>✦</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 650, fontSize: 14, letterSpacing: '-0.01em' }}>Assistant</div>
+              <div style={{ fontWeight: 650, fontSize: 14.5, letterSpacing: '-0.01em' }}>Assistant</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-                Live on your dashboard
+                Working live on your dashboard
               </div>
             </div>
             <button onClick={() => setShowHistory(s => !s)} aria-label="Recent actions" title="Recent actions"
-              className="bd-iconbtn" style={iconBtn(showHistory)}>🕑</button>
+              style={iconBtn(showHistory)}>🕑</button>
             <button onClick={() => setOpen(false)} aria-label="Close (Esc)" title="Close — Esc"
-              className="bd-iconbtn" style={iconBtn(false)}>×</button>
+              style={iconBtn(false)}>×</button>
           </div>
 
           {/* History drawer */}
           {showHistory && (
-            <div style={{ maxHeight: 168, overflowY: 'auto', padding: '10px 14px', borderBottom: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)' }}>
+            <div style={{ maxHeight: 180, overflowY: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .6, color: 'var(--text-faint,#BBB)', marginBottom: 6 }}>Recent actions</div>
               {history.length === 0
                 ? <div style={{ fontSize: 12.5, color: 'var(--text-muted,#888)' }}>Nothing yet. Actions I take will show here.</div>
@@ -210,11 +226,11 @@ export default function ChatDock({ employee, employees }: Props) {
           )}
 
           {/* Messages */}
-          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg, #F7F7F6)' }}>
+          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg, #F7F7F6)' }}>
             {msgs.map(m => (
-              <div key={m.id} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%' }} className="bd-msg">
+              <div key={m.id} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }} className="bd-msg">
                 <div style={{
-                  padding: '8px 12px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                  padding: '8px 12px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
                   background: m.role === 'user' ? ACCENT : m.ok === false ? '#FEF2F2' : 'var(--surface,#fff)',
                   color: m.role === 'user' ? '#fff' : m.ok === false ? '#B91C1C' : 'var(--text,#111)',
                   border: m.role === 'user' ? 'none' : `1px solid ${m.ok === false ? '#FECACA' : 'var(--border,#E9E9E7)'}`,
@@ -222,9 +238,26 @@ export default function ChatDock({ employee, employees }: Props) {
                   borderBottomLeftRadius: m.role === 'user' ? 12 : 4,
                   boxShadow: m.role === 'user' ? 'none' : 'var(--card-shadow, 0 1px 3px rgba(0,0,0,.06))',
                 }}>{m.text}</div>
+
+                {/* Quick-reply buttons: one tap instead of typing */}
+                {m.options && m.options.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {m.options.map((o, i) => (
+                      <button key={i} onClick={() => handleOption(m.id, o)} className="bd-chip"
+                        style={{
+                          fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+                          border: `1px solid ${ACCENT}33`, background: 'var(--surface,#fff)',
+                          color: ACCENT, cursor: 'pointer', fontFamily: 'inherit',
+                        }}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {m.undo && (
                   <button onClick={() => runUndo(m.id, m.undo!)}
-                    style={{ marginTop: 5, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: ACCENT, cursor: 'pointer' }}>
+                    style={{ marginTop: 5, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: ACCENT, cursor: 'pointer', fontFamily: 'inherit' }}>
                     ↩ Undo
                   </button>
                 )}
@@ -237,11 +270,11 @@ export default function ChatDock({ employee, employees }: Props) {
                 <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{pending.text}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button onClick={() => { const a = pending.action; setPending(null); void commit(a); }}
-                    style={{ flex: 1, height: 34, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', fontWeight: 650, fontSize: 13, cursor: 'pointer' }}>
+                    style={{ flex: 1, height: 34, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', fontWeight: 650, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Confirm ({pending.count})
                   </button>
                   <button onClick={() => { setPending(null); setMsgs(m => [...m, { id: nextId(), role: 'bot', ok: true, text: 'Okay, cancelled — nothing changed.' }]); }}
-                    style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                    style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Cancel
                   </button>
                 </div>
@@ -259,13 +292,13 @@ export default function ChatDock({ employee, employees }: Props) {
               </div>
             )}
 
-            {/* Personalized quick-action chips */}
+            {/* Personalized starter chips */}
             {chips.length > 0 && !busy && !pending && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
                 {chips.map(s => (
                   <button key={s} onClick={() => send(s)}
                     className="bd-chip"
-                    style={{ fontSize: 12, padding: '6px 11px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: 'var(--text,#111)', cursor: 'pointer' }}>
+                    style={{ fontSize: 12, padding: '6px 11px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: 'var(--text,#111)', cursor: 'pointer', fontFamily: 'inherit' }}>
                     {s}
                   </button>
                 ))}
@@ -280,17 +313,17 @@ export default function ChatDock({ employee, employees }: Props) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') send(); }}
-              placeholder="Add a task, send a file, ask anything…"
+              placeholder="Add a task, ask about the team, send a file…"
               disabled={busy}
               style={{
-                flex: 1, height: 40, borderRadius: 10, border: '1.5px solid var(--border,#E9E9E7)',
+                flex: 1, height: 42, borderRadius: 10, border: '1.5px solid var(--border,#E9E9E7)',
                 padding: '0 12px', fontSize: 13.5, outline: 'none',
                 background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontFamily: 'inherit',
               }}
             />
             <button onClick={() => send()} disabled={busy || !input.trim()}
               style={{
-                height: 40, padding: '0 16px', borderRadius: 10, border: 'none',
+                height: 42, padding: '0 16px', borderRadius: 10, border: 'none',
                 cursor: busy || !input.trim() ? 'default' : 'pointer',
                 background: busy || !input.trim() ? 'var(--border,#E9E9E7)' : ACCENT,
                 color: busy || !input.trim() ? 'var(--text-muted,#888)' : '#fff',
@@ -303,17 +336,19 @@ export default function ChatDock({ employee, employees }: Props) {
       <style>{`
         .bd-launcher { transition: transform 150ms ease, box-shadow 150ms ease; }
         .bd-launcher:hover { transform: translateY(-1px); }
-        .bd-panel { animation: bd-rise .18s ease-out; }
+        .bd-panel { animation: bd-slide .2s ease-out; }
         .bd-msg { animation: bd-in .16s ease-out; }
-        .bd-chip { transition: border-color 120ms, background 120ms; }
+        .bd-chip { transition: border-color 120ms, background 120ms, transform 100ms; }
         .bd-chip:hover { border-color: var(--border-hover, #C8C8C6); background: var(--surface2, #F7F7F6); }
+        .bd-chip:active { transform: scale(.97); }
         .bd-dot { animation: bd-bounce 1s infinite ease-in-out; }
-        @keyframes bd-rise { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
+        @keyframes bd-slide { from { opacity: .6; transform: translateX(24px); } to { opacity: 1; transform: none; } }
         @keyframes bd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes bd-bounce { 0%,80%,100% { transform: scale(.6); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+        @media (max-width: 640px) { .bd-panel { width: 100vw !important; border-left: none !important; } }
         @media (prefers-reduced-motion: reduce) {
           .bd-panel, .bd-msg, .bd-dot { animation: none !important; }
-          .bd-launcher { transition: none; }
+          .bd-launcher, .bd-chip { transition: none; }
         }
       `}</style>
     </>
