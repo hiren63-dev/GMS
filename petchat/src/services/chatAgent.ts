@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// BuddyDesk Chat Agent
+// BuddyDesk Chat Agent  (v2 — permissions · personalization · undo · audit)
 //
 // Turns natural-language chat input into REAL Firestore actions. Every action
 // routes through the same service functions the dashboard already listens to
@@ -7,17 +7,26 @@
 // agent confirms "done", the dashboard's real-time listeners have already
 // rendered it. There is no separate agent-state that can drift from the UI.
 //
+// Pipeline the UI drives:
+//   interpret(text) → AgentAction      (LLM brain, or local keyword fallback)
+//   assess(action)  → { permitted, risky, confirmText }   (role gate + safety)
+//   execute(action) → { ok, reply, undo? }                (writes + audit log)
+//
+//   • Non-risky + permitted → execute instantly (Duolingo-fast) + offer Undo.
+//   • Risky (announce-all, delete) → UI shows a 3-2-1 confirm before execute.
+//   • Not permitted → friendly deny, nothing touches Firestore.
+//
 // Two brains, one execution layer:
-//   • parseLocally()  — deterministic keyword + fuzzy matcher. Works with NO
-//                       API key. Ships today.
-//   • parseWithLLM()  — calls /api/chat (see api/chat.ts). Understands ANY
-//                       phrasing. Activated by setting VITE_AI_ENABLED=true and
-//                       an API key in Vercel. Falls back to local on any error.
-// Swap the brain without touching executeAction — that's the seam.
+//   • parseLocally()  — deterministic keyword + fuzzy matcher. Works with NO key.
+//   • parseWithLLM()  — calls /api/chat. Understands ANY phrasing. Activated by
+//                       VITE_AI_ENABLED=true + a key in Vercel. Falls back local.
 // ─────────────────────────────────────────────────────────────────────────
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db, createTask, updateTask, createAnnouncement, sendMessage, getAllTasks } from './firebase';
-import type { Employee, Task, ResourceFile, Priority } from '../types';
+import {
+  db, createTask, updateTask, deleteTask, createAnnouncement, deleteAnnouncement,
+  sendMessage, getAllTasks, getTodaysCheckIn, logAudit, logTaskDone,
+} from './firebase';
+import type { Employee, Task, ResourceFile, Priority, Permission } from '../types';
 
 export interface AgentContext {
   me: Employee;
@@ -27,6 +36,7 @@ export interface AgentContext {
 export type AgentAction =
   | { kind: 'create_task'; title: string; personQuery?: string; priority?: Priority; today?: boolean }
   | { kind: 'complete_task'; taskQuery: string }
+  | { kind: 'delete_task'; taskQuery: string }
   | { kind: 'list_my_tasks' }
   | { kind: 'send_file'; fileQuery: string; personQuery: string }
   | { kind: 'find_file'; fileQuery: string }
@@ -37,6 +47,22 @@ export type AgentAction =
 export interface AgentResult {
   reply: string;
   ok: boolean;
+  undo?: () => Promise<void>;   // present when the action is safely reversible
+  historyLabel?: string;        // short label for the action-history list
+}
+
+export interface Assessment {
+  permitted: boolean;
+  denyReason?: string;
+  risky: boolean;               // risky ⇒ UI must confirm before execute
+  confirmText?: string;         // what the confirm dialog asks
+}
+
+// ── Permissions ───────────────────────────────────────────────────────────
+// founders + admins can do everything; other employees need the granular grant.
+function can(me: Employee, perm: Permission): boolean {
+  if (me.role === 'founder' || me.role === 'admin') return true;
+  return !!me.permissions?.includes(perm);
 }
 
 // ── Fuzzy matching helpers ────────────────────────────────────────────────
@@ -66,6 +92,17 @@ function bestEmployee(queryStr: string, employees: Employee[], excludeId?: strin
   return bestScore >= 40 ? best : null;
 }
 
+// suggestions when a person match is ambiguous — powers "did you mean…"
+function employeeSuggestions(queryStr: string, employees: Employee[], excludeId?: string): string[] {
+  return employees
+    .filter(e => !excludeId || e.id !== excludeId)
+    .map(e => ({ e, s: Math.max(scoreMatch(queryStr, e.name), scoreMatch(queryStr, e.name.split(' ')[0])) }))
+    .filter(x => x.s >= 30)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 3)
+    .map(x => x.e.name);
+}
+
 function bestFile(queryStr: string, files: ResourceFile[]): ResourceFile | null {
   let best: ResourceFile | null = null;
   let bestScore = 0;
@@ -91,10 +128,22 @@ async function loadResourceFiles(): Promise<ResourceFile[]> {
   return s.docs.map(d => ({ id: d.id, ...d.data() } as ResourceFile));
 }
 
+function audit(me: Employee, action: string, target: string, details?: string) {
+  // fire-and-forget; never block a user action on the audit write
+  try { logAudit({ actorId: me.id, actorName: me.name, action: `ai:${action}`, target, details, timestamp: Date.now() }); }
+  catch { /* ignore */ }
+}
+
 // ── Local (no-key) intent parser ──────────────────────────────────────────
 export function parseLocally(text: string): AgentAction {
   const t = text.trim();
   const low = t.toLowerCase();
+
+  // delete <task>  (checked before "complete" so "delete" wins)
+  const delMatch = low.match(/(?:delete|remove|cancel|drop)\s+(?:the\s+)?(?:task\s+)?(.+?)\s*(?:task)?$/);
+  if (/\b(delete|remove)\b/.test(low) && /\btask|to-?do\b/.test(low) && delMatch) {
+    return { kind: 'delete_task', taskQuery: delMatch[1].replace(/\btask\b/g, '').trim() };
+  }
 
   // send <file> to <person>
   const sendMatch = low.match(/send\s+(?:the\s+|this\s+)?(.+?)\s+(?:to|for)\s+(.+)/);
@@ -127,7 +176,6 @@ export function parseLocally(text: string): AgentAction {
   // announce
   const annMatch = low.match(/(?:announce|announcement|tell everyone|broadcast|let (?:the )?team know)(?:\s+that)?\s+(.+)/);
   if (annMatch) {
-    // recover original casing for the body
     const idx = low.indexOf(annMatch[1]);
     return { kind: 'announce', body: t.slice(idx).trim() || annMatch[1] };
   }
@@ -140,7 +188,6 @@ export function parseLocally(text: string): AgentAction {
     let personQuery: string | undefined;
     const assignMatch = low.match(/(?:for|to)\s+([a-z]+(?:\s+[a-z]+)?)\s*$/);
     if (assignMatch && /assign|for\s|to\s/.test(low) && !today) personQuery = assignMatch[1].trim();
-    // strip command words to get the title
     let title = t
       .replace(/^\s*(add|create|new|assign|please)\s+/i, '')
       .replace(/\b(a\s+)?(task|to-?do)\b/gi, '')
@@ -174,19 +221,60 @@ async function parseWithLLM(text: string, ctx: AgentContext): Promise<AgentActio
   return (await res.json()) as AgentAction;
 }
 
+const LLM_ENABLED = import.meta.env.VITE_AI_ENABLED === 'true';
+
+/** Step 1 — turn text into a structured action (LLM if available, else local). */
+export async function interpret(text: string, ctx: AgentContext): Promise<AgentAction> {
+  if (LLM_ENABLED) {
+    try { return await parseWithLLM(text, ctx); }
+    catch { return parseLocally(text); }   // graceful fallback keeps the dock working
+  }
+  return parseLocally(text);
+}
+
+/** Step 2 — role gate + safety classification. The UI reads this to decide
+ *  whether to deny, confirm (risky), or run immediately. */
+export function assess(action: AgentAction, ctx: AgentContext): Assessment {
+  const { me, employees } = ctx;
+  switch (action.kind) {
+    case 'create_task': {
+      const who = action.personQuery ? bestEmployee(action.personQuery, employees) : me;
+      const assigningToOther = !!who && who.id !== me.id;
+      if (assigningToOther && !can(me, 'assign_tasks')) {
+        return { permitted: false, risky: false, denyReason: `You can only add tasks to your own list. Ask an admin for the "assign tasks" permission to hand work to others. Want me to add "${action.title}" to your list instead?` };
+      }
+      return { permitted: true, risky: false };
+    }
+    case 'announce': {
+      if (!can(me, 'post_announcements')) {
+        return { permitted: false, risky: false, denyReason: `Only admins (or people with the "post announcements" permission) can broadcast to the whole team.` };
+      }
+      return { permitted: true, risky: true, confirmText: `📣 Announce to the whole team:\n"${action.body}"` };
+    }
+    case 'delete_task':
+      return { permitted: true, risky: true, confirmText: `🗑️ Delete the task matching "${action.taskQuery}"? This can't be undone.` };
+    default:
+      return { permitted: true, risky: false };
+  }
+}
+
 // ── Execution: the single source of truth ─────────────────────────────────
-export async function executeAction(action: AgentAction, ctx: AgentContext): Promise<AgentResult> {
+export async function execute(action: AgentAction, ctx: AgentContext): Promise<AgentResult> {
   const { me, employees } = ctx;
 
   switch (action.kind) {
     case 'create_task': {
       const assignee = action.personQuery ? bestEmployee(action.personQuery, employees) : me;
       if (action.personQuery && !assignee) {
-        return { ok: false, reply: `I couldn't find anyone named "${action.personQuery}". Who should I assign it to?` };
+        const hint = employeeSuggestions(action.personQuery, employees);
+        return { ok: false, reply: `I couldn't find "${action.personQuery}".${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ' Who should I assign it to?'}` };
       }
       const target = assignee ?? me;
+      if (target.id !== me.id && !can(me, 'assign_tasks')) {
+        return { ok: false, reply: `You don't have permission to assign tasks to ${target.name}.` };
+      }
       const due = action.today ? endOfToday() : undefined;
-      await createTask({
+      const ref = await createTask({
         title: action.title,
         assigneeId: target.id,
         assigneeName: target.name,
@@ -195,9 +283,15 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
         status: 'todo',
         dueDate: due,
       });
+      audit(me, 'create_task', action.title, `→ ${target.name}${action.today ? ' (today)' : ''}`);
       const who = target.id === me.id ? 'your list' : target.name;
       const when = action.today ? ' (due today)' : '';
-      return { ok: true, reply: `✅ Added "${action.title}" to ${who}${when}. It's on the board now.` };
+      return {
+        ok: true,
+        reply: `✅ Added "${action.title}" to ${who}${when}. It's on the board now.`,
+        historyLabel: `Task “${action.title}” → ${target.id === me.id ? 'you' : target.name}`,
+        undo: async () => { await deleteTask((ref as any).id); },
+      };
     }
 
     case 'complete_task': {
@@ -205,21 +299,47 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
       const mine = tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
       const match = bestTask(action.taskQuery, mine.length ? mine : tasks);
       if (!match) return { ok: false, reply: `I couldn't find a task matching "${action.taskQuery}". Try the exact title?` };
+      const prevStatus = match.status;
       await updateTask(match.id, { status: 'done', completedAt: Date.now() });
-      return { ok: true, reply: `✅ Marked "${match.title}" as done.` };
+      logTaskDone(me.id, me.name, match.title);
+      audit(me, 'complete_task', match.title);
+      return {
+        ok: true,
+        reply: `✅ Marked "${match.title}" as done. Nice work.`,
+        historyLabel: `Completed “${match.title}”`,
+        undo: async () => { await updateTask(match.id, { status: prevStatus, completedAt: 0 }); },
+      };
+    }
+
+    case 'delete_task': {
+      const tasks = await getAllTasks();
+      // employees may only delete tasks they own or created; admins/founders any
+      const scope = can(me, 'assign_tasks') ? tasks : tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
+      const match = bestTask(action.taskQuery, scope);
+      if (!match) return { ok: false, reply: `I couldn't find a task you can delete matching "${action.taskQuery}".` };
+      await deleteTask(match.id);
+      audit(me, 'delete_task', match.title);
+      return { ok: true, reply: `🗑️ Deleted "${match.title}".`, historyLabel: `Deleted “${match.title}”` };
     }
 
     case 'list_my_tasks': {
       const tasks = await getAllTasks();
       const mine = tasks.filter(t => t.assigneeId === me.id && t.status !== 'done');
       if (!mine.length) return { ok: true, reply: `You have no open tasks. 🎉` };
-      const lines = mine.slice(0, 10).map(t => `• ${t.title}${t.status === 'in_progress' ? ' (in progress)' : ''}`);
+      const order: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+      const lines = mine
+        .sort((a, b) => (order[a.priority] ?? 2) - (order[b.priority] ?? 2))
+        .slice(0, 10)
+        .map(t => `• ${t.title}${t.priority === 'urgent' ? ' 🔴' : t.status === 'in_progress' ? ' (in progress)' : ''}`);
       return { ok: true, reply: `You have ${mine.length} open task${mine.length > 1 ? 's' : ''}:\n${lines.join('\n')}` };
     }
 
     case 'send_file': {
       const person = bestEmployee(action.personQuery, employees, me.id);
-      if (!person) return { ok: false, reply: `I couldn't find "${action.personQuery}" in the team.` };
+      if (!person) {
+        const hint = employeeSuggestions(action.personQuery, employees, me.id);
+        return { ok: false, reply: `I couldn't find "${action.personQuery}" in the team.${hint.length ? ` Did you mean: ${hint.join(', ')}?` : ''}` };
+      }
       const files = await loadResourceFiles();
       const file = bestFile(action.fileQuery, files);
       if (!file) return { ok: false, reply: `I couldn't find a file matching "${action.fileQuery}". It needs to be in Resources first.` };
@@ -227,11 +347,14 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
         senderId: me.id,
         senderName: me.name,
         recipientId: person.id,
+        participants: [me.id, person.id],
         content: `📎 Sent you "${file.name}"`,
         isGroupChat: false,
+        timestamp: Date.now(),
         attachment: { name: file.name, size: file.size, ext: file.ext, url: file.url },
       });
-      return { ok: true, reply: `✅ Sent "${file.name}" to ${person.name}. It's in your Messages with them.` };
+      audit(me, 'send_file', file.name, `→ ${person.name}`);
+      return { ok: true, reply: `✅ Sent "${file.name}" to ${person.name}. It's in your Messages with them.`, historyLabel: `Sent “${file.name}” → ${person.name}` };
     }
 
     case 'find_file': {
@@ -245,7 +368,8 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
     }
 
     case 'announce': {
-      await createAnnouncement({
+      if (!can(me, 'post_announcements')) return { ok: false, reply: `You don't have permission to post announcements.` };
+      const ref = await createAnnouncement({
         title: action.body.length > 48 ? action.body.slice(0, 48) + '…' : action.body,
         body: action.body,
         authorId: me.id,
@@ -254,7 +378,13 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
         pinned: false,
         createdAt: Date.now(),
       });
-      return { ok: true, reply: `📣 Announced to the whole team: "${action.body}". It's live on Announcements.` };
+      audit(me, 'announce', action.body.slice(0, 60));
+      return {
+        ok: true,
+        reply: `📣 Announced to the whole team: "${action.body}". It's live on Announcements.`,
+        historyLabel: `Announced “${action.body.slice(0, 32)}${action.body.length > 32 ? '…' : ''}”`,
+        undo: async () => { await deleteAnnouncement((ref as any).id); },
+      };
     }
 
     case 'who_checked_in': {
@@ -270,8 +400,66 @@ export async function executeAction(action: AgentAction, ctx: AgentContext): Pro
     default:
       return {
         ok: true,
-        reply: `I can add tasks, mark them done, send files, post announcements, and tell you who checked in. Try: "add "finish the report" as my task today" or "send the pitch deck to Raj".`,
+        reply: `I can add tasks, mark them done, delete tasks, send files, post announcements, and tell you who checked in. Try: "add 'finish the report' as my task today" or "send the pitch deck to Raj".`,
       };
+  }
+}
+
+// ── Proactive personalization ──────────────────────────────────────────────
+// Builds the alive, role-aware greeting + quick-action chips shown on open.
+export async function buildGreeting(ctx: AgentContext): Promise<{ text: string; chips: string[] }> {
+  const { me } = ctx;
+  const first = me.name.split(' ')[0];
+  const hour = new Date().getHours();
+  const partOfDay = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
+
+  let openCount = 0;
+  let urgentCount = 0;
+  let doneToday = 0;
+  let checkedIn = false;
+  try {
+    const [tasks, checkIn] = await Promise.all([getAllTasks(), getTodaysCheckIn(me.id)]);
+    const mine = tasks.filter(t => t.assigneeId === me.id);
+    openCount = mine.filter(t => t.status !== 'done').length;
+    urgentCount = mine.filter(t => t.status !== 'done' && t.priority === 'urgent').length;
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    doneToday = mine.filter(t => t.status === 'done' && (t.completedAt ?? 0) >= startOfDay.getTime()).length;
+    checkedIn = !!checkIn;
+  } catch { /* offline / permissions — fall back to a plain greeting */ }
+
+  // Role-aware line
+  const canManage = me.role === 'founder' || me.role === 'admin';
+  let line: string;
+  if (openCount === 0) {
+    line = doneToday > 0
+      ? `${partOfDay}, ${first} 👋 You've closed ${doneToday} task${doneToday > 1 ? 's' : ''} today and your board is clear. 🔥`
+      : `${partOfDay}, ${first} 👋 Your board is clear. What do you want to line up?`;
+  } else {
+    const urgent = urgentCount ? ` (${urgentCount} urgent)` : '';
+    line = `${partOfDay}, ${first} 👋 You've got ${openCount} open task${openCount > 1 ? 's' : ''}${urgent}${doneToday ? `, and already closed ${doneToday} today` : ''}. Want to knock one out?`;
+  }
+  if (!checkedIn) line += `\n\n📝 You haven't checked in yet today.`;
+
+  // Role-aware chips
+  const chips = openCount
+    ? ['What are my tasks today?', 'Mark my top task done']
+    : ['Add a task for today', 'What are my tasks today?'];
+  if (!checkedIn) chips.push('I want to check in');
+  if (canManage) chips.push('Who checked in today?');
+  else chips.push('Send a file to a teammate');
+
+  return { text: line, chips: chips.slice(0, 4) };
+}
+
+// ── Backward-compatible one-shot (used if any caller wants the old behavior) ─
+export async function runAgent(text: string, ctx: AgentContext): Promise<AgentResult> {
+  const action = await interpret(text, ctx);
+  const gate = assess(action, ctx);
+  if (!gate.permitted) return { ok: false, reply: gate.denyReason ?? 'Not permitted.' };
+  try {
+    return await execute(action, ctx);
+  } catch (err: any) {
+    return { ok: false, reply: `Something went wrong doing that: ${err?.message || 'unknown error'}. Nothing was changed.` };
   }
 }
 
@@ -279,22 +467,4 @@ function endOfToday(): number {
   const d = new Date();
   d.setHours(23, 59, 59, 999);
   return d.getTime();
-}
-
-// ── Public entry point ────────────────────────────────────────────────────
-const LLM_ENABLED = import.meta.env.VITE_AI_ENABLED === 'true';
-
-export async function runAgent(text: string, ctx: AgentContext): Promise<AgentResult> {
-  let action: AgentAction;
-  if (LLM_ENABLED) {
-    try { action = await parseWithLLM(text, ctx); }
-    catch { action = parseLocally(text); } // graceful fallback keeps the dock working
-  } else {
-    action = parseLocally(text);
-  }
-  try {
-    return await executeAction(action, ctx);
-  } catch (err: any) {
-    return { ok: false, reply: `Something went wrong doing that: ${err?.message || 'unknown error'}. Nothing was changed.` };
-  }
 }
