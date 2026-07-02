@@ -170,9 +170,28 @@ function bestTask(queryStr: string, tasks: Task[]): Task | null {
   return bestScore >= 40 ? best : null;
 }
 
+// ── Read-cache with write-invalidation ────────────────────────────────────
+// The dock is used all day; without this every message re-downloads the whole
+// tasks/files collections. 20s TTL keeps replies instant AND fresh; any write
+// through the agent invalidates immediately so the user never sees stale data.
+const TTL = 20_000;
+let _taskCache: { at: number; data: Task[] } | null = null;
+let _fileCache: { at: number; data: ResourceFile[] } | null = null;
+
+async function cachedTasks(): Promise<Task[]> {
+  if (_taskCache && Date.now() - _taskCache.at < TTL) return _taskCache.data;
+  const data = await getAllTasks();
+  _taskCache = { at: Date.now(), data };
+  return data;
+}
+function invalidateTasks() { _taskCache = null; }
+
 async function loadResourceFiles(): Promise<ResourceFile[]> {
+  if (_fileCache && Date.now() - _fileCache.at < TTL) return _fileCache.data;
   const s = await getDocs(collection(db, 'resourceFiles'));
-  return s.docs.map(d => ({ id: d.id, ...d.data() } as ResourceFile));
+  const data = s.docs.map(d => ({ id: d.id, ...d.data() } as ResourceFile));
+  _fileCache = { at: Date.now(), data };
+  return data;
 }
 
 function audit(me: Employee, action: string, target: string, details?: string) {
@@ -367,6 +386,7 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
         status: 'todo',
         dueDate: due,
       });
+      invalidateTasks();
       audit(me, 'create_task', action.title, `→ ${target.name}${action.today ? ' (today)' : ''}`);
       const who = target.id === me.id ? 'your list' : target.name;
       const when = action.today ? ' (due today)' : '';
@@ -379,35 +399,37 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
     }
 
     case 'complete_task': {
-      const tasks = await getAllTasks();
+      const tasks = await cachedTasks();
       const mine = tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
       const match = bestTask(action.taskQuery, mine.length ? mine : tasks);
       if (!match) return { ok: false, reply: `I couldn't find a task matching "${action.taskQuery}". Try the exact title?` };
       const prevStatus = match.status;
       await updateTask(match.id, { status: 'done', completedAt: Date.now() });
+      invalidateTasks();
       logTaskDone(me.id, me.name, match.title);
       audit(me, 'complete_task', match.title);
       return {
         ok: true,
         reply: `✅ Marked "${match.title}" as done. Nice work.`,
         historyLabel: `Completed “${match.title}”`,
-        undo: async () => { await updateTask(match.id, { status: prevStatus, completedAt: 0 }); },
+        undo: async () => { await updateTask(match.id, { status: prevStatus, completedAt: 0 }); invalidateTasks(); },
       };
     }
 
     case 'delete_task': {
-      const tasks = await getAllTasks();
+      const tasks = await cachedTasks();
       // employees may only delete tasks they own or created; admins/founders any
       const scope = can(me, 'assign_tasks') ? tasks : tasks.filter(t => t.assigneeId === me.id || t.assignedById === me.id);
       const match = bestTask(action.taskQuery, scope);
       if (!match) return { ok: false, reply: `I couldn't find a task you can delete matching "${action.taskQuery}".` };
       await deleteTask(match.id);
+      invalidateTasks();
       audit(me, 'delete_task', match.title);
       return { ok: true, reply: `🗑️ Deleted "${match.title}".`, historyLabel: `Deleted “${match.title}”` };
     }
 
     case 'list_my_tasks': {
-      const tasks = await getAllTasks();
+      const tasks = await cachedTasks();
       const mine = tasks.filter(t => t.assigneeId === me.id && t.status !== 'done');
       if (!mine.length) return { ok: true, reply: `You have no open tasks. 🎉` };
       const order: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -502,7 +524,7 @@ export async function buildGreeting(ctx: AgentContext): Promise<{ text: string; 
   let doneToday = 0;
   let checkedIn = false;
   try {
-    const [tasks, checkIn] = await Promise.all([getAllTasks(), getTodaysCheckIn(me.id)]);
+    const [tasks, checkIn] = await Promise.all([cachedTasks(), getTodaysCheckIn(me.id)]);
     const mine = tasks.filter(t => t.assigneeId === me.id);
     openCount = mine.filter(t => t.status !== 'done').length;
     urgentCount = mine.filter(t => t.status !== 'done' && t.priority === 'urgent').length;

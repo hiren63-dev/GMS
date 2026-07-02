@@ -181,11 +181,33 @@ async function callAnthropic(body: ReqBody): Promise<any> {
   return JSON.parse(txt.replace(/^```json\s*|\s*```$/g, ''));
 }
 
+// ── Rate limiting (per user, in-memory) ───────────────────────────────────
+// Serverless instances don't share memory, so this is per-instance — a soft
+// cap that still stops runaway loops / spam from one tab (the realistic risk
+// for an internal tool). 12 requests / 60s per user id.
+const RATE_LIMIT = 12;
+const RATE_WINDOW = 60_000;
+const _hits = new Map<string, number[]>();
+function rateLimited(userId: string): boolean {
+  const now = Date.now();
+  const arr = (_hits.get(userId) ?? []).filter(t => now - t < RATE_WINDOW);
+  if (arr.length >= RATE_LIMIT) { _hits.set(userId, arr); return true; }
+  arr.push(now);
+  _hits.set(userId, arr);
+  if (_hits.size > 500) _hits.clear(); // keep the map from growing unbounded
+  return false;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') { res.status(405).json({ kind: 'chat', text: 'Method not allowed' }); return; }
   try {
     const body: ReqBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     if (!body?.text || !body?.me) { res.status(400).json({ error: 'bad request' }); return; }
+    if (typeof body.text !== 'string' || body.text.length > 1000) { res.status(400).json({ error: 'message too long' }); return; }
+    if (rateLimited(String(body.me.id ?? 'anon'))) {
+      res.status(200).json({ kind: 'chat', text: 'Easy there 🙂 — give me a few seconds between commands.' });
+      return;
+    }
     let action;
     if (process.env.OPENROUTER_API_KEY) action = await callOpenRouter(body);
     else if (process.env.OPENAI_API_KEY) action = await callOpenAI(body);
