@@ -27,10 +27,29 @@ import {
   sendMessage, getAllTasks, getTodaysCheckIn, logAudit, logTaskDone,
 } from './firebase';
 import type { Employee, Task, ResourceFile, Priority, Permission } from '../types';
+import teamContext from '../config/team-context.json';
 
 export interface AgentContext {
   me: Employee;
   employees: Employee[];
+}
+
+// ── Personality layer (team-context.json) ─────────────────────────────────
+// Optional tone profile for the SPEAKER, sent to the LLM so replies match how
+// each person likes to be spoken to. Live nicknames (aiPrefs) still win for
+// resolving people — this only shapes the reply's warmth/language.
+interface Persona { displayName?: string; tone?: string; addressAs?: string | null; language?: string; notes?: string; }
+function resolvePersona(me: Employee): Persona | undefined {
+  const tc: any = teamContext;
+  const meNorm = norm(me.name);
+  const first = norm(me.name.split(' ')[0]);
+  for (const p of (tc.people ?? [])) {
+    const keys: string[] = (p.match ?? []).map((m: string) => norm(m));
+    if (keys.includes(meNorm) || keys.includes(first)) {
+      return { displayName: p.displayName, tone: p.tone, addressAs: p.addressAs, language: p.language, notes: p.notes };
+    }
+  }
+  return tc.default ? { ...tc.default, displayName: me.name.split(' ')[0] } : undefined;
 }
 
 export type AgentAction =
@@ -46,11 +65,15 @@ export type AgentAction =
   | { kind: 'set_priority'; taskQuery: string; priority: Priority }
   | { kind: 'add_note'; taskQuery: string; note: string }
   | { kind: 'ask_data'; question: string }
+  | { kind: 'clarify'; question: string; options?: string[] }
   | { kind: 'chat'; text: string };
 
-// Tappable quick-reply (WhatsApp-business style): either runs an action
-// directly, or prefills the composer so the user only types the free part.
-export interface QuickOption { label: string; act?: AgentAction; prefill?: string }
+// The LLM may attach a personalized one-liner (persona-shaped) to any action.
+type LLMAction = AgentAction & { reply_text?: string };
+
+// Tappable quick-reply (WhatsApp-business style): runs an action directly,
+// prefills the composer, or sends a fresh message (used by clarify branches).
+export interface QuickOption { label: string; act?: AgentAction; prefill?: string; send?: string }
 
 // ── Per-user AI memory (persists across sessions in Firestore) ────────────
 // aiPrefs/{employeeId} = { nicknames: { "ak": "Raj Kumar", ... } }
@@ -309,7 +332,7 @@ export function parseLocally(text: string): AgentAction {
 }
 
 // ── LLM brain (activated when configured) ─────────────────────────────────
-async function parseWithLLM(text: string, ctx: AgentContext): Promise<AgentAction> {
+async function parseWithLLM(text: string, ctx: AgentContext): Promise<LLMAction> {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -319,10 +342,11 @@ async function parseWithLLM(text: string, ctx: AgentContext): Promise<AgentActio
       employees: ctx.employees.map(e => ({ id: e.id, name: e.name, department: e.department })),
       history: _turns.slice(-8),                 // lets the LLM resolve "him" / "that task"
       nicknames: _prefs?.nicknames ?? {},        // learned nicknames, so it never re-asks
+      persona: resolvePersona(ctx.me),           // tone profile → personalized reply_text
     }),
   });
   if (!res.ok) throw new Error('llm-unavailable');
-  return (await res.json()) as AgentAction;
+  return (await res.json()) as LLMAction;
 }
 
 const LLM_ENABLED = import.meta.env.VITE_AI_ENABLED === 'true';
@@ -378,6 +402,13 @@ export function assess(action: AgentAction, ctx: AgentContext): Assessment {
 // ── Execution: the single source of truth ─────────────────────────────────
 export async function execute(action: AgentAction, ctx: AgentContext): Promise<AgentResult> {
   const result = await executeInner(action, ctx);
+  // Personality lead: on a successful EXECUTED action, prepend the LLM's warm,
+  // persona-shaped one-liner. Skipped for conversational kinds (they craft their
+  // own text) and on failure (facts must stay accurate, never the warm guess).
+  const rt = (action as LLMAction).reply_text?.trim();
+  if (rt && result.ok && !['chat', 'clarify', 'ask_data'].includes(action.kind) && !result.reply.startsWith(rt)) {
+    result.reply = `${rt}\n${result.reply}`;
+  }
   pushTurn('assistant', result.reply);   // keep conversation memory for "him"/"that task"
   return result;
 }
@@ -616,11 +647,20 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       return { ok: true, reply: `${names.length} checked in today: ${names.join(', ')}.` };
     }
 
+    case 'clarify': {
+      // Genuine ambiguity — ask ONE question, offer tappable branches. Tapping
+      // sends that choice as a fresh message; conversation history gives the LLM
+      // the original request so a terse pick ("Add as task") still resolves.
+      const opts = (action.options ?? []).slice(0, 4).map(o => ({ label: o, send: o }));
+      return { ok: true, reply: action.question, options: opts.length ? opts : undefined };
+    }
+
     case 'chat':
     default:
       return {
         ok: true,
-        reply: `I can add tasks, mark them done, delete tasks, send files, post announcements, and tell you who checked in. Try: "add 'finish the report' as my task today" or "send the pitch deck to Raj".`,
+        reply: (action as LLMAction).reply_text?.trim()
+          || `I can add tasks, mark them done, delete tasks, send files, post announcements, and tell you who checked in. Try: "call the Mumbai client tomorrow" or "send the pitch deck to Raj".`,
       };
   }
 }

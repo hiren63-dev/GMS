@@ -44,9 +44,13 @@ export default function ChatDock({ employee, employees }: Props) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [pending, setPending] = useState<{ action: AgentAction; text: string; count: number } | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timersRef = useRef<number[]>([]);
+  const recRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const ctx = { me: employee, employees };
 
   // Global keyboard: Ctrl/Cmd+K toggles, Esc closes.
@@ -111,6 +115,7 @@ export default function ChatDock({ employee, employees }: Props) {
   // or prefill the composer so the user only types the free-text part.
   const handleOption = async (msgId: number, opt: QuickOption) => {
     setMsgs(m => m.map(x => x.id === msgId ? { ...x, options: undefined } : x)); // consume
+    if (opt.send) { void send(opt.send); return; }              // clarify branch → send as a fresh message
     if (opt.prefill) { setInput(opt.prefill); inputRef.current?.focus(); return; }
     if (!opt.act) return;
     setMsgs(m => [...m.slice(-(MAX_MSGS - 1)), { id: nextId(), role: 'user', text: opt.label }]);
@@ -146,6 +151,53 @@ export default function ChatDock({ employee, employees }: Props) {
     try { await fn(); setMsgs(m => [...m, { id: nextId(), role: 'bot', ok: true, text: '↩️ Undone.' }]); }
     catch (e: any) { pushBot({ ok: false, reply: `Couldn't undo: ${e?.message || 'unknown'}.` }); }
     setBusy(false);
+  };
+
+  // ── Voice: record → transcribe → DROP INTO COMPOSER (never auto-execute) ──
+  // Deliberate anti-Siri choice: we transcribe into the input box so the user
+  // SEES what was heard and hits Send. A mis-hear never silently does the wrong
+  // thing. Uses MediaRecorder → base64 → /api/transcribe (same brain after).
+  const blobToBase64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onloadend = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+
+  const startRecording = async () => {
+    if (recording || transcribing || busy) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      rec.ondataavailable = e => { if (e.data.size) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
+        if (blob.size < 1200) { setTranscribing(false); return; } // too short = accidental tap
+        setTranscribing(true);
+        try {
+          const audioBase64 = await blobToBase64(blob);
+          const res = await fetch('/api/transcribe', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audioBase64, mimeType: rec.mimeType || 'audio/webm', me: { id: employee.id } }),
+          });
+          const data = await res.json();
+          if (data.text) { setInput(prev => (prev ? prev + ' ' : '') + data.text); inputRef.current?.focus(); }
+          else pushBot({ ok: false, reply: data.error || data.warning || `Didn't catch that — try again.` });
+        } catch { pushBot({ ok: false, reply: `Voice failed — check your connection and try again.` }); }
+        setTranscribing(false);
+      };
+      recRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch { pushBot({ ok: false, reply: `I need mic permission to hear you. Enable it in your browser and try again.` }); }
+  };
+
+  const stopRecording = () => {
+    if (recRef.current && recording) { recRef.current.stop(); setRecording(false); }
   };
 
   return (
@@ -313,20 +365,37 @@ export default function ChatDock({ employee, employees }: Props) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') send(); }}
-              placeholder="Add a task, ask about the team, send a file…"
-              disabled={busy}
+              placeholder={recording ? 'Listening… tap ■ to stop' : transcribing ? 'Transcribing…' : 'Type or tap 🎤 — say it any way you like'}
+              disabled={busy || transcribing}
               style={{
                 flex: 1, height: 42, borderRadius: 10, border: '1.5px solid var(--border,#E9E9E7)',
                 padding: '0 12px', fontSize: 13.5, outline: 'none',
                 background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontFamily: 'inherit',
               }}
             />
-            <button onClick={() => send()} disabled={busy || !input.trim()}
+            {/* Mic: hold-free tap to start, tap to stop. Transcribes INTO the box. */}
+            <button
+              onClick={() => (recording ? stopRecording() : startRecording())}
+              disabled={busy || transcribing}
+              aria-label={recording ? 'Stop recording' : 'Record voice note'}
+              title={recording ? 'Stop' : 'Voice note'}
+              className={recording ? 'bd-rec' : ''}
+              style={{
+                width: 42, height: 42, borderRadius: 10, flexShrink: 0,
+                border: '1.5px solid ' + (recording ? '#DC2626' : 'var(--border,#E9E9E7)'),
+                background: recording ? '#DC2626' : 'var(--surface2,#F7F7F6)',
+                color: recording ? '#fff' : 'var(--text-muted,#888)',
+                cursor: busy || transcribing ? 'default' : 'pointer', fontSize: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+              {transcribing ? '…' : recording ? '■' : '🎤'}
+            </button>
+            <button onClick={() => send()} disabled={busy || transcribing || !input.trim()}
               style={{
                 height: 42, padding: '0 16px', borderRadius: 10, border: 'none',
-                cursor: busy || !input.trim() ? 'default' : 'pointer',
-                background: busy || !input.trim() ? 'var(--border,#E9E9E7)' : ACCENT,
-                color: busy || !input.trim() ? 'var(--text-muted,#888)' : '#fff',
+                cursor: busy || transcribing || !input.trim() ? 'default' : 'pointer',
+                background: busy || transcribing || !input.trim() ? 'var(--border,#E9E9E7)' : ACCENT,
+                color: busy || transcribing || !input.trim() ? 'var(--text-muted,#888)' : '#fff',
                 fontWeight: 650, fontSize: 13.5, fontFamily: 'inherit',
               }}>Send</button>
           </div>
@@ -342,12 +411,14 @@ export default function ChatDock({ employee, employees }: Props) {
         .bd-chip:hover { border-color: var(--border-hover, #C8C8C6); background: var(--surface2, #F7F7F6); }
         .bd-chip:active { transform: scale(.97); }
         .bd-dot { animation: bd-bounce 1s infinite ease-in-out; }
+        .bd-rec { animation: bd-pulse 1.1s infinite; }
+        @keyframes bd-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.45); } 50% { box-shadow: 0 0 0 5px rgba(220,38,38,0); } }
         @keyframes bd-slide { from { opacity: .6; transform: translateX(24px); } to { opacity: 1; transform: none; } }
         @keyframes bd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes bd-bounce { 0%,80%,100% { transform: scale(.6); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
         @media (max-width: 640px) { .bd-panel { width: 100vw !important; border-left: none !important; } }
         @media (prefers-reduced-motion: reduce) {
-          .bd-panel, .bd-msg, .bd-dot { animation: none !important; }
+          .bd-panel, .bd-msg, .bd-dot, .bd-rec { animation: none !important; }
           .bd-launcher, .bd-chip { transition: none; }
         }
       `}</style>

@@ -29,6 +29,13 @@ interface ReqBody {
   employees: { id: string; name: string; department: string }[];
   history?: { role: 'user' | 'assistant'; content: string }[]; // last few turns, oldest first
   nicknames?: Record<string, string>;                          // learned: nickname → real full name
+  persona?: {                                                  // speaker's tone profile (team-context.json)
+    displayName?: string;
+    tone?: string;
+    addressAs?: string | null;
+    language?: string;
+    notes?: string;
+  };
 }
 
 // The action schema mirrors AgentAction in src/services/chatAgent.ts.
@@ -38,7 +45,9 @@ CORE: Understand INTENT, not syntax. "add finish report", "i need to finish the 
 
 YOU ARE A ROUTER, NOT AN ANSWERER. You never answer questions about the team's work/data yourself and NEVER say you "can't provide" or "don't have access to" information — the app HAS a live data analyst. Any question about tasks, people's work, blockers, moods, attendance history, progress, or stats → classify as ask_data and pass it through. Only use chat for things truly outside the CRM (weather, jokes, capability questions).
 
-ACTIONS (return exactly ONE as strict JSON, no explanation):
+EVERY response also includes "reply_text": a SHORT (max ~12 words), warm, personalized one-liner acknowledging what you're doing, written in the speaker's tone (see PERSONALITY). This is a friendly acknowledgment only — the app fills in real success/failure details, so never claim a specific result you can't see (don't invent "assigned to Raj" — say "On it 👍"). Examples: "Got it, boss — adding that now 👍", "Done! Marking it off ✅", "Sure — let me pull that up."
+
+ACTIONS (return exactly ONE as strict JSON. Include reply_text in the same object. No prose outside JSON):
 
 1. create_task: {"kind":"create_task","title":string,"personQuery":string|null,"priority":"urgent"|"high"|"medium"|"low"|null,"today":boolean}
    Triggers: add, create, remind me, i need to, don't forget, assign, give me a task
@@ -89,8 +98,25 @@ ACTIONS (return exactly ONE as strict JSON, no explanation):
    Triggers: ANY question about team/work DATA: "who is working on what?", "any blockers today?", "how many overdue tasks?", "what did ananya do today?", "how is the team feeling?", "status of the launch?", "summarize this week"
    Rule: pass the user's question verbatim. This is for READING/analyzing data, not changing it.
 
-13. chat (fallback): {"kind":"chat","text":string}
-   For unclear intent, capability questions ("what can you do"), or ambiguity. Ask ONE short clarifying question or redirect helpfully to what you can do.
+13. clarify: {"kind":"clarify","question":string,"options":string[]}
+   Use ONLY when intent is genuinely ambiguous and guessing could do the wrong thing — e.g. "handle the Mumbai thing" (task? note? announce?) or a name that matches two people. DON'T guess. Ask ONE short question and offer 2–4 tappable options the user can pick.
+   Example: "log the mumbai meeting" → {"kind":"clarify","question":"Want me to add that as a task, or just note it down?","options":["Add as task","Just a note"],"reply_text":"Quick check —"}
+   Rule: prefer ACTING when intent is clear (>~70% sure). Only clarify for real forks. Never clarify twice in a row for the same thing.
+
+14. chat (fallback): {"kind":"chat","text":string}
+   For capability questions ("what can you do") or things outside the CRM (weather, jokes). Redirect warmly to what you CAN do. (For ambiguous CRM intent use clarify, not chat.)
+
+PERSONALITY (shape the reply_text tone; NEVER changes which action you pick):
+- The speaker's profile arrives as "SPEAKER STYLE". Match their tone, language, and pet name.
+- tone=casual → relaxed, "Got it 👍". tone=crisp → tight, no fluff, "Done, boss." tone=warm → friendly, calm. tone=playful → upbeat, an emoji is fine. tone=formal → polite, complete sentences.
+- If addressAs is set (e.g. "boss"), you may use it naturally. If language is "Hinglish-lite", a light Hindi warmth is welcome ("Ho gaya, boss 👍") but keep it mostly English and clear.
+- No profile? Be warm, concise, human.
+
+CASUAL & CODE-SWITCHED INPUT (critical — this is how people really talk):
+- Input is messy speech/voice, NOT formal memos. No one says "add task". They say "arre call the mumbai guy kal", "remind kapoor pe follow up", "ye report kal tak chahiye".
+- Understand Hinglish and Indian-English freely: "kal"=tomorrow, "aaj"=today, "abhi"=now/urgent, "karna hai"/"karo"=to do, "bol do"/"bolo"=tell, "bhej do"=send, "yaar/arre/bhai" are filler — ignore them.
+- Transcribed voice may have small errors (wrong homophones, missing punctuation). Infer intent from meaning, don't nitpick words.
+- Strip all filler from the task title. "arre yaar kal mumbai wale ko call karna hai" → title:"call the Mumbai client", today:false (kal=tomorrow, not today).
 
 CONTEXT YOU RECEIVE:
 - Team: the real employee names. KNOWN NICKNAMES: mappings the user taught before — when the user uses a nickname, pass it (or the resolved real name) as personQuery; do NOT ask who it is if it's in the known list.
@@ -106,12 +132,16 @@ RESPONSE: strict JSON only. No explanations, no markdown fences.`;
 // Some models answer with assignee/sendTo/dueToday despite the schema — accept
 // both and normalize to what the frontend executes (personQuery/today).
 function normalize(a: any): any {
-  if (!a || typeof a !== 'object') return { kind: 'chat', text: 'Sorry, I did not catch that — try again?' };
+  if (!a || typeof a !== 'object') return { kind: 'chat', text: 'Sorry, I did not catch that — try again?', reply_text: 'Sorry, I did not catch that — try again?' };
   if (a.assignee !== undefined && a.personQuery === undefined) a.personQuery = a.assignee;
   if (a.sendTo !== undefined && a.personQuery === undefined) a.personQuery = a.sendTo;
   if (a.dueToday !== undefined && a.today === undefined) a.today = a.dueToday;
   if (a.personQuery === null) delete a.personQuery;
   delete a.assignee; delete a.sendTo; delete a.dueToday;
+  // clarify safety: keep 2–4 short options
+  if (a.kind === 'clarify' && Array.isArray(a.options)) a.options = a.options.filter((o: any) => typeof o === 'string').slice(0, 4);
+  // reply_text is optional per-action; guarantee a string so the frontend can trust it
+  if (typeof a.reply_text !== 'string' || !a.reply_text.trim()) delete a.reply_text;
   return a;
 }
 
@@ -119,7 +149,11 @@ function contextBlock(body: ReqBody): string {
   const nick = body.nicknames && Object.keys(body.nicknames).length
     ? `\nKNOWN NICKNAMES: ${Object.entries(body.nicknames).map(([n, real]) => `"${n}" = ${real}`).join(', ')}`
     : '';
-  return `Team: ${body.employees.map(e => e.name).join(', ')}${nick}\nUser (${body.me.name}, ${body.me.role}): ${body.text}`;
+  const p = body.persona;
+  const persona = p
+    ? `\nSPEAKER STYLE — ${p.displayName ?? body.me.name}: tone=${p.tone ?? 'warm'}, addressAs=${p.addressAs ?? 'none'}, language=${p.language ?? 'English'}. ${p.notes ?? ''}`.trimEnd()
+    : '';
+  return `Team: ${body.employees.map(e => e.name).join(', ')}${nick}${persona}\nUser (${body.me.name}, ${body.me.role}): ${body.text}`;
 }
 
 function chatMessages(body: ReqBody): { role: string; content: string }[] {
