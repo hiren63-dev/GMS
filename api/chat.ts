@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// /api/chat — the LLM brain for the BuddyDesk assistant (Vercel serverless).
+// /api/chat — the LLM brain for the Zypit assistant (Vercel serverless).
 //
 // Receives raw user text + team context + recent conversation + learned
 // nicknames, asks an LLM to pick ONE structured action, and returns it. The
@@ -39,7 +39,7 @@ interface ReqBody {
 }
 
 // The action schema mirrors AgentAction in src/services/chatAgent.ts.
-const SYSTEM = `You are BuddyDesk, an AI assistant embedded in a team CRM. Turn natural human language into ONE structured action the dashboard executes instantly.
+const SYSTEM = `You are Zypit, an AI assistant embedded in a team CRM. Turn natural human language into ONE structured action the dashboard executes instantly.
 
 CORE: Understand INTENT, not syntax. "add finish report", "i need to finish the report", "remind me to finish it", "finish report by friday" all mean the same. Extract intent regardless of phrasing.
 
@@ -174,7 +174,7 @@ async function callOpenRouter(body: ReqBody): Promise<any> {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       'HTTP-Referer': 'https://gms-seven-black.vercel.app',
-      'X-Title': 'BuddyDesk',
+      'X-Title': 'Zypit',
     },
     body: JSON.stringify({
       model,

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// /api/ask — the BuddyDesk data analyst (Vercel serverless).
+// /api/ask — the Zypit data analyst (Vercel serverless).
 //
 // Answers plain-language questions about the team's live CRM data:
 //   "who is working on what?" · "any blockers today?" · "how many overdue?"
@@ -22,7 +22,7 @@ interface AskBody {
   snapshot: unknown; // role-scoped data snapshot built by the frontend
 }
 
-const SYSTEM = `You are BuddyDesk's team analyst, embedded in a CRM dashboard.
+const SYSTEM = `You are Zypit's team analyst, embedded in a CRM dashboard.
 You receive a JSON snapshot of the team's live data (tasks, today's check-ins, roster) and ONE question from a user.
 
 RULES:
@@ -60,7 +60,7 @@ async function callOpenRouter(body: AskBody): Promise<string> {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       'HTTP-Referer': 'https://gms-seven-black.vercel.app',
-      'X-Title': 'BuddyDesk',
+      'X-Title': 'Zypit',
     },
     body: JSON.stringify({
       model,
