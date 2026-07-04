@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// BuddyDesk Chat Agent  (v2 — permissions · personalization · undo · audit)
+// Zypit Chat Agent  (v2 — permissions · personalization · undo · audit)
 //
 // Turns natural-language chat input into REAL Firestore actions. Every action
 // routes through the same service functions the dashboard already listens to

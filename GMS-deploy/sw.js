@@ -1,4 +1,4 @@
-// BuddyDesk Service Worker
+// Zypit Service Worker
 const CACHE = 'buddydesk-v2';
 
 self.addEventListener('install', function(e) {

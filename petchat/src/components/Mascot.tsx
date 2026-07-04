@@ -53,7 +53,7 @@ export default function Mascot({ onTap, message }: Props) {
         className="relative w-14 h-14 select-none outline-none focus:ring-2 focus:ring-blue-400 rounded-full"
         style={{ animation: 'float 3s ease-in-out infinite' }}
         title="Click me!"
-        aria-label="BuddyDesk mascot"
+        aria-label="Zypit mascot"
       >
         <svg
           viewBox="0 0 100 100"

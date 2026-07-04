@@ -301,7 +301,7 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>Known limitations</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { icon: '⚠', text: 'Removing an employee from BuddyDesk does not delete their Firebase Auth account — they lose access to data but the Auth record remains. Delete via Firebase Console → Authentication to fully revoke.' },
+            { icon: '⚠', text: 'Removing an employee from Zypit does not delete their Firebase Auth account — they lose access to data but the Auth record remains. Delete via Firebase Console → Authentication to fully revoke.' },
             { icon: 'ℹ', text: 'File attachments in chat are stored as metadata only (filename, size) — actual file upload requires Firebase Storage setup.' },
             { icon: 'ℹ', text: 'The AI command bar sends text to a local handler — connect OpenRouter or Gemini in Integration Hub for real AI responses.' },
             { icon: 'ℹ', text: 'Daily check-in is manual — no scheduled push notification unless a Cloud Function + Firebase Cloud Messaging is configured.' },

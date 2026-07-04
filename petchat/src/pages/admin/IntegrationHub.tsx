@@ -65,7 +65,7 @@ export default function IntegrationHub({ employee }: Props) {
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
         <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>🔗 Integration Hub</h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Connect external services to BuddyDesk</p>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Connect external services to Zypit</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

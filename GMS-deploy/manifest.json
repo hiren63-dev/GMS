@@ -1,6 +1,6 @@
 {
-  "name": "BuddyDesk",
-  "short_name": "BuddyDesk",
+  "name": "Zypit CRM",
+  "short_name": "Zypit",
   "description": "All-in-one team communication and management platform",
   "start_url": "/",
   "display": "standalone",

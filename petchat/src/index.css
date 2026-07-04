@@ -2,16 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design Tokens ── */
+/* ── Design Tokens ──
+   System: Linear-discipline (primary reference, see
+   .claude/workforce/ui-ux-designer/outputs/2026-07-04-buddydesk-design-system-research.md).
+   Borders are a tint of --text, not an independent hex — this is the single
+   biggest "crafted vs generic" tell, and it's why dark mode below is a
+   parallel derivation from dark --text rather than a separately hand-picked
+   palette. Spacing/radius elsewhere in this file must stay on the 4px ladder
+   (4 8 12 16 20 24 32 40 48 64 96) and the 6/12/full radius ratio. */
 :root {
   --bg: #F7F7F6;
   --surface: #FFFFFF;
   --surface2: #F7F7F6;
-  --border: #E9E9E7;
-  --border-hover: #C8C8C6;
   --text: #111111;
-  --text-muted: #888888;
-  --text-faint: #BBBBBB;
+  --text-rgb: 17,17,17;
+  --border: rgba(var(--text-rgb), 0.08);
+  --border-hover: rgba(var(--text-rgb), 0.16);
+  --text-muted: rgba(var(--text-rgb), 0.55);
+  --text-faint: rgba(var(--text-rgb), 0.35);
   --sidebar-bg: #FFFFFF;
   --sidebar-border: #F3F3F2;
   --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -23,11 +31,12 @@
   --bg: #141414;
   --surface: #1C1C1C;
   --surface2: #252525;
-  --border: #2E2E2E;
-  --border-hover: #444444;
   --text: #EFEFEF;
-  --text-muted: #888888;
-  --text-faint: #555555;
+  --text-rgb: 239,239,239;
+  --border: rgba(var(--text-rgb), 0.10);
+  --border-hover: rgba(var(--text-rgb), 0.18);
+  --text-muted: rgba(var(--text-rgb), 0.55);
+  --text-faint: rgba(var(--text-rgb), 0.30);
   --sidebar-bg: #1C1C1C;
   --sidebar-border: #252525;
   --card-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
@@ -37,12 +46,21 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background-color: var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+
+h1, h2, h3, .page-title, .section-title {
+  font-family: 'Inter Display', 'Inter Variable', 'Inter', sans-serif;
+}
+
+.mono, .id-text, .timestamp {
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 }
 
 #root { width: 100%; height: 100%; }
@@ -75,17 +93,17 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: var(--card-shadow);
-  transition: border-color 150ms, box-shadow 150ms;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
 }
 .card:hover { box-shadow: var(--card-shadow-hover); border-color: var(--border-hover); }
 
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 16px 20px;
 }
 
 /* ── Avatar Status Rings ── */
@@ -151,7 +169,7 @@ body {
 .kanban-col {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -163,10 +181,10 @@ body {
 .dark .bubble-them { background: var(--surface2); }
 
 /* ── Priority Badges ── */
-.badge-urgent { background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
-.badge-high   { background: #FEF3C7; color: #CA8A04; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
-.badge-medium { background: #F3F3F2; color: #555555; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
-.badge-low    { background: #DCFCE7; color: #16A34A; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 4px; }
+.badge-urgent { background: #FEE2E2; color: #DC2626; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-high   { background: #FEF3C7; color: #CA8A04; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-medium { background: #F3F3F2; color: #555555; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-low    { background: #DCFCE7; color: #16A34A; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
 
 .dark .badge-urgent { background: rgba(220,38,38,0.15); color: #FCA5A5; }
 .dark .badge-high   { background: rgba(202,138,4,0.15);  color: #FCD34D; }
@@ -184,11 +202,11 @@ body {
   background-color: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 9px 14px;
+  border-radius: 6px;
+  padding: 8px 12px;
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 150ms, box-shadow 150ms;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
   width: 100%;
 }
 .input:focus {
@@ -210,7 +228,11 @@ input:focus, textarea:focus, select:focus {
   border-color: #2563EB !important;
 }
 
-button { cursor: pointer; font-family: inherit; transition: all 150ms; }
+button {
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 120ms ease-out;
+}
 select { cursor: pointer; }
 
 /* ── Loading Spinner ── */
@@ -233,7 +255,10 @@ select { cursor: pointer; }
 /* ── Drag & Drop ── */
 .drag-over { background: rgba(37,99,235,0.05) !important; border-color: #2563EB !important; }
 
-/* ── Founder ── */
+/* ── Founder ──
+   Sanctioned exception to "one accent color" (per design-forge/Linear
+   discipline) — this is the only sanctioned second hue anywhere in the
+   system. Do not add a third color elsewhere. */
 .founder-gradient { background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%); }
 .founder-card { border-left: 3px solid #7C3AED; }
 
@@ -251,15 +276,15 @@ select { cursor: pointer; }
 .nav-btn {
   width: 100%;
   height: 34px;
-  border-radius: 7px;
+  border-radius: 6px;
   border: none;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 10px;
+  gap: 8px;
+  padding: 0 12px;
   font-size: 13px;
   text-align: left;
-  transition: background 120ms;
+  transition: background-color 120ms ease-out;
   cursor: pointer;
   background: transparent;
   color: var(--text-muted);
@@ -279,8 +304,8 @@ select { cursor: pointer; }
   transform: translateX(-50%);
   background: #111;
   color: #fff;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 8px 20px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   z-index: 999;

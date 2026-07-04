@@ -331,8 +331,8 @@ export default function App() {
         <div style={{ width: 380, animation: 'fadeIn 220ms ease both' }}>
           <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.06),0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-              <div style={{ width: 30, height: 30, background: '#111', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>B</div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#111', letterSpacing: '-0.01em' }}>BuddyDesk</span>
+              <div style={{ width: 30, height: 30, background: '#111', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>Z</div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#111', letterSpacing: '-0.01em' }}>Zypit</span>
             </div>
 
             {authPanel === 'none' && (
@@ -411,7 +411,7 @@ export default function App() {
                   </button>
                 </form>
 
-                <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
+                <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>Zypit · Internal use only</p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
                   <button onClick={() => { setAuthPanel('forgot'); setForgotResult(null); setForgotEmail(''); }}

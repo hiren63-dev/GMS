@@ -3,7 +3,7 @@ import type { Employee } from '../types';
 import { interpret, assess, execute, buildGreeting, type AgentAction, type AgentResult, type QuickOption } from '../services/chatAgent';
 
 // ─────────────────────────────────────────────────────────────────────────
-// BuddyDesk Assistant — full-height side panel (not a support-bot bubble).
+// Zypit Assistant — full-height side panel (not a support-bot bubble).
 // Occupies ~1/3 of the horizontal screen on desktop, full width on mobile.
 // The dashboard stays visible and LIVE next to it, so actions render in
 // real time as the assistant does them. WhatsApp-business-style quick-reply
@@ -207,7 +207,7 @@ export default function ChatDock({ employee, employees }: Props) {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open assistant (Ctrl+K)"
-          title="Ask BuddyDesk — Ctrl+K"
+          title="Ask Zypit — Ctrl+K"
           className="bd-launcher"
           style={{
             position: 'fixed', right: 24, bottom: 24, zIndex: 60,

@@ -51,8 +51,8 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
       {/* Brand + role */}
       <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
-          <div style={{ width: 28, height: 28, background: '#111', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>B</div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>BuddyDesk</span>
+          <div style={{ width: 28, height: 28, background: '#111', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Z</div>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>Zypit</span>
         </div>
         <span style={{ display: 'inline-block', padding: '2px 8px', background: roleBadge.bg, borderRadius: 5, fontSize: 11, fontWeight: 500, color: roleBadge.fg }}>
           {employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}

@@ -107,7 +107,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Remove ${name} from the team?\n\nNote: their login (Firebase Auth) will remain — they just won't appear in BuddyDesk.`)) return;
+    if (!confirm(`Remove ${name} from the team?\n\nNote: their login (Firebase Auth) will remain — they just won't appear in Zypit.`)) return;
     await deleteEmployee(id);
     showToast(`${name} removed.`);
   };
@@ -482,7 +482,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
       </div>
 
       <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 12 }}>
-        ⚠ Removing an employee deletes their BuddyDesk profile but does not remove their Firebase Auth login. To fully revoke access, go to the Firebase Console → Authentication.
+        ⚠ Removing an employee deletes their Zypit profile but does not remove their Firebase Auth login. To fully revoke access, go to the Firebase Console → Authentication.
       </p>
     </div>
   );
