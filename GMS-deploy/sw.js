@@ -1,5 +1,7 @@
 // Zypit Service Worker
-const CACHE = 'buddydesk-v2';
+// Bump this version string on every deploy that must invalidate stale caches —
+// on activate, all caches whose name !== CACHE are deleted, forcing fresh assets.
+const CACHE = 'zypit-v3';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();

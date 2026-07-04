@@ -659,7 +659,11 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
     default:
       return {
         ok: true,
+        // Prefer the LLM's own words (reply_text, or the chat action's text) so a
+        // tailored conversational answer isn't thrown away for the generic help
+        // line. The canned capabilities line is only the last-resort fallback.
         reply: (action as LLMAction).reply_text?.trim()
+          || (action as { text?: string }).text?.trim()
           || `I can add tasks, mark them done, delete tasks, send files, post announcements, and tell you who checked in. Try: "call the Mumbai client tomorrow" or "send the pitch deck to Raj".`,
       };
   }
