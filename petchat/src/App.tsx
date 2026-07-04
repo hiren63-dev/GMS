@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import type { Department, Role } from './types';
@@ -39,6 +39,7 @@ export default function App() {
   const [currentPage, setCurrentPage]         = useState<Page>('dashboard');
   const [screentimeId, setScreentimeId]       = useState<string | null>(null);
   const [messageTargetId, setMessageTargetId] = useState<string | undefined>(undefined);
+  const [unreadCount, setUnreadCount]         = useState(0);
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
   const [showCheckin, setShowCheckin]         = useState(false);
@@ -104,6 +105,16 @@ export default function App() {
   useEffect(() => {
     if (!currentEmployee) return;
     setShowCheckin(!checkinDoneToday(currentEmployee.id));
+  }, [currentEmployee?.id]);
+
+  // Live unread badge: count incoming 1:1 messages newer than the last time the
+  // user opened the Messages page (stored in localStorage per navigate()).
+  useEffect(() => {
+    if (!currentEmployee) { setUnreadCount(0); return; }
+    return onIncomingMessagesChange(currentEmployee.id, msgs => {
+      const seenAt = Number(localStorage.getItem('messagesSeenAt') || 0);
+      setUnreadCount(msgs.filter(m => m.timestamp > seenAt).length);
+    });
   }, [currentEmployee?.id]);
 
   useEffect(() => {
@@ -266,8 +277,9 @@ export default function App() {
         role: 'employee',
         password: pw,
         permissions: [],
-      });
-      // createEmployeeWithAuth signs in via Firebase Auth → auth listener sets currentEmployee
+      }, { signInAfter: true });
+      // signInAfter:true → new user is signed into the main app → the auth
+      // listener picks them up and sets currentEmployee (logs them straight in)
     } catch (err: any) {
       setSignUpError(err.message || 'Failed to create account. Try again.');
     } finally {
@@ -321,6 +333,8 @@ export default function App() {
       setScreentimeId(id ?? null); // no target → show own data
     } else if (page === 'messages') {
       setMessageTargetId(id);
+      localStorage.setItem('messagesSeenAt', String(Date.now())); // mark read
+      setUnreadCount(0);
     }
   };
 
@@ -543,9 +557,10 @@ export default function App() {
     <div className={`${darkMode ? 'dark' : ''}`} style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
       <Sidebar
         currentPage={currentPage}
-        onNavigate={page => setCurrentPage(page)}
+        onNavigate={navigate}
         employee={currentEmployee}
         onSignOut={handleSignOut}
+        unreadCount={unreadCount}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>

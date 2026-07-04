@@ -23,8 +23,38 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 // ── helpers ───────────────────────────────────────────────────────────────
+// NOTE the second onSnapshot arg: the error callback. Without it, a failing
+// query (e.g. a missing composite index) rejects silently and the success
+// callback never fires — the classic "data just never loads" bug. Logging it
+// makes the failure visible in the console instead of hiding it.
 const snapList = <T>(ref: any, cb: (items: T[]) => void) =>
-  onSnapshot(ref, (s: any) => cb(s.docs.map((d: any) => ({ id: d.id, ...d.data() }) as T)));
+  onSnapshot(
+    ref,
+    (s: any) => cb(s.docs.map((d: any) => ({ id: d.id, ...d.data() }) as T)),
+    (err: any) => console.error('[firestore] query failed (a composite index may be missing):', err?.message ?? err),
+  );
+
+/**
+ * Like snapList, but sorts client-side by `key` instead of using a server-side
+ * orderBy. This deliberately AVOIDS the composite-index requirement that
+ * where(x) + orderBy(y-on-a-different-field) triggers in Firestore — the same
+ * trick onMessagesChange/onGroupMessagesChange already use. Keeps these feeds
+ * working without needing every index deployed to the Firebase project first.
+ */
+const snapListSorted = <T>(ref: any, cb: (items: T[]) => void, key: string, dir: 'asc' | 'desc' = 'asc') =>
+  onSnapshot(
+    ref,
+    (s: any) => {
+      const items = s.docs.map((d: any) => ({ id: d.id, ...d.data() }) as T);
+      items.sort((a: any, b: any) => {
+        const av = toMs(a[key]) || a[key] || 0;
+        const bv = toMs(b[key]) || b[key] || 0;
+        return dir === 'asc' ? (av < bv ? -1 : av > bv ? 1 : 0) : (av < bv ? 1 : av > bv ? -1 : 0);
+      });
+      cb(items);
+    },
+    (err: any) => console.error('[firestore] query failed (a composite index may be missing):', err?.message ?? err),
+  );
 
 const toMs = (v: any): number => {
   if (v === null || v === undefined) return 0;
@@ -71,14 +101,21 @@ export const generatePassword = (): string => {
  * Stores password in Firestore for admin reference (internal tool).
  */
 export const createEmployeeWithAuth = async (
-  emp: Omit<Employee, 'id'> & { password: string }
+  emp: Omit<Employee, 'id'> & { password: string },
+  opts: { signInAfter?: boolean } = {}
 ): Promise<string> => {
   const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
   const secondaryAuth = getAuth(secondaryApp);
   try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, emp.email, emp.password);
-    // Sign the new user into the MAIN app so Firestore rules (request.auth != null) pass
-    await signInWithEmailAndPassword(auth, emp.email, emp.password);
+    // Self-signup (signInAfter:true) wants the new user signed into the MAIN app
+    // so the auth listener logs them straight in. Admin-driven creation must NOT —
+    // otherwise adding an employee silently replaces the admin's own session with
+    // the new hire's (they'd become that employee on the next refresh). The admin
+    // is already authenticated, so their session authorizes the write regardless.
+    if (opts.signInAfter) {
+      await signInWithEmailAndPassword(auth, emp.email, emp.password);
+    }
     const ref = await addDoc(collection(db, 'employees'), {
       name: emp.name, email: emp.email, department: emp.department,
       role: emp.role, status: 'offline',
@@ -177,6 +214,19 @@ export const onConversationPartnersChange = (
     cb(allEmployees.filter(e => partnerIds.has(e.id) && e.id !== userId));
   });
 };
+
+/** Live 1:1 messages addressed TO this user — powers the sidebar unread badge. */
+export const onIncomingMessagesChange = (userId: string, cb: (msgs: { timestamp: number }[]) => void) =>
+  onSnapshot(
+    query(collection(db, 'messages'), where('participants', 'array-contains', userId)),
+    s => cb(
+      s.docs
+        .map(d => d.data() as any)
+        .filter(m => !m.isGroupChat && m.recipientId === userId)
+        .map(m => ({ timestamp: toMs(m.timestamp) }))
+    ),
+    (err: any) => console.error('[firestore] unread query failed:', err?.message ?? err),
+  );
 
 // ── Tasks ─────────────────────────────────────────────────────────────────
 export const createTask = (t: Omit<Task, 'id'>) => {
@@ -409,14 +459,14 @@ export const addTaskComment = (c: Omit<TaskComment, 'id'>) =>
 export const deleteTaskComment = (id: string) => deleteDoc(doc(db, 'taskComments', id));
 
 export const onTaskCommentsChange = (taskId: string, cb: (comments: TaskComment[]) => void) =>
-  snapList<TaskComment>(query(collection(db, 'taskComments'), where('taskId', '==', taskId), orderBy('createdAt', 'asc')), cb);
+  snapListSorted<TaskComment>(query(collection(db, 'taskComments'), where('taskId', '==', taskId)), cb, 'createdAt', 'asc');
 
 // ── Announcement Replies ───────────────────────────────────────────────────
 export const addAnnouncementReply = (r: Omit<AnnouncementReply, 'id'>) =>
   addDoc(collection(db, 'announcementReplies'), r);
 
 export const onAnnouncementRepliesChange = (announcementId: string, cb: (replies: AnnouncementReply[]) => void) =>
-  snapList<AnnouncementReply>(query(collection(db, 'announcementReplies'), where('announcementId', '==', announcementId), orderBy('createdAt', 'asc')), cb);
+  snapListSorted<AnnouncementReply>(query(collection(db, 'announcementReplies'), where('announcementId', '==', announcementId)), cb, 'createdAt', 'asc');
 
 // ── 1-on-1 Notes ──────────────────────────────────────────────────────────
 export const saveOneOnOneNote = (note: Omit<OneOnOneNote, 'id'>) =>
@@ -428,10 +478,10 @@ export const updateOneOnOneNote = (id: string, content: string) =>
 export const deleteOneOnOneNote = (id: string) => deleteDoc(doc(db, 'oneOnOneNotes', id));
 
 export const onOneOnOneNotesChange = (managerId: string, employeeId: string, cb: (notes: OneOnOneNote[]) => void) =>
-  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), where('employeeId', '==', employeeId), orderBy('createdAt', 'desc')), cb);
+  snapListSorted<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), where('employeeId', '==', employeeId)), cb, 'createdAt', 'desc');
 
 export const onAllOneOnOneNotesChange = (managerId: string, cb: (notes: OneOnOneNote[]) => void) =>
-  snapList<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId), orderBy('createdAt', 'desc')), cb);
+  snapListSorted<OneOnOneNote>(query(collection(db, 'oneOnOneNotes'), where('managerId', '==', managerId)), cb, 'createdAt', 'desc');
 
 // ── Audit Log ─────────────────────────────────────────────────────────────
 export const logAudit = (entry: Omit<AuditEntry, 'id'>) =>
