@@ -186,7 +186,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
 
       {/* Birthday reminders */}
       {upcomingBirthdays.length > 0 && (
-        <div style={{ background: 'linear-gradient(135deg,#FFF7ED,#FEF3C7)', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+        <div style={{ background: '#FFF7ED', border: '1px solid #FDE68A', borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 20 }}>🎂</span>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E', marginBottom: 2 }}>Upcoming Birthdays</div>

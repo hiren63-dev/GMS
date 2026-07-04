@@ -155,7 +155,7 @@ export default function CheckInForm({ employee, onDone }: Props) {
         rows={3} className="input w-full resize-none" />
       <button onClick={handleSubmit} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-white transition"
-        style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
+        style={{ background: '#2563EB' }}>
         {saving ? 'Submitting…' : '✅ Submit Check-In'}
       </button>
     </div>,
@@ -170,7 +170,7 @@ export default function CheckInForm({ employee, onDone }: Props) {
         </div>
         <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
           <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#6366F1,#8B5CF6)' }} />
+            style={{ width: `${progress}%`, background: '#2563EB' }} />
         </div>
       </div>
       <div className="card p-6">{steps[step]}</div>

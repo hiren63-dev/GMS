@@ -270,7 +270,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                   </div>
                   <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
                     <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${avgPct}%`, background: 'linear-gradient(90deg,#7C3AED,#2563EB)' }} />
+                      style={{ width: `${avgPct}%`, background: '#7C3AED' }} />
                   </div>
                 </div>
 

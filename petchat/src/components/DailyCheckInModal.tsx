@@ -142,7 +142,7 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
             disabled={!allAnswered}
             style={{
               width: '100%', height: 46, marginTop: 4, border: 'none', borderRadius: 10,
-              background: allAnswered ? 'linear-gradient(135deg,#6366F1,#8B5CF6)' : '#E9E9E7',
+              background: allAnswered ? '#2563EB' : '#E9E9E7',
               color: allAnswered ? '#fff' : '#AAA',
               fontSize: 14, fontWeight: 600,
               cursor: allAnswered ? 'pointer' : 'not-allowed',
