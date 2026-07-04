@@ -168,51 +168,55 @@ export default function AnnouncementsPage({ employee, allEmployees }: Props) {
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{visible.length} announcement{visible.length !== 1 ? 's' : ''} for you</p>
         </div>
         {canPost && (
-          <button onClick={() => setShowForm(v => !v)}
+          <button onClick={() => setShowForm(true)}
             className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition shadow">
             + Post
           </button>
         )}
       </div>
 
-      {/* Create form */}
+      {/* Create modal */}
       {showForm && canPost && (
-        <div className="card p-5 border-2 border-blue-300 dark:border-blue-700 space-y-4">
-          <h3 className="font-semibold" style={{ color: 'var(--text)' }}>New Announcement</h3>
-          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Title *" className="input w-full" />
-          <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-            placeholder="Message body *" rows={4}
-            className="input w-full resize-none" />
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-40">
-              <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Audience</label>
-              <select value={form.audience} onChange={e => setForm(f => ({ ...f, audience: e.target.value as AudienceTarget }))}
-                className="input w-full">
-                <option value="all">Everyone</option>
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name} (only)</option>)}
-              </select>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: 460, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', animation: 'fadeIn 150ms ease' }}
+            className="space-y-4">
+            <h3 className="font-semibold" style={{ color: 'var(--text)' }}>New Announcement</h3>
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Title *" autoFocus className="input w-full" />
+            <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+              placeholder="Message body *" rows={4}
+              className="input w-full resize-none" />
+            <div className="flex flex-wrap gap-3">
+              <div className="flex-1 min-w-40">
+                <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Audience</label>
+                <select value={form.audience} onChange={e => setForm(f => ({ ...f, audience: e.target.value as AudienceTarget }))}
+                  className="input w-full">
+                  <option value="all">Everyone</option>
+                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                  {allEmployees.map(e => <option key={e.id} value={e.id}>{e.name} (only)</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-40">
+                <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Expires (optional)</label>
+                <input type="date" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
+                  className="input w-full" />
+              </div>
+              <div className="flex items-center gap-2 pt-4">
+                <input type="checkbox" id="pin" checked={form.pinned} onChange={e => setForm(f => ({ ...f, pinned: e.target.checked }))}
+                  className="w-4 h-4 rounded" />
+                <label htmlFor="pin" className="text-sm" style={{ color: 'var(--text)' }}>📌 Pin to top</label>
+              </div>
             </div>
-            <div className="flex-1 min-w-40">
-              <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Expires (optional)</label>
-              <input type="date" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                className="input w-full" />
+            <div className="flex gap-2">
+              <button onClick={() => setShowForm(false)}
+                className="flex-1 py-2 rounded-lg text-sm font-medium transition"
+                style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>Cancel</button>
+              <button onClick={handleCreate} disabled={saving || !form.title.trim() || !form.body.trim()}
+                className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium transition">
+                {saving ? 'Posting…' : 'Post Announcement'}
+              </button>
             </div>
-            <div className="flex items-center gap-2 pt-4">
-              <input type="checkbox" id="pin" checked={form.pinned} onChange={e => setForm(f => ({ ...f, pinned: e.target.checked }))}
-                className="w-4 h-4 rounded" />
-              <label htmlFor="pin" className="text-sm" style={{ color: 'var(--text)' }}>📌 Pin to top</label>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleCreate} disabled={saving || !form.title.trim() || !form.body.trim()}
-              className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium transition">
-              {saving ? 'Posting…' : 'Post Announcement'}
-            </button>
-            <button onClick={() => setShowForm(false)}
-              className="flex-1 py-2 rounded-lg text-sm font-medium transition"
-              style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>Cancel</button>
           </div>
         </div>
       )}

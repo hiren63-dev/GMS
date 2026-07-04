@@ -38,6 +38,7 @@ export default function App() {
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage]         = useState<Page>('dashboard');
   const [screentimeId, setScreentimeId]       = useState<string | null>(null);
+  const [messageTargetId, setMessageTargetId] = useState<string | undefined>(undefined);
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
   const [showCheckin, setShowCheckin]         = useState(false);
@@ -314,11 +315,12 @@ export default function App() {
   };
 
   const navigate = (page: string, id?: string) => {
+    if (page === 'checkin') { setShowCheckin(true); return; } // Quick Action → open the modal, no dead page
     setCurrentPage(page as Page);
-    if (id) {
-      setScreentimeId(id);
-    } else if (page === 'screentime') {
-      setScreentimeId(null); // navigating to screentime without a target → show own data
+    if (page === 'screentime') {
+      setScreentimeId(id ?? null); // no target → show own data
+    } else if (page === 'messages') {
+      setMessageTargetId(id);
     }
   };
 
@@ -333,181 +335,191 @@ export default function App() {
               <span style={{ fontSize: 16, fontWeight: 600, color: '#111', letterSpacing: '-0.01em' }}>BuddyDesk</span>
             </div>
 
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Sign in</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: savedProfiles.length > 0 ? 16 : 24 }}>Enter your email and password to continue</div>
+            {authPanel === 'none' && (
+              <>
+                <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Sign in</div>
+                <div style={{ fontSize: 13, color: '#888', marginBottom: savedProfiles.length > 0 ? 16 : 24 }}>Enter your email and password to continue</div>
 
-            {savedProfiles.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Recent accounts</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {savedProfiles.map(p => (
-                    <button key={p.email} type="button"
-                      onClick={() => { setLoginEmail(p.email); setLoginPass(''); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 6px', background: loginEmail === p.email ? '#F0F4FF' : '#F7F7F6', border: `1px solid ${loginEmail === p.email ? '#2563EB' : '#E9E9E7'}`, borderRadius: 99, cursor: 'pointer', transition: 'all 150ms' }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{p.initials}</div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#111', lineHeight: 1.3 }}>{p.name}</div>
-                        <div style={{ fontSize: 10, color: '#888' }}>{p.department}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                {savedProfiles.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Recent accounts</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {savedProfiles.map(p => (
+                        <button key={p.email} type="button"
+                          onClick={() => { setLoginEmail(p.email); setLoginPass(''); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 6px', background: loginEmail === p.email ? '#F0F4FF' : '#F7F7F6', border: `1px solid ${loginEmail === p.email ? '#2563EB' : '#E9E9E7'}`, borderRadius: 99, cursor: 'pointer', transition: 'all 150ms' }}>
+                          <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{p.initials}</div>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ fontSize: 12, fontWeight: 500, color: '#111', lineHeight: 1.3 }}>{p.name}</div>
+                            <div style={{ fontSize: 10, color: '#888' }}>{p.department}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {loginError && (
-                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>
-                  {loginError}
-                </div>
-              )}
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Email</label>
-                <input
-                  type="email"
-                  value={loginEmail}
-                  onChange={e => setLoginEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  required
-                  style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                  onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={loginPass}
-                    onChange={e => setLoginPass(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    style={{ width: '100%', height: 42, padding: '0 42px 0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms', boxSizing: 'border-box' }}
-                    onFocus={e => (e.target.style.borderColor = '#2563EB')}
-                    onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
-                  />
-                  <button type="button" onClick={() => setShowPass(v => !v)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
-                    {showPass
-                      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    }
-                  </button>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={loginLoading}
-                style={{ width: '100%', height: 44, marginTop: 4, background: loginLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', cursor: loginLoading ? 'not-allowed' : 'pointer', transition: 'background 150ms' }}
-                onMouseOver={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#333'; }}
-                onMouseOut={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#111'; }}
-              >
-                {loginLoading ? 'Signing in…' : 'Sign in →'}
-              </button>
-            </form>
-
-            <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
-              <button onClick={() => { setAuthPanel(p => p === 'forgot' ? 'none' : 'forgot'); setForgotResult(null); setForgotEmail(''); }}
-                style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
-                Forgot password?
-              </button>
-              <button onClick={() => { setAuthPanel(p => p === 'signup' ? 'none' : 'signup'); setSignUpError(''); }}
-                style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                {authPanel === 'signup' ? '← Back to sign in' : 'Create account →'}
-              </button>
-            </div>
-          </div>
-
-          {/* Forgot password panel */}
-          {authPanel === 'forgot' && (
-            <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Reset Password</div>
-              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Enter your email and we'll send a reset link instantly.</div>
-              {!forgotResult ? (
-                <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input type="email" required placeholder="you@company.com" value={forgotEmail}
-                    onChange={e => setForgotEmail(e.target.value)}
-                    style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
-                    onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
-                  <button type="submit" disabled={forgotLoading}
-                    style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
-                    {forgotLoading ? 'Sending…' : 'Send reset link →'}
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {loginError && (
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>
+                      {loginError}
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Email</label>
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={e => setLoginEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      required
+                      style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms' }}
+                      onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                      onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={loginPass}
+                        onChange={e => setLoginPass(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        style={{ width: '100%', height: 42, padding: '0 42px 0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', transition: 'border-color 150ms', boxSizing: 'border-box' }}
+                        onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                        onBlur={e => (e.target.style.borderColor = '#E9E9E7')}
+                      />
+                      <button type="button" onClick={() => setShowPass(v => !v)}
+                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
+                        {showPass
+                          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    style={{ width: '100%', height: 44, marginTop: 4, background: loginLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', cursor: loginLoading ? 'not-allowed' : 'pointer', transition: 'background 150ms' }}
+                    onMouseOver={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#333'; }}
+                    onMouseOut={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#111'; }}
+                  >
+                    {loginLoading ? 'Signing in…' : 'Sign in →'}
                   </button>
                 </form>
-              ) : forgotResult.error ? (
-                <div>
-                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>{forgotResult.error}</div>
-                  <button onClick={() => setForgotResult(null)} style={{ marginTop: 10, fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
-                </div>
-              ) : (
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
-                  <div style={{ fontSize: 14, color: '#16A34A', fontWeight: 600, marginBottom: 6 }}>✉️ Check your inbox</div>
-                  <div style={{ fontSize: 13, color: '#555', marginBottom: 14, lineHeight: 1.5 }}>
-                    A password reset link has been sent to <strong>{forgotEmail}</strong>.<br/>
-                    <span style={{ color: '#888', fontSize: 12 }}>Click the link in the email to set a new password. Check your spam folder if you don't see it.</span>
-                  </div>
-                  <button onClick={() => { setAuthPanel('none'); setForgotResult(null); setLoginEmail(forgotEmail); }}
-                    style={{ marginTop: 4, width: '100%', height: 38, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                    Back to sign in →
+
+                <p style={{ textAlign: 'center', fontSize: 12, color: '#BBB', marginTop: 20 }}>BuddyDesk · Internal use only</p>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+                  <button onClick={() => { setAuthPanel('forgot'); setForgotResult(null); setForgotEmail(''); }}
+                    style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    Forgot password?
+                  </button>
+                  <button onClick={() => { setAuthPanel('signup'); setSignUpError(''); }}
+                    style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                    Create account →
                   </button>
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
 
-          {/* Create account panel */}
-          {authPanel === 'signup' && (
-            <div style={{ background: '#fff', border: '1px solid #E9E9E7', borderRadius: 14, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', marginTop: 12 }}>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Create Account</div>
-              <div style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>Fill in your details — your account is created immediately.</div>
-              {signUpError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{signUpError}</div>}
-              <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                {[
-                  { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' },
-                  { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
-                    <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
-                      onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
-                      style={{ width: '100%', height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
+            {authPanel === 'forgot' && (
+              <>
+                <button onClick={() => { setAuthPanel('none'); setForgotResult(null); }}
+                  style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}>
+                  ← Back to sign in
+                </button>
+                <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Reset Password</div>
+                <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Enter your email and we'll send a reset link instantly.</div>
+                {!forgotResult ? (
+                  <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <input type="email" required placeholder="you@company.com" value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      style={{ width: '100%', height: 42, padding: '0 14px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
                       onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                    <button type="submit" disabled={forgotLoading}
+                      style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                      {forgotLoading ? 'Sending…' : 'Send reset link →'}
+                    </button>
+                  </form>
+                ) : forgotResult.error ? (
+                  <div>
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>{forgotResult.error}</div>
+                    <button onClick={() => setForgotResult(null)} style={{ marginTop: 10, fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
                   </div>
-                ))}
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type={showSignUpPass ? 'text' : 'password'} required placeholder="Min. 6 characters"
-                      value={signUpForm.password}
-                      onChange={e => setSignUpForm(s => ({ ...s, password: e.target.value }))}
-                      style={{ width: '100%', height: 40, padding: '0 42px 0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', boxSizing: 'border-box' }}
-                      onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
-                    <button type="button" onClick={() => setShowSignUpPass(v => !v)}
-                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
-                      {showSignUpPass
-                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      }
+                ) : (
+                  <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
+                    <div style={{ fontSize: 14, color: '#16A34A', fontWeight: 600, marginBottom: 6 }}>✉️ Check your inbox</div>
+                    <div style={{ fontSize: 13, color: '#555', marginBottom: 14, lineHeight: 1.5 }}>
+                      A password reset link has been sent to <strong>{forgotEmail}</strong>.<br/>
+                      <span style={{ color: '#888', fontSize: 12 }}>Click the link in the email to set a new password. Check your spam folder if you don't see it.</span>
+                    </div>
+                    <button onClick={() => { setAuthPanel('none'); setForgotResult(null); setLoginEmail(forgotEmail); }}
+                      style={{ marginTop: 4, width: '100%', height: 38, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      Back to sign in →
                     </button>
                   </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
-                  <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
-                    style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
-                    {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d}>{d}</option>)}
-                  </select>
-                </div>
-                <button type="submit" disabled={signUpLoading}
-                  style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
-                  {signUpLoading ? 'Creating account…' : 'Create Account →'}
+                )}
+              </>
+            )}
+
+            {authPanel === 'signup' && (
+              <>
+                <button onClick={() => setAuthPanel('none')}
+                  style={{ fontSize: 13, color: '#888', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}>
+                  ← Back to sign in
                 </button>
-              </form>
-            </div>
-          )}
+                <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 6 }}>Create Account</div>
+                <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Fill in your details — your account is created immediately.</div>
+                {signUpError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{signUpError}</div>}
+                <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                  {[
+                    { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your full name' },
+                    { label: 'Work Email', key: 'email', type: 'email', placeholder: 'you@company.com' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{f.label}</label>
+                      <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
+                        onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
+                        style={{ width: '100%', height: 40, padding: '0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none' }}
+                        onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input type={showSignUpPass ? 'text' : 'password'} required placeholder="Min. 6 characters"
+                        value={signUpForm.password}
+                        onChange={e => setSignUpForm(s => ({ ...s, password: e.target.value }))}
+                        style={{ width: '100%', height: 40, padding: '0 42px 0 12px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: '#111', outline: 'none', boxSizing: 'border-box' }}
+                        onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = '#E9E9E7')} />
+                      <button type="button" onClick={() => setShowSignUpPass(v => !v)}
+                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#AAA', display: 'flex', alignItems: 'center' }}>
+                        {showSignUpPass
+                          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' as const, marginBottom: 5 }}>Department</label>
+                    <select value={signUpForm.department} onChange={e => setSignUpForm(s => ({ ...s, department: e.target.value as Department }))}
+                      style={{ width: '100%', height: 40, padding: '0 10px', background: '#F7F7F6', border: '1px solid #E9E9E7', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#111', outline: 'none' }}>
+                      {['Tech','Marketing','Operations','Sales','CEO','CFO','CMO','Design','Engineering','Other'].map(d => <option key={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <button type="submit" disabled={signUpLoading}
+                    style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
+                    {signUpLoading ? 'Creating account…' : 'Create Account →'}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <button
@@ -562,7 +574,7 @@ export default function App() {
             <OneOnOnePage employee={currentEmployee} allEmployees={employees} />
           )}
           {currentPage === 'messages' && (
-            <MessagesPage employee={currentEmployee} allEmployees={employees} />
+            <MessagesPage employee={currentEmployee} allEmployees={employees} targetEmployeeId={messageTargetId} />
           )}
           {currentPage === 'groups' && (
             <GroupsPage employee={currentEmployee} allEmployees={employees} />

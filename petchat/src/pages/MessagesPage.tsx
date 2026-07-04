@@ -7,9 +7,10 @@ const EMOJIS = ['👍','❤️','😂','😮','🎉'];
 interface Props {
   employee: Employee;
   allEmployees: Employee[];
+  targetEmployeeId?: string;
 }
 
-export default function MessagesPage({ employee, allEmployees }: Props) {
+export default function MessagesPage({ employee, allEmployees, targetEmployeeId }: Props) {
   const [contacts, setContacts]   = useState<Employee[]>([]);
   const [selected, setSelected]   = useState<Employee | null>(null);
   const [messages, setMessages]   = useState<Message[]>([]);
@@ -37,11 +38,16 @@ export default function MessagesPage({ employee, allEmployees }: Props) {
   useEffect(() => {
     const unsub = onConversationPartnersChange(employee.id, allEmployees, partners => {
       setContacts(partners);
-      setSelected(prev => prev ?? (partners[0] ?? null));
+      if (targetEmployeeId) {
+        const target = partners.find(p => p.id === targetEmployeeId);
+        setSelected(target ?? (partners[0] ?? null));
+      } else {
+        setSelected(prev => prev ?? (partners[0] ?? null));
+      }
     });
     return unsub;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee.id, allEmpIds]);
+  }, [employee.id, allEmpIds, targetEmployeeId]);
 
   useEffect(() => {
     if (!selected) return;

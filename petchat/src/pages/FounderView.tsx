@@ -228,28 +228,6 @@ export default function FounderView({ employee, allEmployees }: Props) {
             </button>
           </div>
 
-          {showNewOKR && (
-            <div className="card p-4 space-y-3 border-2 border-purple-300">
-              <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                placeholder="Objective title e.g. Grow MRR to $50k"
-                className="input w-full" />
-              <input value={newQuarter} onChange={e => setNewQuarter(e.target.value)}
-                placeholder="Quarter e.g. Q3 2026"
-                className="input w-full" />
-              <div className="flex gap-2">
-                <button onClick={handleCreateOKR}
-                  className="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition">
-                  Create
-                </button>
-                <button onClick={() => setShowNewOKR(false)}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium transition"
-                  style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
           {objectives.length === 0 && !showNewOKR && (
             <div className="card p-8 text-center">
               <p className="text-4xl mb-3">🎯</p>
@@ -389,6 +367,30 @@ export default function FounderView({ employee, allEmployees }: Props) {
           </div>
         </div>
       </div>
+
+      {/* New Objective modal */}
+      {showNewOKR && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowNewOKR(false); }}>
+          <div style={{ width: 400, background: 'var(--surface)', borderRadius: 12, padding: 26, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 18 }}>New Objective</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                placeholder="Objective title e.g. Grow MRR to $50k"
+                className="input w-full" autoFocus />
+              <input value={newQuarter} onChange={e => setNewQuarter(e.target.value)}
+                placeholder="Quarter e.g. Q3 2026"
+                className="input w-full" />
+              <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
+                <button onClick={() => setShowNewOKR(false)}
+                  style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleCreateOKR}
+                  style={{ flex: 1, height: 40, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Create</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Key Result modal */}
       {krModal && (

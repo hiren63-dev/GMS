@@ -213,7 +213,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               Remove {selected.size}
             </button>
           )}
-          <button onClick={() => { setShowForm(v => !v); resetForm(); }}
+          <button onClick={() => { setShowForm(true); resetForm(); }}
             style={{ height: 36, padding: '0 16px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
             onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
             onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}
@@ -224,9 +224,11 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
         </div>
       </div>
 
-      {/* Add / Edit Form */}
+      {/* Add / Edit Modal */}
       {showForm && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 560, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', animation: 'fadeIn 150ms ease' }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
             {editId ? 'Edit Employee' : 'New Employee'}
           </div>
@@ -362,6 +364,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               Cancel
             </button>
           </div>
+        </div>
         </div>
       )}
 
