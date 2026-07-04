@@ -99,8 +99,15 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
         mimeType: file.type, uploadedBy: employee.id,
         uploadedByName: employee.name, uploadedAt: Date.now(),
       });
-    } catch {
-      setUploadError('Upload failed. Make sure you are signed in with a full account.');
+    } catch (err: any) {
+      const code: string = err?.code ?? '';
+      if (code === 'storage/unknown' || code === 'storage/retry-limit-exceeded' || code.includes('object-not-found')) {
+        setUploadError('Storage is not set up for this Firebase project yet — an admin must enable it in Firebase Console → Storage → Get Started.');
+      } else if (code === 'storage/unauthorized') {
+        setUploadError('You do not have permission to upload. Sign in with a full account, or ask an admin to update Storage rules.');
+      } else {
+        setUploadError(`Upload failed${code ? ` (${code})` : ''}. ${err?.message ?? ''}`);
+      }
     } finally {
       setUploading(false);
     }
