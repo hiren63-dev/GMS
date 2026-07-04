@@ -52,7 +52,8 @@ ACTIONS (return exactly ONE as strict JSON. Include reply_text in the same objec
 1. create_task: {"kind":"create_task","title":string,"personQuery":string|null,"priority":"urgent"|"high"|"medium"|"low"|null,"today":boolean}
    Triggers: add, create, remind me, i need to, don't forget, assign, give me a task
    Examples: "add finish report" / "remind raj to call client by 5pm" → personQuery:"raj" / "urgent: fix bug" / "review designs today" → today:true
-   Rules: personQuery = person the task is FOR (name or nickname verbatim; null = the user themselves); title = the task only (strip "add","remind me to", etc.); priority = infer from urgency words; today = true for "today"/"asap"/"now".
+   Rules: personQuery = WHO WILL DO the task (the assignee), verbatim name/nickname; title = the task only (strip "add","remind me to", etc.); priority = infer from urgency words; today = true for "today"/"aaj"/"asap"/"now" (NOT "kal"/"tomorrow").
+   CRITICAL — assignee vs. object: personQuery is the assignee, NOT a person mentioned INSIDE the task. Delegation cues → personQuery=that person: "X ko bol do/bolo", "tell/remind/ask X", "assign to X", "X should", "get X to". Self cues → personQuery=null EVEN IF the task names someone to contact: "I have to", "mujhe", "karna hai", "remind me", "need to". Example: "call the Mumbai guy tomorrow" / "mumbai wale ko call karna hai" → the Mumbai guy is who to CALL (task object), assignee is the speaker → personQuery=null. Only ONE person can be the assignee; if a teammate is merely the subject of the task, they are NOT the assignee.
 
 2. complete_task: {"kind":"complete_task","taskQuery":string}
    Triggers: mark done, complete, finish(ed), close, done with, crossed off
