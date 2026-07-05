@@ -53,7 +53,7 @@ function userContent(body: AskBody): string {
 }
 
 async function callOpenRouter(body: AskBody): Promise<string> {
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {

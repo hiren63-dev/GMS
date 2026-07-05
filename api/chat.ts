@@ -202,13 +202,45 @@ function chatMessages(body: ReqBody): { role: string; content: string }[] {
   ];
 }
 
+// Strict structured-output schema. OpenRouter FORCES the model's JSON to match
+// this exactly on providers that support it (nvidia/nemotron-3-super, gpt-4o-mini,
+// …). This is the real fix for schema drift: the model literally cannot rename
+// `kind`→`action`, omit it, or return a free-form reply instead of choosing a
+// valid action — which is exactly how Nemotron failed before. Flat + nullable
+// (strict mode requires every property in `required`); the frontend reads only
+// the fields relevant to the chosen kind.
+const ACTION_SCHEMA = {
+  name: 'zypit_action',
+  strict: true,
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      kind: { type: 'string', enum: ['create_task', 'complete_task', 'delete_task', 'list_my_tasks', 'send_file', 'find_file', 'announce', 'who_checked_in', 'remember_nickname', 'set_priority', 'add_note', 'ask_data', 'clarify', 'chat'] },
+      title:       { type: ['string', 'null'] },
+      taskQuery:   { type: ['string', 'null'] },
+      personQuery: { type: ['string', 'null'] },
+      fileQuery:   { type: ['string', 'null'] },
+      priority:    { type: ['string', 'null'], enum: ['urgent', 'high', 'medium', 'low', null] },
+      today:       { type: ['boolean', 'null'] },
+      body:        { type: ['string', 'null'] },
+      question:    { type: ['string', 'null'] },
+      nickname:    { type: ['string', 'null'] },
+      note:        { type: ['string', 'null'] },
+      text:        { type: ['string', 'null'] },
+      options:     { type: ['array', 'null'], items: { type: 'string' } },
+      reply_text:  { type: ['string', 'null'] },
+    },
+    required: ['kind', 'title', 'taskQuery', 'personQuery', 'fileQuery', 'priority', 'today', 'body', 'question', 'nickname', 'note', 'text', 'options', 'reply_text'],
+  },
+};
+
 async function callOpenRouter(body: ReqBody): Promise<any> {
-  // Default chat brain = gpt-4o-mini: reliably honors the strict JSON action
-  // schema + json_object mode + Hinglish. (Nemotron 3 Super was trialled but
-  // drifted the schema unpredictably and fabricated data — see git history.)
-  // A Vercel OPENROUTER_MODEL env var still overrides this if you want to swap.
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  // Default chat brain = NVIDIA Nemotron 3 Super (free), constrained by the strict
+  // ACTION_SCHEMA above so it can't drift the contract. A Vercel OPENROUTER_MODEL
+  // env var still overrides this.
+  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
+  const post = (responseFormat: any) => fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -216,20 +248,23 @@ async function callOpenRouter(body: ReqBody): Promise<any> {
       'HTTP-Referer': 'https://gms-seven-black.vercel.app',
       'X-Title': 'Zypit',
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: chatMessages(body),
-    }),
+    body: JSON.stringify({ model, temperature: 0, response_format: responseFormat, messages: chatMessages(body) }),
   });
-  const json = await res.json();
+
+  // Try strict structured output first; if the chosen model/provider doesn't
+  // support it (4xx about response_format/schema), fall back to json_object so
+  // chat never hard-breaks on a model swap.
+  let res = await post({ type: 'json_schema', json_schema: ACTION_SCHEMA });
+  let json = await res.json();
+  if (!res.ok && /schema|response_format|json_schema|structured|not support/i.test(json?.error?.message || '')) {
+    res = await post({ type: 'json_object' });
+    json = await res.json();
+  }
   if (!res.ok) throw new Error(json?.error?.message || `OpenRouter error ${res.status}`);
   const raw = json.choices?.[0]?.message?.content ?? '{}';
   const action = parseModelJson(raw);
-  // Diagnostic: surface which model OpenRouter actually used. The frontend
-  // ignores unknown fields, so this is harmless — but it lets us confirm the
-  // live model instead of guessing (visible in the network response).
+  // Diagnostic: surface which model OpenRouter actually used (visible in the
+  // network response); the frontend ignores unknown fields.
   if (json.model && action && typeof action === 'object') action._model = json.model;
   return action;
 }
