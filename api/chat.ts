@@ -236,10 +236,13 @@ const ACTION_SCHEMA = {
 };
 
 async function callOpenRouter(body: ReqBody): Promise<any> {
-  // Default chat brain = NVIDIA Nemotron 3 Super (free), constrained by the strict
-  // ACTION_SCHEMA above so it can't drift the contract. A Vercel OPENROUTER_MODEL
-  // env var still overrides this.
-  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
+  // Default = gpt-4o-mini: fast (~1-2s) + honors the strict ACTION_SCHEMA + correct
+  // routing + Hinglish. Nemotron 3 Super was made schema-reliable via structured
+  // outputs (below), BUT the FREE tier is ~50s/call and still mis-routes data
+  // questions — unusable for chat. To use Nemotron, add OpenRouter credits and set
+  // OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b (paid, no :free); the strict
+  // schema already applies. See git history for the full evaluation.
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
   const post = (responseFormat: any) => fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
