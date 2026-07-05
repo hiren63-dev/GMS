@@ -9,6 +9,10 @@ import { interpret, assess, execute, buildGreeting, type AgentAction, type Agent
 // real time as the assistant does them. WhatsApp-business-style quick-reply
 // buttons remove typing friction (slot-filling, disambiguation, next steps).
 // Design: the dashboard's own tokens — restrained, single blue accent.
+// Motion: all animation lives in the bd-* style block below — compositor
+// properties only (transform + opacity), ease-out-expo signature curve,
+// reduced-motion-safe. Accent runs through --bd-accent so dark mode can
+// desaturate/brighten it (#2563EB → #3B82F6) per light-physics rules.
 // ─────────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -29,10 +33,10 @@ interface HistoryItem { label: string; at: number }
 
 const MAX_MSGS = 60;
 const UNDO_WINDOW = 6000;
-const ACCENT = '#2563EB';
 
 let _mid = 0;
 const nextId = () => ++_mid;
+let _launcherPulsed = false; // discoverability pulse plays once per session, not per mount
 
 export default function ChatDock({ employee, employees }: Props) {
   const [open, setOpen] = useState(false);
@@ -206,22 +210,23 @@ export default function ChatDock({ employee, employees }: Props) {
       {!open && (
         <button
           onClick={() => setOpen(true)}
+          onAnimationStart={() => { _launcherPulsed = true; }}
           aria-label="Open assistant (Ctrl+K)"
           title="Ask Zypit — Ctrl+K"
-          className="bd-launcher"
+          className={'bd-launcher' + (_launcherPulsed ? '' : ' bd-launcher-pulse')}
           style={{
             position: 'fixed', right: 24, bottom: 24, zIndex: 60,
             height: 44, padding: '0 16px 0 12px', borderRadius: 999, cursor: 'pointer',
             background: 'var(--text, #111)', color: 'var(--surface, #fff)',
             border: '1px solid transparent',
             display: 'flex', alignItems: 'center', gap: 8,
-            fontSize: 13.5, fontWeight: 600, fontFamily: 'inherit',
+            fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
             boxShadow: 'var(--card-shadow-hover, 0 4px 16px rgba(0,0,0,.14))',
           }}
         >
           <span style={{ fontSize: 15 }}>✦</span> Ask
           <kbd style={{
-            fontSize: 10.5, fontWeight: 500, opacity: .65, padding: '2px 5px',
+            fontSize: 11, fontWeight: 500, opacity: .65, padding: '2px 4px',
             borderRadius: 4, border: '1px solid currentColor', fontFamily: 'inherit',
           }}>⌘K</kbd>
         </button>
@@ -241,35 +246,35 @@ export default function ChatDock({ employee, employees }: Props) {
           }}
         >
           {/* Header */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
+          <div className="bd-header" style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: 16,
             background: 'var(--surface, #fff)', borderBottom: '1px solid var(--border, #E9E9E7)',
           }}>
             <span style={{
-              width: 32, height: 32, borderRadius: 9, background: ACCENT, color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+              width: 32, height: 32, borderRadius: 6, background: 'var(--bd-accent)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0,
             }}>✦</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 650, fontSize: 14.5, letterSpacing: '-0.01em' }}>Assistant</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ fontWeight: 650, fontSize: 14, letterSpacing: '-0.01em' }}>Assistant</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted, #888)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
                 Working live on your dashboard
               </div>
             </div>
             <button onClick={() => setShowHistory(s => !s)} aria-label="Recent actions" title="Recent actions"
-              style={iconBtn(showHistory)}>🕑</button>
+              className="bd-iconbtn" style={iconBtn(showHistory)}>🕑</button>
             <button onClick={() => setOpen(false)} aria-label="Close (Esc)" title="Close — Esc"
-              style={iconBtn(false)}>×</button>
+              className="bd-iconbtn" style={iconBtn(false)}>×</button>
           </div>
 
           {/* History drawer */}
           {showHistory && (
-            <div style={{ maxHeight: 180, overflowY: 'auto', padding: '10px 16px', borderBottom: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)' }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .6, color: 'var(--text-faint,#BBB)', marginBottom: 6 }}>Recent actions</div>
+            <div className="bd-drawer" style={{ maxHeight: 180, overflowY: 'auto', padding: '12px 16px', borderBottom: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .6, color: 'var(--text-faint,#BBB)', marginBottom: 8 }}>Recent actions</div>
               {history.length === 0
-                ? <div style={{ fontSize: 12.5, color: 'var(--text-muted,#888)' }}>Nothing yet. Actions I take will show here.</div>
+                ? <div className="bd-drawer-item" style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>Nothing yet. Actions I take will show here.</div>
                 : history.map((h, i) => (
-                  <div key={i} style={{ fontSize: 12.5, padding: '4px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <div key={i} className="bd-drawer-item" style={{ fontSize: 12, padding: '4px 0', display: 'flex', justifyContent: 'space-between', gap: 8, animationDelay: `${Math.min(i, 10) * 30}ms` }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.label}</span>
                     <span style={{ color: 'var(--text-faint,#BBB)', flexShrink: 0 }}>{timeAgo(h.at)}</span>
                   </div>
@@ -278,12 +283,13 @@ export default function ChatDock({ employee, employees }: Props) {
           )}
 
           {/* Messages */}
-          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg, #F7F7F6)' }}>
+          <div ref={scrollRef} className="bd-body" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg, #F7F7F6)' }}>
             {msgs.map(m => (
-              <div key={m.id} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }} className="bd-msg">
+              <div key={m.id} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}
+                className={m.role === 'user' ? 'bd-msg bd-msg-user' : 'bd-msg bd-msg-bot'}>
                 <div style={{
-                  padding: '8px 12px', borderRadius: 12, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-                  background: m.role === 'user' ? ACCENT : m.ok === false ? '#FEF2F2' : 'var(--surface,#fff)',
+                  padding: '8px 12px', borderRadius: 12, fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                  background: m.role === 'user' ? 'var(--bd-accent)' : m.ok === false ? '#FEF2F2' : 'var(--surface,#fff)',
                   color: m.role === 'user' ? '#fff' : m.ok === false ? '#B91C1C' : 'var(--text,#111)',
                   border: m.role === 'user' ? 'none' : `1px solid ${m.ok === false ? '#FECACA' : 'var(--border,#E9E9E7)'}`,
                   borderBottomRightRadius: m.role === 'user' ? 4 : 12,
@@ -293,13 +299,14 @@ export default function ChatDock({ employee, employees }: Props) {
 
                 {/* Quick-reply buttons: one tap instead of typing */}
                 {m.options && m.options.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                     {m.options.map((o, i) => (
-                      <button key={i} onClick={() => handleOption(m.id, o)} className="bd-chip"
+                      <button key={i} onClick={() => handleOption(m.id, o)} className="bd-chip bd-chip-accent"
                         style={{
-                          fontSize: 12.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
-                          border: `1px solid ${ACCENT}33`, background: 'var(--surface,#fff)',
-                          color: ACCENT, cursor: 'pointer', fontFamily: 'inherit',
+                          fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999,
+                          border: '1px solid var(--bd-accent-soft)', background: 'var(--surface,#fff)',
+                          color: 'var(--bd-accent)', cursor: 'pointer', fontFamily: 'inherit',
+                          animationDelay: `${i * 40}ms`,
                         }}>
                         {o.label}
                       </button>
@@ -308,34 +315,38 @@ export default function ChatDock({ employee, employees }: Props) {
                 )}
 
                 {m.undo && (
-                  <button onClick={() => runUndo(m.id, m.undo!)}
-                    style={{ marginTop: 5, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: ACCENT, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button onClick={() => runUndo(m.id, m.undo!)} className="bd-undo"
+                    style={{ marginTop: 4, fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: 'var(--bd-accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
                     ↩ Undo
                   </button>
                 )}
               </div>
             ))}
 
-            {/* Risky-action confirm with 3-2-1 countdown */}
+            {/* Risky-action confirm with 3-2-1 countdown + visible time drain */}
             {pending && (
-              <div style={{ alignSelf: 'flex-start', maxWidth: '92%', background: 'var(--surface,#fff)', border: '1px solid #FCD34D', borderRadius: 12, padding: 12, boxShadow: 'var(--card-shadow)' }}>
-                <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{pending.text}</div>
+              <div className="bd-msg bd-msg-bot" style={{ alignSelf: 'flex-start', maxWidth: '92%', position: 'relative', overflow: 'hidden', background: 'var(--surface,#fff)', border: '1px solid #FCD34D', borderRadius: 12, padding: 16, boxShadow: 'var(--card-shadow)' }}>
+                <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{pending.text}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button onClick={() => { const a = pending.action; setPending(null); void commit(a); }}
-                    style={{ flex: 1, height: 34, borderRadius: 8, border: 'none', background: ACCENT, color: '#fff', fontWeight: 650, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button onClick={() => { const a = pending.action; setPending(null); void commit(a); }} className="bd-press"
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: 'var(--bd-accent)', color: '#fff', fontWeight: 650, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Confirm ({pending.count})
                   </button>
-                  <button onClick={() => { setPending(null); setMsgs(m => [...m, { id: nextId(), role: 'bot', ok: true, text: 'Okay, cancelled — nothing changed.' }]); }}
-                    style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <button onClick={() => { setPending(null); setMsgs(m => [...m, { id: nextId(), role: 'bot', ok: true, text: 'Okay, cancelled — nothing changed.' }]); }} className="bd-press"
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Cancel
                   </button>
                 </div>
-                <div style={{ fontSize: 10.5, color: 'var(--text-faint,#BBB)', marginTop: 7, textAlign: 'center' }}>Auto-confirms in {pending.count}s · Cancel to stop</div>
+                <div style={{ fontSize: 11, color: 'var(--text-faint,#BBB)', marginTop: 8, textAlign: 'center' }}>Auto-confirms in {pending.count}s · Cancel to stop</div>
+                {/* Draining time bar — remounts (keyed) each time a pending action appears */}
+                <div key={pending.text} aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, background: 'var(--bd-ring)' }}>
+                  <div className="bd-drain" style={{ height: '100%', borderRadius: 99, background: 'var(--bd-accent)' }} />
+                </div>
               </div>
             )}
 
             {busy && (
-              <div style={{ alignSelf: 'flex-start', padding: '10px 13px', borderRadius: 12, background: 'var(--surface,#fff)', border: '1px solid var(--border,#E9E9E7)' }}>
+              <div className="bd-msg bd-msg-bot" style={{ alignSelf: 'flex-start', padding: '8px 12px', borderRadius: 12, borderBottomLeftRadius: 4, background: 'var(--surface,#fff)', border: '1px solid var(--border,#E9E9E7)' }}>
                 <span style={{ display: 'inline-flex', gap: 4 }}>
                   {[0, 1, 2].map(i => (
                     <span key={i} className="bd-dot" style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--text-muted,#888)', display: 'inline-block', animationDelay: `${i * 0.15}s` }} />
@@ -346,11 +357,11 @@ export default function ChatDock({ employee, employees }: Props) {
 
             {/* Personalized starter chips */}
             {chips.length > 0 && !busy && !pending && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                {chips.map(s => (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                {chips.map((s, i) => (
                   <button key={s} onClick={() => send(s)}
                     className="bd-chip"
-                    style={{ fontSize: 12, padding: '6px 11px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: 'var(--text,#111)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ fontSize: 12, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)', color: 'var(--text,#111)', cursor: 'pointer', fontFamily: 'inherit', animationDelay: `${i * 40}ms` }}>
                     {s}
                   </button>
                 ))}
@@ -359,17 +370,18 @@ export default function ChatDock({ employee, employees }: Props) {
           </div>
 
           {/* Composer */}
-          <div style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--border,#E9E9E7)', background: 'var(--surface,#fff)' }}>
+          <div className="bd-composer" style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid var(--border,#E9E9E7)', background: 'var(--surface, #fff)' }}>
             <input
               ref={inputRef}
+              className="bd-input"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') send(); }}
               placeholder={recording ? 'Listening… tap ■ to stop' : transcribing ? 'Transcribing…' : 'Type or tap 🎤 — say it any way you like'}
               disabled={busy || transcribing}
               style={{
-                flex: 1, height: 42, borderRadius: 10, border: '1.5px solid var(--border,#E9E9E7)',
-                padding: '0 12px', fontSize: 13.5, outline: 'none',
+                flex: 1, height: 44, borderRadius: 12, border: '1px solid var(--border,#E9E9E7)',
+                padding: '0 12px', fontSize: 13, outline: 'none',
                 background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontFamily: 'inherit',
               }}
             />
@@ -379,10 +391,10 @@ export default function ChatDock({ employee, employees }: Props) {
               disabled={busy || transcribing}
               aria-label={recording ? 'Stop recording' : 'Record voice note'}
               title={recording ? 'Stop' : 'Voice note'}
-              className={recording ? 'bd-rec' : ''}
+              className={'bd-mic' + (recording ? ' bd-rec' : '')}
               style={{
-                width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-                border: '1.5px solid ' + (recording ? '#DC2626' : 'var(--border,#E9E9E7)'),
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                border: '1px solid ' + (recording ? '#DC2626' : 'var(--border,#E9E9E7)'),
                 background: recording ? '#DC2626' : 'var(--surface2,#F7F7F6)',
                 color: recording ? '#fff' : 'var(--text-muted,#888)',
                 cursor: busy || transcribing ? 'default' : 'pointer', fontSize: 16,
@@ -390,36 +402,135 @@ export default function ChatDock({ employee, employees }: Props) {
               }}>
               {transcribing ? '…' : recording ? '■' : '🎤'}
             </button>
-            <button onClick={() => send()} disabled={busy || transcribing || !input.trim()}
+            <button onClick={() => send()} disabled={busy || transcribing || !input.trim()} className="bd-press"
               style={{
-                height: 42, padding: '0 16px', borderRadius: 10, border: 'none',
+                height: 44, padding: '0 16px', borderRadius: 12, border: 'none',
                 cursor: busy || transcribing || !input.trim() ? 'default' : 'pointer',
-                background: busy || transcribing || !input.trim() ? 'var(--border,#E9E9E7)' : ACCENT,
+                background: busy || transcribing || !input.trim() ? 'var(--border,#E9E9E7)' : 'var(--bd-accent)',
                 color: busy || transcribing || !input.trim() ? 'var(--text-muted,#888)' : '#fff',
-                fontWeight: 650, fontSize: 13.5, fontFamily: 'inherit',
+                fontWeight: 650, fontSize: 13, fontFamily: 'inherit',
               }}>Send</button>
           </div>
         </div>
       )}
 
       <style>{`
-        .bd-launcher { transition: transform 150ms ease, box-shadow 150ms ease; }
+        /* ── bd- motion + accent tokens ─────────────────────────────────
+           Curves: --bd-ease = ease-out-expo (signature, entrances settle);
+           --bd-swift = standard material curve (state changes).
+           Durations: 120 micro / 200 small / 320 element / 460 panel.
+           Everything animates transform+opacity only (compositor-safe);
+           the two box-shadow pulses (launcher ping, rec breathe) are the
+           sanctioned exceptions — they run on idle, low-frequency states. */
+        :root {
+          --bd-ease: cubic-bezier(0.16, 1, 0.3, 1);
+          --bd-swift: cubic-bezier(0.4, 0, 0.2, 1);
+          --bd-dur-micro: 120ms;
+          --bd-dur-small: 200ms;
+          --bd-dur-el: 320ms;
+          --bd-dur-panel: 460ms;
+          --bd-accent: #2563EB;
+          --bd-accent-soft: rgba(37, 99, 235, .22);
+          --bd-ring: rgba(37, 99, 235, .15);
+        }
+        /* Dark-mode light physics: desaturate + lift the accent so it does
+           not vibrate against #1C1C1C elevated surfaces. */
+        .dark {
+          --bd-accent: #3B82F6;
+          --bd-accent-soft: rgba(59, 130, 246, .32);
+          --bd-ring: rgba(59, 130, 246, .20);
+        }
+
+        /* ── Launcher ── */
+        .bd-launcher { transition: transform var(--bd-dur-micro) var(--bd-swift), box-shadow var(--bd-dur-micro) var(--bd-swift); }
         .bd-launcher:hover { transform: translateY(-1px); }
-        .bd-panel { animation: bd-slide .2s ease-out; }
-        .bd-msg { animation: bd-in .16s ease-out; }
-        .bd-chip { transition: border-color 120ms, background 120ms, transform 100ms; }
-        .bd-chip:hover { border-color: var(--border-hover, #C8C8C6); background: var(--surface2, #F7F7F6); }
-        .bd-chip:active { transform: scale(.97); }
-        .bd-dot { animation: bd-bounce 1s infinite ease-in-out; }
-        .bd-rec { animation: bd-pulse 1.1s infinite; }
-        @keyframes bd-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.45); } 50% { box-shadow: 0 0 0 5px rgba(220,38,38,0); } }
-        @keyframes bd-slide { from { opacity: .6; transform: translateX(24px); } to { opacity: 1; transform: none; } }
-        @keyframes bd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-        @keyframes bd-bounce { 0%,80%,100% { transform: scale(.6); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+        .bd-launcher:active { transform: translateY(0) scale(.97); }
+        .bd-launcher:focus-visible { outline: none; box-shadow: var(--card-shadow-hover, 0 4px 16px rgba(0,0,0,.14)), 0 0 0 3px var(--bd-ring); }
+        .bd-launcher-pulse::after {
+          content: ''; position: absolute; inset: 0; border-radius: 999px; pointer-events: none;
+          animation: bd-ping 1.5s var(--bd-swift) 900ms 2;
+        }
+        @keyframes bd-ping {
+          0%   { box-shadow: 0 0 0 0 var(--bd-accent-soft); }
+          100% { box-shadow: 0 0 0 12px transparent; }
+        }
+
+        /* ── Panel entrance: slide in, then interior settles in a stagger ── */
+        .bd-panel { animation: bd-slide var(--bd-dur-panel) var(--bd-ease); }
+        .bd-header   { animation: bd-rise var(--bd-dur-el) var(--bd-ease) 80ms backwards; }
+        .bd-body     { animation: bd-rise var(--bd-dur-el) var(--bd-ease) 130ms backwards; }
+        .bd-composer { animation: bd-rise var(--bd-dur-el) var(--bd-ease) 180ms backwards; }
+        @keyframes bd-slide { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+        @keyframes bd-rise  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+        /* ── Messages: grow from their anchor corner ── */
+        .bd-msg { animation: bd-msg-in var(--bd-dur-el) var(--bd-ease) backwards; }
+        .bd-msg-bot  { transform-origin: bottom left; }
+        .bd-msg-user { transform-origin: bottom right; }
+        @keyframes bd-msg-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+
+        /* ── Quick-reply + starter chips: staggered pop (delay set inline) ── */
+        .bd-chip {
+          animation: bd-chip-in var(--bd-dur-small) var(--bd-ease) backwards;
+          transition: border-color var(--bd-dur-micro) var(--bd-swift), background-color var(--bd-dur-micro) var(--bd-swift), transform var(--bd-dur-micro) var(--bd-swift);
+        }
+        .bd-chip:hover { transform: translateY(-1px); border-color: var(--border-hover, #C8C8C6); background: var(--surface2, #F7F7F6); }
+        .bd-chip-accent:hover { border-color: var(--bd-accent); background: var(--surface, #fff); }
+        .bd-chip:active { transform: scale(.96); transition-duration: 100ms; }
+        .bd-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--bd-ring); }
+        @keyframes bd-chip-in { from { opacity: 0; transform: translateY(4px) scale(.9); } to { opacity: 1; transform: none; } }
+
+        /* ── Countdown drain: 3s linear, synced to the 3-2-1 auto-confirm.
+             scaleX (not width) keeps it on the compositor. ── */
+        .bd-drain { transform-origin: left center; animation: bd-drain 3s linear forwards; }
+        @keyframes bd-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+        /* ── Typing indicator: calm sine wave, 900ms cycle ── */
+        .bd-dot { opacity: .35; animation: bd-wave 900ms ease-in-out infinite; }
+        @keyframes bd-wave {
+          0%, 60%, 100% { transform: translateY(0); opacity: .35; }
+          30%           { transform: translateY(-3px); opacity: 1; }
+        }
+
+        /* ── Undo pill + history drawer ── */
+        .bd-undo { animation: bd-rise-sm var(--bd-dur-small) var(--bd-ease) backwards; }
+        .bd-drawer { animation: bd-drawer-in var(--bd-dur-small) var(--bd-ease); }
+        .bd-drawer-item { animation: bd-rise-sm var(--bd-dur-small) var(--bd-ease) backwards; }
+        @keyframes bd-rise-sm   { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes bd-drawer-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+        /* ── Mic / recording: 200ms state morph, breathing red ring while live ── */
+        .bd-mic { transition: background-color var(--bd-dur-small) var(--bd-swift), border-color var(--bd-dur-small) var(--bd-swift), color var(--bd-dur-small) var(--bd-swift), transform var(--bd-dur-micro) var(--bd-swift); }
+        .bd-mic:not(:disabled):active { transform: scale(.96); }
+        .bd-mic:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--bd-ring); }
+        .bd-rec { animation: bd-breathe 1.6s ease-in-out infinite; }
+        @keyframes bd-breathe {
+          0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, .4); }
+          70%  { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+          100% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+        }
+
+        /* ── Pressables (Send, Confirm, Cancel) + header icon buttons ── */
+        .bd-press { transition: background-color var(--bd-dur-micro) var(--bd-swift), color var(--bd-dur-micro) var(--bd-swift), transform var(--bd-dur-micro) var(--bd-swift); }
+        .bd-press:not(:disabled):active { transform: scale(.98); }
+        .bd-press:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--bd-ring); }
+        .bd-iconbtn { transition: background-color var(--bd-dur-micro) var(--bd-swift), border-color var(--bd-dur-micro) var(--bd-swift), color var(--bd-dur-micro) var(--bd-swift); }
+        .bd-iconbtn:hover { color: var(--text, #111); background: var(--surface2, #F7F7F6); }
+        .bd-iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--bd-ring); }
+
+        /* Dark mode: composer focus ring follows the lifted accent
+           (overrides the global #2563EB !important from index.css). */
+        .dark .bd-input:focus { border-color: var(--bd-accent) !important; box-shadow: 0 0 0 3px var(--bd-ring); }
+
         @media (max-width: 640px) { .bd-panel { width: 100vw !important; border-left: none !important; } }
+
         @media (prefers-reduced-motion: reduce) {
-          .bd-panel, .bd-msg, .bd-dot, .bd-rec { animation: none !important; }
-          .bd-launcher, .bd-chip { transition: none; }
+          .bd-launcher-pulse::after, .bd-panel, .bd-header, .bd-body, .bd-composer,
+          .bd-msg, .bd-chip, .bd-undo, .bd-drawer, .bd-drawer-item,
+          .bd-dot, .bd-rec, .bd-drain { animation: none !important; }
+          .bd-launcher, .bd-chip, .bd-mic, .bd-press, .bd-iconbtn { transition: none !important; }
+          .bd-drain { visibility: hidden; } /* frozen bar would misreport time; the numeric countdown carries it */
+          .bd-dot { opacity: .7; } /* static dots still read as "thinking" */
         }
       `}</style>
     </>
@@ -430,8 +541,8 @@ function iconBtn(active: boolean): CSSProperties {
   return {
     background: active ? 'var(--surface2,#F7F7F6)' : 'transparent',
     border: '1px solid ' + (active ? 'var(--border,#E9E9E7)' : 'transparent'),
-    color: 'var(--text-muted,#888)', width: 28, height: 28, borderRadius: 7,
-    cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: 'var(--text-muted,#888)', width: 32, height: 32, borderRadius: 6,
+    cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
 }
 

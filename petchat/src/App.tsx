@@ -16,6 +16,7 @@ import TeamDirectory from './pages/TeamDirectory';
 import MessagesPage from './pages/MessagesPage';
 import GroupsPage from './pages/GroupsPage';
 import TasksPage from './pages/TasksPage';
+import TeamBoard from './pages/TeamBoard';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import ResourcesPage from './pages/ResourcesPage';
 import ScreentimePage from './pages/ScreentimePage';
@@ -596,6 +597,9 @@ export default function App() {
           )}
           {currentPage === 'tasks' && (
             <TasksPage employee={currentEmployee} />
+          )}
+          {currentPage === 'team-board' && (
+            <TeamBoard employee={currentEmployee} allEmployees={employees} />
           )}
           {currentPage === 'time' && (
             <TimeTracker employee={currentEmployee} />

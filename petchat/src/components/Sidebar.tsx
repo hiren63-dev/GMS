@@ -1,7 +1,7 @@
 import type { Employee } from '../types';
 
 type Page =
-  | 'dashboard' | 'founder' | 'team' | 'messages' | 'tasks' | 'groups'
+  | 'dashboard' | 'founder' | 'team' | 'team-board' | 'messages' | 'tasks' | 'groups'
   | 'time' | 'announcements' | 'resources' | 'screentime'
   | 'org-chart' | 'one-on-one'
   | 'admin' | 'admin-team' | 'admin-tasks' | 'admin-shifts' | 'admin-integrations' | 'admin-health';
@@ -79,6 +79,9 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
         } />
         <NavBtn active={currentPage === 'tasks'} onClick={() => onNavigate('tasks')} label="My Tasks" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        } />
+        <NavBtn active={currentPage === 'team-board'} onClick={() => onNavigate('team-board')} label="Team Board" icon={
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
         } />
         <NavBtn active={currentPage === 'team'} onClick={() => onNavigate('team')} label="Team" icon={
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
