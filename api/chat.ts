@@ -132,8 +132,27 @@ RESPONSE: strict JSON only. No explanations, no markdown fences.`;
 
 // Some models answer with assignee/sendTo/dueToday despite the schema — accept
 // both and normalize to what the frontend executes (personQuery/today).
+const KIND_ALIASES: Record<string, string> = {
+  add_task: 'create_task', new_task: 'create_task', assign_task: 'create_task', task: 'create_task',
+  complete: 'complete_task', done: 'complete_task', finish_task: 'complete_task',
+  delete: 'delete_task', remove: 'delete_task', remove_task: 'delete_task',
+  announcement: 'announce', broadcast: 'announce', question: 'ask_data', query: 'ask_data',
+};
+
 function normalize(a: any): any {
   if (!a || typeof a !== 'object') return { kind: 'chat', text: 'Sorry, I did not catch that — try again?', reply_text: 'Sorry, I did not catch that — try again?' };
+  // Schema-drift tolerance: reasoning models (Nemotron) rename the contract keys
+  // — e.g. {action:"add_task", task:"…", urgent:true} instead of
+  // {kind:"create_task", title:"…", priority:"urgent"}. Map the common drifts
+  // back so the action still executes instead of falling through to chat.
+  if (a.kind === undefined && typeof a.action === 'string') a.kind = a.action;
+  if (a.kind === undefined && typeof a.intent === 'string') a.kind = a.intent;
+  if (typeof a.kind === 'string' && KIND_ALIASES[a.kind]) a.kind = KIND_ALIASES[a.kind];
+  if (a.title === undefined) { if (typeof a.task === 'string') a.title = a.task; else if (typeof a.taskTitle === 'string') a.title = a.taskTitle; }
+  if (a.taskQuery === undefined && a.kind !== 'create_task' && typeof a.task === 'string') a.taskQuery = a.task;
+  if (a.priority === undefined) { if (a.urgent === true) a.priority = 'urgent'; else if (typeof a.priorityLevel === 'string') a.priority = a.priorityLevel; }
+  if (a.today === undefined && typeof a.dueDate === 'string' && /today|aaj/i.test(a.dueDate)) a.today = true;
+  delete a.action; delete a.intent; delete a.task; delete a.taskTitle; delete a.urgent; delete a.priorityLevel;
   if (a.assignee !== undefined && a.personQuery === undefined) a.personQuery = a.assignee;
   if (a.sendTo !== undefined && a.personQuery === undefined) a.personQuery = a.sendTo;
   if (a.dueToday !== undefined && a.today === undefined) a.today = a.dueToday;
