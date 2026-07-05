@@ -203,10 +203,11 @@ function chatMessages(body: ReqBody): { role: string; content: string }[] {
 }
 
 async function callOpenRouter(body: ReqBody): Promise<any> {
-  // Default chat brain = NVIDIA Nemotron 3 Super (free). A Vercel OPENROUTER_MODEL
-  // env var still overrides this if set — so if the model ever looks wrong, check
-  // that env var first (it wins over this default).
-  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
+  // Default chat brain = gpt-4o-mini: reliably honors the strict JSON action
+  // schema + json_object mode + Hinglish. (Nemotron 3 Super was trialled but
+  // drifted the schema unpredictably and fabricated data — see git history.)
+  // A Vercel OPENROUTER_MODEL env var still overrides this if you want to swap.
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
