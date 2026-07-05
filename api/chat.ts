@@ -132,12 +132,29 @@ RESPONSE: strict JSON only. No explanations, no markdown fences.`;
 
 // Some models answer with assignee/sendTo/dueToday despite the schema — accept
 // both and normalize to what the frontend executes (personQuery/today).
-const KIND_ALIASES: Record<string, string> = {
-  add_task: 'create_task', new_task: 'create_task', assign_task: 'create_task', task: 'create_task',
-  complete: 'complete_task', done: 'complete_task', finish_task: 'complete_task',
-  delete: 'delete_task', remove: 'delete_task', remove_task: 'delete_task',
-  announcement: 'announce', broadcast: 'announce', question: 'ask_data', query: 'ask_data',
-};
+const VALID_KINDS = new Set(['create_task', 'complete_task', 'delete_task', 'list_my_tasks', 'send_file', 'find_file', 'announce', 'who_checked_in', 'remember_nickname', 'set_priority', 'add_note', 'ask_data', 'clarify', 'chat']);
+
+// Reasoning models invent their own kind names unpredictably (add_task,
+// mark_task_done, …). Rather than an exact alias table that misses new variants,
+// infer the real kind from whatever string the model produced. Valid kinds pass
+// through untouched.
+function resolveKind(k: string): string {
+  if (VALID_KINDS.has(k)) return k;
+  const s = k.toLowerCase();
+  if (/check(ed)?[_\s-]?in|attendance/.test(s)) return 'who_checked_in';
+  if (/(complete|done|finish|close|mark)/.test(s)) return 'complete_task';
+  if (/(delete|remove|cancel|drop|trash)/.test(s)) return 'delete_task';
+  if (/nickname|remember/.test(s)) return 'remember_nickname';
+  if (/priorit/.test(s)) return 'set_priority';
+  if (/note/.test(s)) return 'add_note';
+  if (/(send|share|forward).*file|file.*(send|share)/.test(s)) return 'send_file';
+  if (/(find|get|retrieve|where).*file|file.*(find|get)/.test(s)) return 'find_file';
+  if (/announce|broadcast|tell.*team/.test(s)) return 'announce';
+  if (/(create|add|new|assign|reminder).*task|task.*(create|add|new)|create_task|add_task/.test(s)) return 'create_task';
+  if (/(list|my).*task/.test(s)) return 'list_my_tasks';
+  if (/(who|what|which|how|ask|query|question|data|report|status|working)/.test(s)) return 'ask_data';
+  return k;
+}
 
 function normalize(a: any): any {
   if (!a || typeof a !== 'object') return { kind: 'chat', text: 'Sorry, I did not catch that — try again?', reply_text: 'Sorry, I did not catch that — try again?' };
@@ -147,7 +164,7 @@ function normalize(a: any): any {
   // back so the action still executes instead of falling through to chat.
   if (a.kind === undefined && typeof a.action === 'string') a.kind = a.action;
   if (a.kind === undefined && typeof a.intent === 'string') a.kind = a.intent;
-  if (typeof a.kind === 'string' && KIND_ALIASES[a.kind]) a.kind = KIND_ALIASES[a.kind];
+  if (typeof a.kind === 'string') a.kind = resolveKind(a.kind);
   if (a.title === undefined) { if (typeof a.task === 'string') a.title = a.task; else if (typeof a.taskTitle === 'string') a.title = a.taskTitle; }
   if (a.taskQuery === undefined && a.kind !== 'create_task' && typeof a.task === 'string') a.taskQuery = a.task;
   if (a.priority === undefined) { if (a.urgent === true) a.priority = 'urgent'; else if (typeof a.priorityLevel === 'string') a.priority = a.priorityLevel; }
