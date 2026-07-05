@@ -167,7 +167,10 @@ function chatMessages(body: ReqBody): { role: string; content: string }[] {
 }
 
 async function callOpenRouter(body: ReqBody): Promise<any> {
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  // Default chat brain = NVIDIA Nemotron 3 Super (free). A Vercel OPENROUTER_MODEL
+  // env var still overrides this if set — so if the model ever looks wrong, check
+  // that env var first (it wins over this default).
+  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -186,7 +189,26 @@ async function callOpenRouter(body: ReqBody): Promise<any> {
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error?.message || `OpenRouter error ${res.status}`);
   const raw = json.choices?.[0]?.message?.content ?? '{}';
-  return JSON.parse(raw.replace(/^```json\s*|\s*```$/g, ''));
+  const action = parseModelJson(raw);
+  // Diagnostic: surface which model OpenRouter actually used. The frontend
+  // ignores unknown fields, so this is harmless — but it lets us confirm the
+  // live model instead of guessing (visible in the network response).
+  if (json.model && action && typeof action === 'object') action._model = json.model;
+  return action;
+}
+
+// Robust JSON extraction. Reasoning models (e.g. Nemotron) can prepend a
+// thinking trace or wrap the object in prose/fences — a plain JSON.parse would
+// throw and drop us to the local fallback parser. Try clean parse first, then
+// fall back to grabbing the outermost {...} block.
+function parseModelJson(raw: string): any {
+  const cleaned = raw.replace(/^```json\s*|\s*```$/g, '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  try { return JSON.parse(cleaned); }
+  catch {
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]);
+    throw new Error('model did not return valid JSON');
+  }
 }
 
 async function callOpenAI(body: ReqBody): Promise<any> {
