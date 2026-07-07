@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Employee, Task, Group, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
+import type { Employee, Task, Group, Message, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -241,6 +241,19 @@ export const onIncomingMessagesChange = (userId: string, cb: (msgs: { timestamp:
         .map(m => ({ timestamp: toMs(m.timestamp) }))
     ),
     (err: any) => console.error('[firestore] unread query failed:', err?.message ?? err),
+  );
+
+// Full incoming 1:1 messages (sender name + content) — used for pop-up notifications.
+export const onIncomingMessagesFull = (userId: string, cb: (msgs: Message[]) => void) =>
+  onSnapshot(
+    query(collection(db, 'messages'), where('participants', 'array-contains', userId)),
+    s => cb(
+      s.docs
+        .map(d => ({ id: d.id, ...(d.data() as any) }))
+        .filter((m: any) => !m.isGroupChat && m.recipientId === userId)
+        .map((m: any) => ({ ...m, timestamp: toMs(m.timestamp) })) as Message[]
+    ),
+    (err: any) => console.error('[firestore] incoming-full query failed:', err?.message ?? err),
   );
 
 // ── Tasks ─────────────────────────────────────────────────────────────────

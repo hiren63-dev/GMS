@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange, onIncomingMessagesFull, onUserTasksChange, onAnnouncementsChange, filterAnnouncements } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import type { Department, Role } from './types';
@@ -32,6 +32,8 @@ import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInMo
 import TimeTracker from './components/TimeTracker';
 import ChatDock from './components/ChatDock';
 import { InstallPrompt, UpdateBanner } from './components/SystemPrompts';
+import NotificationCenter from './components/NotificationCenter';
+import { pushNotification, ensureNotifyPermission, randomMotivation } from './services/notifications';
 
 import './index.css';
 
@@ -103,10 +105,114 @@ export default function App() {
     }
   }, [currentEmployee?.id]);
 
-  // Show daily check-in popup once per day on first login
+  // Daily first-open prompt — bottom-right pop-up, once per day, only during the
+  // 11:00 → midnight working window. Sticky until they check in / add a task / close.
   useEffect(() => {
     if (!currentEmployee) return;
-    setShowCheckin(!checkinDoneToday(currentEmployee.id));
+    if (checkinDoneToday(currentEmployee.id)) return;
+    const hour = new Date().getHours();
+    if (hour < 11) return; // outside the window — don't nag before 11am
+    const firstName = currentEmployee.name.split(' ')[0];
+    const t = setTimeout(() => {
+      pushNotification({
+        kind: 'checkin',
+        title: `Welcome back, ${firstName} ☀️`,
+        body: `${randomMotivation()}  Check in and set your tasks for today.`,
+        autoCloseMs: null, // sticky — needs a decision
+        actions: [
+          { label: 'Check in', page: 'checkin', primary: true },
+          { label: 'Add task', page: 'tasks' },
+        ],
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [currentEmployee?.id]);
+
+  // Ask for OS-notification permission once we have a signed-in user (login is a
+  // user gesture, so the browser prompt is allowed here).
+  useEffect(() => {
+    if (currentEmployee) ensureNotifyPermission();
+  }, [currentEmployee?.id]);
+
+  // Live pop-up notifications: new tasks, due tasks, new messages, announcements.
+  // Fires OS notifications when you're on another tab; in-app cards otherwise.
+  useEffect(() => {
+    if (!currentEmployee) return;
+    const me = currentEmployee;
+
+    // De-dupe state — prime on first snapshot so we don't alert the whole backlog.
+    const knownTaskIds = new Set<string>();
+    const dueAlerted   = new Set<string>();
+    const knownAnnIds  = new Set<string>();
+    let tasksPrimed = false;
+    let annPrimed   = false;
+    let lastMsgTs   = Date.now();
+
+    const unsubTasks = onUserTasksChange(me.id, tasks => {
+      for (const t of tasks) {
+        // New task assigned to me (after this session started)
+        if (!tasksPrimed) {
+          knownTaskIds.add(t.id);
+        } else if (!knownTaskIds.has(t.id)) {
+          knownTaskIds.add(t.id);
+          if (t.status !== 'done' && t.assignedById !== me.id) {
+            pushNotification({
+              kind: 'task', title: 'New task assigned', body: t.title,
+              actions: [{ label: 'View', page: 'tasks', primary: true }],
+            });
+          }
+        }
+        // Due within the next 60 min (or overdue) and not done — alert once.
+        if (t.dueDate && t.status !== 'done' && !dueAlerted.has(t.id)) {
+          const mins = (t.dueDate - Date.now()) / 60000;
+          if (mins <= 60) {
+            dueAlerted.add(t.id);
+            pushNotification({
+              kind: 'task_due',
+              title: mins < 0 ? 'Task overdue' : 'Task due soon',
+              body: t.title,
+              actions: [{ label: 'View', page: 'tasks', primary: true }],
+            });
+          }
+        }
+      }
+      tasksPrimed = true;
+    });
+
+    const unsubMsg = onIncomingMessagesFull(me.id, msgs => {
+      const fresh = msgs.filter(m => m.timestamp > lastMsgTs);
+      lastMsgTs = msgs.reduce((mx, m) => Math.max(mx, m.timestamp), lastMsgTs);
+      // Don't buzz for a chat you're actively looking at.
+      for (const m of fresh.slice(-3)) {
+        if (currentPageRef.current === 'messages' && messageTargetRef.current === m.senderId) continue;
+        pushNotification({
+          kind: 'message',
+          title: m.senderName || 'New message',
+          body: (m.content || 'Sent you a message').slice(0, 140),
+          actions: [{ label: 'Open chat', page: 'messages', targetId: m.senderId, primary: true }],
+        });
+      }
+    });
+
+    const unsubAnn = onAnnouncementsChange(items => {
+      const mine = filterAnnouncements(items, me);
+      for (const a of mine) {
+        if (!annPrimed) {
+          knownAnnIds.add(a.id);
+        } else if (!knownAnnIds.has(a.id)) {
+          knownAnnIds.add(a.id);
+          pushNotification({
+            kind: 'announcement', title: a.title, body: (a.body || '').slice(0, 140),
+            actions: [{ label: 'View', page: 'announcements', primary: true }],
+          });
+        }
+      }
+      annPrimed = true;
+    });
+
+    return () => { unsubTasks(); unsubMsg(); unsubAnn(); };
+    // messageTargetId/currentPage read via closure refresh on their own deps below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEmployee?.id]);
 
   // Live unread badge: count incoming 1:1 messages newer than the last time the
@@ -132,6 +238,13 @@ export default function App() {
   // (avoids the stale-closure race between handleLogin and onAuthChange).
   const currentEmpRef = useRef<Employee | null>(currentEmployee);
   useEffect(() => { currentEmpRef.current = currentEmployee; }, [currentEmployee]);
+
+  // Fresh refs for the long-lived notification listeners (which only re-bind on
+  // login) so the "don't buzz for the chat I'm viewing" check stays current.
+  const currentPageRef = useRef(currentPage);
+  const messageTargetRef = useRef(messageTargetId);
+  useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+  useEffect(() => { messageTargetRef.current = messageTargetId; }, [messageTargetId]);
 
   // Restore session from Firebase Auth (only if not already signed in via the form)
   useEffect(() => {
@@ -642,6 +755,8 @@ export default function App() {
       )}
 
       <ChatDock employee={currentEmployee} employees={employees} />
+
+      <NotificationCenter onNavigate={navigate} />
 
       <UpdateBanner />
       <InstallPrompt />

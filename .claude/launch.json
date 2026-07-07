@@ -11,7 +11,7 @@
       "name": "petchat-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "petchat"],
-      "port": 3000
+      "port": 5173
     }
   ]
 }
