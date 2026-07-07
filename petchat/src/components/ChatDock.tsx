@@ -8,11 +8,11 @@ import { interpret, assess, execute, buildGreeting, type AgentAction, type Agent
 // The dashboard stays visible and LIVE next to it, so actions render in
 // real time as the assistant does them. WhatsApp-business-style quick-reply
 // buttons remove typing friction (slot-filling, disambiguation, next steps).
-// Design: the dashboard's own tokens — restrained, single blue accent.
-// Motion: all animation lives in the bd-* style block below — compositor
-// properties only (transform + opacity), ease-out-expo signature curve,
-// reduced-motion-safe. Accent runs through --bd-accent so dark mode can
-// desaturate/brighten it (#2563EB → #3B82F6) per light-physics rules.
+// Design: the dashboard's own Notion-contract tokens — restrained, single
+// structural blue (--accent). Motion: all animation lives in the bd-* style
+// block below — compositor properties only (transform + opacity), quick
+// quiet fades, reduced-motion-safe. --bd-accent inherits the global --accent
+// so light/dark stay in sync automatically.
 // ─────────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -416,29 +416,29 @@ export default function ChatDock({ employee, employees }: Props) {
 
       <style>{`
         /* ── bd- motion + accent tokens ─────────────────────────────────
-           Curves: --bd-ease = ease-out-expo (signature, entrances settle);
-           --bd-swift = standard material curve (state changes).
-           Durations: 120 micro / 200 small / 320 element / 460 panel.
+           Notion-quiet motion: quick fades that settle, no spring, no
+           overshoot. Curves/durations follow the global contract
+           (100 micro / 150 small / 240 element / 320 panel). The accent
+           inherits the global --accent token (#0075de light, lifted in
+           dark), so the dock always matches the one structural blue.
            Everything animates transform+opacity only (compositor-safe);
            the two box-shadow pulses (launcher ping, rec breathe) are the
            sanctioned exceptions — they run on idle, low-frequency states. */
         :root {
-          --bd-ease: cubic-bezier(0.16, 1, 0.3, 1);
+          --bd-ease: cubic-bezier(0.25, 1, 0.5, 1);
           --bd-swift: cubic-bezier(0.4, 0, 0.2, 1);
-          --bd-dur-micro: 120ms;
-          --bd-dur-small: 200ms;
-          --bd-dur-el: 320ms;
-          --bd-dur-panel: 460ms;
-          --bd-accent: #2563EB;
-          --bd-accent-soft: rgba(37, 99, 235, .22);
-          --bd-ring: rgba(37, 99, 235, .15);
+          --bd-dur-micro: 100ms;
+          --bd-dur-small: 150ms;
+          --bd-dur-el: 240ms;
+          --bd-dur-panel: 320ms;
+          --bd-accent: var(--accent);
+          --bd-accent-soft: rgba(0,117,222, .20);
+          --bd-ring: var(--ring);
         }
-        /* Dark-mode light physics: desaturate + lift the accent so it does
-           not vibrate against #1C1C1C elevated surfaces. */
+        /* Dark mode: accent inherits the lifted global token; soft tint
+           re-derived from it so the ping doesn't vibrate on #202020. */
         .dark {
-          --bd-accent: #3B82F6;
-          --bd-accent-soft: rgba(59, 130, 246, .32);
-          --bd-ring: rgba(59, 130, 246, .20);
+          --bd-accent-soft: rgba(75, 163, 227, .28);
         }
 
         /* ── Launcher ── */
@@ -519,7 +519,7 @@ export default function ChatDock({ employee, employees }: Props) {
         .bd-iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--bd-ring); }
 
         /* Dark mode: composer focus ring follows the lifted accent
-           (overrides the global #2563EB !important from index.css). */
+           (overrides the global var(--accent) !important from index.css). */
         .dark .bd-input:focus { border-color: var(--bd-accent) !important; box-shadow: 0 0 0 3px var(--bd-ring); }
 
         @media (max-width: 640px) { .bd-panel { width: 100vw !important; border-left: none !important; } }

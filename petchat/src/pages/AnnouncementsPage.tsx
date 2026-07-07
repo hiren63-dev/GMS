@@ -67,7 +67,7 @@ function AnnouncementCard({ a, canPost, employee, onPin, onDelete }: Announcemen
           <div className="flex gap-1 flex-shrink-0">
             <button onClick={() => onPin(a)} title={a.pinned ? 'Unpin' : 'Pin'}
               className="text-sm p-1.5 rounded-lg transition hover:bg-gray-100 dark:hover:bg-white/10"
-              style={{ color: a.pinned ? '#3B82F6' : 'var(--text-muted)' }}>📌</button>
+              style={{ color: a.pinned ? 'var(--accent)' : 'var(--text-muted)' }}>📌</button>
             <button onClick={() => onDelete(a.id)}
               className="text-sm p-1.5 rounded-lg transition hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
               style={{ color: 'var(--text-muted)' }}>🗑️</button>
@@ -88,7 +88,7 @@ function AnnouncementCard({ a, canPost, employee, onPin, onDelete }: Announcemen
           <div className="mt-3 space-y-2">
             {replies.map(r => (
               <div key={r.id} className="flex gap-2 items-start">
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--surface)', flexShrink: 0 }}>
                   {r.authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '6px 10px', flex: 1 }}>
@@ -102,11 +102,11 @@ function AnnouncementCard({ a, canPost, employee, onPin, onDelete }: Announcemen
                 placeholder="Write a reply…"
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
                 style={{ flex: 1, height: 34, padding: '0 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--border)')}
               />
               <button onClick={handleReply} disabled={replying || !replyText.trim()}
-                style={{ height: 34, padding: '0 14px', background: '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: replyText.trim() ? 1 : 0.5 }}>
+                style={{ height: 34, padding: '0 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: replyText.trim() ? 1 : 0.5 }}>
                 {replying ? '…' : 'Reply'}
               </button>
             </div>

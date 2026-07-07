@@ -70,9 +70,9 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
         <button key={String(v)} type="button" onClick={() => onChange(v)}
           style={{
             flex: 1, height: 40, borderRadius: 8,
-            border: `1.5px solid ${value === v ? '#2563EB' : '#E9E9E7'}`,
+            border: `1.5px solid ${value === v ? 'var(--accent)' : '#E9E9E7'}`,
             background: value === v ? '#EFF6FF' : '#F7F7F6',
-            color: value === v ? '#2563EB' : '#555',
+            color: value === v ? 'var(--accent)' : '#555',
             fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 120ms',
           }}>
           {v ? '👍 Yes' : '👎 No'}
@@ -94,7 +94,7 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
         animation: 'fadeIn 200ms ease both',
       }}>
         <div style={{ marginBottom: 26 }}>
-          <div style={{ fontSize: 22, fontWeight: 600, color: '#111', letterSpacing: '-0.02em', marginBottom: 4 }}>{greeting}</div>
+          <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>{greeting}</div>
           <div style={{ fontSize: 13, color: '#888' }}>Quick check-in before you dive in — takes 10 seconds.</div>
         </div>
 
@@ -107,13 +107,13 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
                 <button key={m.value} type="button" onClick={() => setMood(m.value)}
                   style={{
                     flex: 1, padding: '10px 2px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                    border: `1.5px solid ${mood === m.value ? '#2563EB' : '#E9E9E7'}`,
+                    border: `1.5px solid ${mood === m.value ? 'var(--accent)' : '#E9E9E7'}`,
                     borderRadius: 10,
                     background: mood === m.value ? '#EFF6FF' : '#F7F7F6',
                     cursor: 'pointer', transition: 'all 120ms',
                   }}>
                   <span style={{ fontSize: 22 }}>{m.emoji}</span>
-                  <span style={{ fontSize: 10, color: mood === m.value ? '#2563EB' : '#888', fontWeight: 500 }}>{m.label}</span>
+                  <span style={{ fontSize: 10, color: mood === m.value ? 'var(--accent)' : '#888', fontWeight: 500 }}>{m.label}</span>
                 </button>
               ))}
             </div>
@@ -142,7 +142,7 @@ export default function DailyCheckInModal({ employee, onDone }: Props) {
             disabled={!allAnswered}
             style={{
               width: '100%', height: 46, marginTop: 4, border: 'none', borderRadius: 10,
-              background: allAnswered ? '#2563EB' : '#E9E9E7',
+              background: allAnswered ? 'var(--accent)' : '#E9E9E7',
               color: allAnswered ? '#fff' : '#AAA',
               fontSize: 14, fontWeight: 600,
               cursor: allAnswered ? 'pointer' : 'not-allowed',

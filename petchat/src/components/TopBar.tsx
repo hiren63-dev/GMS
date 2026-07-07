@@ -129,7 +129,7 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
                     <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department} · {emp.role}</div>
                   </div>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials}</div>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials}</div>
                 </div>
               );
             })}
@@ -150,9 +150,9 @@ export default function TopBar({ darkMode, onToggleDark, employees, currentEmplo
           />
         </div>
         {!aiCounting ? (
-          <button type="submit" style={{ height: 38, padding: '0 18px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, flexShrink: 0, transition: 'background 150ms', cursor: 'pointer' }}
-            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
-            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}>
+          <button type="submit" style={{ height: 38, padding: '0 18px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, flexShrink: 0, transition: 'background 150ms', cursor: 'pointer' }}
+            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'}
+            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'}>
             Send
           </button>
         ) : (

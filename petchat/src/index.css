@@ -3,73 +3,93 @@
 @tailwind utilities;
 
 /* ── Design Tokens ──
-   System: Linear-discipline (primary reference, see
-   .claude/workforce/ui-ux-designer/outputs/2026-07-04-buddydesk-design-system-research.md).
-   Borders are a tint of --text, not an independent hex — this is the single
-   biggest "crafted vs generic" tell, and it's why dark mode below is a
-   parallel derivation from dark --text rather than a separately hand-picked
-   palette. Spacing/radius elsewhere in this file must stay on the 4px ladder
-   (4 8 12 16 20 24 32 40 48 64 96) and the 6/12/full radius ratio. */
+   System: Notion design language (contract: DESIGN-notion.md).
+   The look is "a well-organized desk in good daylight": a warm paper canvas
+   (#f6f5f4) with pure-white cards defined by hairlines — NOT shadows — and a
+   near-black warm ink type ramp. Exactly ONE structural accent exists: Notion
+   blue #0075de, reserved for primary actions, links, and active/focus signals.
+   The sticker palette (orange/purple/pink/teal/green/sky) is decoration and
+   status only — it never paints structure or CTAs. Elevation is "barely there":
+   many near-transparent shadow layers, never a hard drop. Radius contract:
+   inputs 4px · menu rows 5px · utility buttons 8px · cards 12px · pills full. */
 :root {
-  --bg: #F7F7F6;
-  --surface: #FFFFFF;
-  --surface2: #F7F7F6;
-  --text: #111111;
-  --text-rgb: 17,17,17;
-  --border: rgba(var(--text-rgb), 0.08);
-  --border-hover: rgba(var(--text-rgb), 0.16);
-  --text-muted: rgba(var(--text-rgb), 0.55);
-  --text-faint: rgba(var(--text-rgb), 0.35);
-  --sidebar-bg: #FFFFFF;
-  --sidebar-border: #F3F3F2;
-  --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --card-shadow-hover: 0 4px 16px rgba(0,0,0,0.10);
-  --ring: rgba(37,99,235,0.15);
-  /* Motion system: expo = fast start, long settle — motion reads as weight,
-     not delay. swift = standard state-change curve. Durations on a
-     120/200/320 ladder so every transition in the app is one of three speeds. */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --bg: #f6f5f4;              /* canvas-soft: the warm paper page */
+  --surface: #ffffff;         /* cards, panels, nav */
+  --surface2: #f6f5f4;        /* soft fills inside white surfaces */
+  --text: #31302e;            /* warm charcoal ink (Notion app text) */
+  --text-rgb: 49,48,46;
+  --border: #e6e6e6;          /* hairline — surfaces are drawn, not dropped */
+  --border-hover: #d3d1cf;
+  --text-muted: #615d59;      /* stone */
+  --text-faint: #a39e98;      /* ash */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e6e6e6;
+  --accent: #0075de;          /* Notion blue — the ONLY structural color */
+  --accent-pressed: #005bab;
+  --night: #213183;           /* deep indigo — the single sanctioned dark band */
+  --ring: rgba(0,117,222,0.15);
+  /* Elevation: Level 0 is flat (hairline only). Level 1 is the layered
+     micro-shadow for hover/floating. Level 2 for modals/popovers/toasts. */
+  --card-shadow: none;
+  --card-shadow-hover: rgba(0,0,0,0.01) 0 0.2px 1px, rgba(0,0,0,0.02) 0 0.8px 3px, rgba(0,0,0,0.03) 0 2px 8px, rgba(0,0,0,0.04) 0 4px 18px;
+  --shadow-elevated: rgba(0,0,0,0.02) 0 1px 2px, rgba(0,0,0,0.03) 0 3px 6px, rgba(0,0,0,0.04) 0 9px 20px, rgba(0,0,0,0.05) 0 23px 52px;
+  /* Motion: Notion moves quickly and quietly — short fades, no spring, no
+     overshoot. One quick-settle curve, one standard curve, three speeds. */
+  --ease-out-expo: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-micro: 120ms;
-  --dur-small: 200ms;
-  --dur-med: 320ms;
+  --dur-micro: 100ms;
+  --dur-small: 150ms;
+  --dur-med: 240ms;
 }
 
+/* Dark mode: the contract documents light only, so this is derived from
+   Notion's own app dark theme (charcoal, not black) plus the light-physics
+   rule: the accent desaturates and lifts so it doesn't vibrate on #202020. */
 .dark {
-  --bg: #141414;
-  --surface: #1C1C1C;
-  --surface2: #252525;
-  --text: #EFEFEF;
-  --text-rgb: 239,239,239;
-  --border: rgba(var(--text-rgb), 0.10);
-  --border-hover: rgba(var(--text-rgb), 0.18);
-  --text-muted: rgba(var(--text-rgb), 0.55);
-  --text-faint: rgba(var(--text-rgb), 0.30);
-  --sidebar-bg: #1C1C1C;
-  --sidebar-border: #252525;
-  --card-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --card-shadow-hover: 0 4px 16px rgba(0,0,0,0.5);
+  --bg: #191919;
+  --surface: #202020;
+  --surface2: #2a2a2a;
+  --text: #d6d3d0;
+  --text-rgb: 214,211,208;
+  --border: #303030;
+  --border-hover: #3d3d3d;
+  --text-muted: #9b9896;
+  --text-faint: #6e6b69;
+  --sidebar-bg: #202020;
+  --sidebar-border: #2a2a2a;
+  --accent: #4ba3e3;
+  --accent-pressed: #3990d4;
+  --ring: rgba(75,163,227,0.22);
+  --card-shadow: none;
+  --card-shadow-hover: rgba(0,0,0,0.2) 0 1px 3px, rgba(0,0,0,0.25) 0 4px 14px;
+  --shadow-elevated: rgba(0,0,0,0.3) 0 4px 12px, rgba(0,0,0,0.4) 0 16px 40px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 13px;
+  font-family: 'Inter Variable', 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: 'lnum' 1;
   background-color: var(--bg);
   color: var(--text);
   min-height: 100vh;
 }
 
+/* One family carries everything (NotionInter → Inter substitute). Headlines
+   are heavy with tight negative tracking — set, not stretched. */
 h1, h2, h3, .page-title, .section-title {
-  font-family: 'Inter Display', 'Inter Variable', 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .mono, .id-text, .timestamp {
   font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
 }
+
+::selection { background: var(--ring); }
 
 #root { width: 100%; height: 100%; }
 
@@ -97,16 +117,17 @@ h1, h2, h3, .page-title, .section-title {
   background-color: var(--bg);
 }
 
-/* ── Cards ── */
+/* ── Cards ──
+   Level 0 by default: white paper + hairline, no shadow. Hover raises to the
+   barely-there Level-1 stack. No translate lift — Notion surfaces stay put. */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--card-shadow);
-  transition: border-color var(--dur-small) ease-out, box-shadow var(--dur-small) ease-out, transform var(--dur-micro) var(--ease-swift);
+  transition: border-color var(--dur-small) var(--ease-swift), box-shadow var(--dur-small) var(--ease-swift);
 }
-/* A 1px lift on hover — the whole surface acknowledges the pointer. Restrained. */
-.card:hover { box-shadow: var(--card-shadow-hover); border-color: var(--border-hover); transform: translateY(-1px); }
+.card:hover { box-shadow: var(--card-shadow-hover); border-color: var(--border-hover); }
 
 .stat-card {
   background: var(--surface);
@@ -115,20 +136,22 @@ h1, h2, h3, .page-title, .section-title {
   padding: 16px 20px;
 }
 
-/* ── Avatar Status Rings ── */
-.avatar-active  { box-shadow: 0 0 0 2px #22C55E; }
-.avatar-idle    { box-shadow: 0 0 0 2px #F59E0B; }
+/* ── Avatar Status Rings ── (status = sticker palette; red stays for blocked
+   because an app needs a real error signal even though the marketing doc
+   carries none) */
+.avatar-active  { box-shadow: 0 0 0 2px #1aae39; }
+.avatar-idle    { box-shadow: 0 0 0 2px #dd5b00; }
 .avatar-blocked { box-shadow: 0 0 0 2px #EF4444; }
-.avatar-offline { box-shadow: 0 0 0 2px #D1D5DB; }
+.avatar-offline { box-shadow: 0 0 0 2px #a39e98; }
 
 /* ── Screentime Bars ── */
 .screentime-bar {
   height: 6px;
   border-radius: 99px;
-  background: var(--text); /* was #111 — invisible on dark; now flips with the theme */
+  background: var(--text);
 }
 
-/* ── Mascot ── */
+/* ── Mascot ── (the one playful character — Notion's sticker spirit) */
 @keyframes float {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   33% { transform: translateY(-8px) rotate(-3deg); }
@@ -147,35 +170,32 @@ h1, h2, h3, .page-title, .section-title {
 .mascot-wag   { animation: wag 0.4s ease-in-out infinite alternate; }
 .mascot-eye   { animation: blink 4s ease-in-out infinite; }
 
-/* ── Page Transitions ── */
+/* ── Page Transitions ── quick, quiet, no spring */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(20px); }
+  from { opacity: 0; transform: translateX(12px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.97) translateY(4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: scale(1); }
 }
 @keyframes countUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* Toast overshoots ~2px then settles — a spring resolve, not a linear slide. */
 @keyframes toastIn {
-  0%   { transform: translate(-50%, 12px); opacity: 0; }
-  70%  { transform: translate(-50%, -2px); opacity: 1; }
-  100% { transform: translate(-50%, 0); opacity: 1; }
+  from { transform: translate(-50%, 8px); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
 }
 
-/* Shared entrances driven by the expo curve — every page inherits the settle. */
 .animate-fade-in     { animation: fadeIn var(--dur-small) var(--ease-out-expo); }
 .animate-slide-in    { animation: fadeIn var(--dur-small) var(--ease-out-expo); }
 .animate-scale-in    { animation: scaleIn var(--dur-small) var(--ease-out-expo); }
-.animate-count-up    { animation: countUp 400ms var(--ease-out-expo); }
+.animate-count-up    { animation: countUp var(--dur-med) var(--ease-out-expo); }
 
 /* ── Kanban ── */
 .kanban-col {
@@ -185,25 +205,25 @@ h1, h2, h3, .page-title, .section-title {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Drag highlight fades in/out instead of snapping. */
   transition: background-color var(--dur-micro) var(--ease-swift), border-color var(--dur-micro) var(--ease-swift);
 }
 
-/* ── Chat bubbles ── */
-.bubble-me   { background: #111; color: #fff; border-radius: 12px 12px 4px 12px; }
+/* ── Chat bubbles ── sent = your action = the structural blue */
+.bubble-me   { background: var(--accent); color: #fff; border-radius: 12px 12px 4px 12px; }
 .bubble-them { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 12px 12px 12px 4px; }
 .dark .bubble-them { background: var(--surface2); }
 
-/* ── Priority Badges ── */
-.badge-urgent { background: #FEE2E2; color: #DC2626; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
-.badge-high   { background: #FEF3C7; color: #CA8A04; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
-.badge-medium { background: #F3F3F2; color: #555555; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
-.badge-low    { background: #DCFCE7; color: #16A34A; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+/* ── Priority Badges ── status is carried by the sticker palette (decoration,
+   never structure): orange = urgent, purple = high, stone = medium, green = low */
+.badge-urgent { background: rgba(221,91,0,0.10);   color: #dd5b00; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-high   { background: rgba(214,182,246,0.30); color: #391c57; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-medium { background: rgba(49,48,46,0.06);   color: #615d59; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
+.badge-low    { background: rgba(26,174,57,0.10);  color: #1aae39; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; }
 
-.dark .badge-urgent { background: rgba(220,38,38,0.15); color: #FCA5A5; }
-.dark .badge-high   { background: rgba(202,138,4,0.15);  color: #FCD34D; }
-.dark .badge-medium { background: rgba(0,0,0,0.2);       color: #AAA; }
-.dark .badge-low    { background: rgba(22,163,74,0.15);  color: #86EFAC; }
+.dark .badge-urgent { background: rgba(221,91,0,0.18);   color: #f5924d; }
+.dark .badge-high   { background: rgba(214,182,246,0.14); color: #d6b6f6; }
+.dark .badge-medium { background: rgba(255,255,255,0.06); color: #a39e98; }
+.dark .badge-low    { background: rgba(26,174,57,0.16);  color: #5ecb7b; }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -211,54 +231,54 @@ h1, h2, h3, .page-title, .section-title {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-/* ── Input ── */
+/* ── Input ── deliberately tight 4px corners (contract: inputs never pill);
+   focus = blue border + the soft Level-1 shadow, per the text-input spec */
 .input {
-  background-color: var(--bg);
+  background-color: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 8px 12px;
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+  transition: border-color var(--dur-small) var(--ease-swift), box-shadow var(--dur-small) var(--ease-swift);
   width: 100%;
 }
 .input:focus {
   outline: none;
-  box-shadow: 0 0 0 3px var(--ring);
-  border-color: #2563EB;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring), var(--card-shadow-hover);
 }
-/* Pre-focus affordance — the border warms on hover before you commit to typing. */
 .input:hover:not(:focus) { border-color: var(--border-hover); }
 .input::placeholder { color: var(--text-faint); }
 
 /* ── Form inputs global ── */
 input, textarea, select {
-  background-color: var(--bg);
+  background-color: var(--surface);
   color: var(--text);
   font-family: inherit;
 }
 input:focus, textarea:focus, select:focus {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
-  border-color: #2563EB !important;
+  border-color: var(--accent) !important;
 }
 
 button {
   cursor: pointer;
   font-family: inherit;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out, transform 120ms ease-out;
+  transition: background-color var(--dur-micro) var(--ease-swift), border-color var(--dur-micro) var(--ease-swift), box-shadow var(--dur-micro) var(--ease-swift), transform var(--dur-micro) var(--ease-swift);
 }
-/* Keyboard-only focus ring — costs nothing, signals a crafted system. Scoped to
-   :focus-visible so mouse clicks never show it. Not on .nav-btn (has its own). */
 button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+/* Contract documents a press transform on buttons — app-scaled to a subtle dip */
+button:not(:disabled):active { transform: scale(0.98); }
 select { cursor: pointer; }
 
 /* ── Loading Spinner ── */
 .loading-spinner {
   width: 28px; height: 28px;
   border: 2px solid var(--border);
-  border-top-color: var(--text); /* was #111 — now visible in dark mode */
+  border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -271,15 +291,15 @@ select { cursor: pointer; }
   to   { stroke-dashoffset: 44; }
 }
 
-/* ── Drag & Drop ── */
-.drag-over { background: rgba(37,99,235,0.05) !important; border-color: #2563EB !important; }
+/* ── Drag & Drop ── active signal = the structural blue */
+.drag-over { background: rgba(0,117,222,0.05) !important; border-color: var(--accent) !important; }
 
 /* ── Founder ──
-   Sanctioned exception to "one accent color" (per design-forge/Linear
-   discipline) — this is the only sanctioned second hue anywhere in the
-   system. Do not add a third color elsewhere. */
-.founder-gradient { background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%); }
-.founder-card { border-left: 3px solid #7C3AED; }
+   The contract's single "night" moment: one deep-indigo inverted band in an
+   otherwise daylight app. This is the only sanctioned dark island — do not
+   repeat it elsewhere. */
+.founder-gradient { background: linear-gradient(135deg, #213183 0%, #17235e 100%); }
+.founder-card { border-left: 3px solid var(--night); }
 
 /* ── Activity ring ── */
 .activity-ring {
@@ -289,13 +309,14 @@ select { cursor: pointer; }
 }
 
 /* ── Workload drag ── */
-.drag-over-card { background: rgba(37,99,235,0.04) !important; border: 2px dashed #2563EB !important; }
+.drag-over-card { background: rgba(0,117,222,0.04) !important; border: 2px dashed var(--accent) !important; }
 
-/* ── Nav button (sidebar) ── */
+/* ── Nav button (sidebar) ── menu rows sit at the contract's 5px radius;
+   hover/active are quiet ink-tint fills, Notion-instant */
 .nav-btn {
   width: 100%;
   height: 34px;
-  border-radius: 6px;
+  border-radius: 5px;
   border: none;
   display: flex;
   align-items: center;
@@ -308,30 +329,31 @@ select { cursor: pointer; }
   background: transparent;
   color: var(--text-muted);
 }
-.nav-btn:hover { background: var(--bg); color: var(--text); }
+.nav-btn:hover { background: rgba(var(--text-rgb), 0.05); color: var(--text); }
 .nav-btn:active { transform: scale(0.98); }
 .nav-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 .nav-btn.active {
-  background: var(--bg);
+  background: rgba(var(--text-rgb), 0.06);
   color: var(--text);
   font-weight: 500;
 }
 
-/* ── Toast ── */
+/* ── Toast ── white paper + elevated shadow (contract ex-toast), not a dark slab */
 .toast {
   position: fixed;
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: #111;
-  color: #fff;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   padding: 8px 20px;
-  border-radius: 6px;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
   z-index: 999;
   animation: toastIn var(--dur-small) var(--ease-out-expo);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.18); /* lifts off dark backgrounds */
+  box-shadow: var(--shadow-elevated);
   white-space: nowrap;
 }
 

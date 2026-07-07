@@ -73,11 +73,13 @@ export default function AdminTasks({ employee, allEmployees }: Props) {
     borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none',
   };
 
+  // Status via the Notion contract: blue = active signal; sticker orange/green
+  // carry warning/affirmative — no separate semantic ramp.
   const statusColors: Record<TaskStatus, { bg: string; fg: string }> = {
-    todo:        { bg: 'var(--bg)', fg: 'var(--text-muted)' },
-    in_progress: { bg: '#FEF9C3',   fg: '#A16207' },
-    blocked:     { bg: '#FEE2E2',   fg: '#DC2626' },
-    done:        { bg: '#DCFCE7',   fg: '#16A34A' },
+    todo:        { bg: 'var(--bg)',            fg: 'var(--text-muted)' },
+    in_progress: { bg: 'rgba(0,117,222,0.08)', fg: 'var(--accent)' },
+    blocked:     { bg: 'rgba(221,91,0,0.10)',  fg: '#dd5b00' },
+    done:        { bg: 'rgba(26,174,57,0.10)', fg: '#1aae39' },
   };
 
   const openCount = tasks.filter(t => t.status !== 'done').length;
@@ -92,9 +94,9 @@ export default function AdminTasks({ employee, allEmployees }: Props) {
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>{openCount} open · {doneCount} done</div>
         </div>
         <button onClick={() => { setShowForm(v => !v); setError(''); }}
-          style={{ height: 36, padding: '0 16px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
-          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}
+          style={{ height: 36, padding: '0 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'}
+          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Assign Task
@@ -130,7 +132,7 @@ export default function AdminTasks({ employee, allEmployees }: Props) {
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleCreate} disabled={saving || !form.title.trim() || !form.assigneeId}
-                style={{ flex: 1, height: 40, background: saving || !form.title.trim() || !form.assigneeId ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                style={{ flex: 1, height: 40, background: saving || !form.title.trim() || !form.assigneeId ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
                 {saving ? 'Assigning…' : 'Assign Task'}
               </button>
               <button onClick={() => { setShowForm(false); setError(''); }}

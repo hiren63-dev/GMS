@@ -135,9 +135,9 @@ export default function TasksPage({ employee }: Props) {
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}><strong style={{ color: '#16A34A' }}>{done}</strong> done</span>
         </div>
         <button onClick={() => setShowModal(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 16px', background: '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
-          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'}
+          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Task
@@ -162,7 +162,7 @@ export default function TasksPage({ employee }: Props) {
               onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null); }}
               onDrop={() => onDrop(col.key)}
               className="kanban-col"
-              style={{ background: isOver ? 'rgba(37,99,235,0.03)' : 'var(--surface)', borderColor: isOver ? '#2563EB' : 'var(--border)', transition: 'background 150ms, border-color 150ms' }}
+              style={{ background: isOver ? 'rgba(0,117,222,0.03)' : 'var(--surface)', borderColor: isOver ? 'var(--accent)' : 'var(--border)', transition: 'background 150ms, border-color 150ms' }}
             >
               {/* Column header */}
               <div style={{ padding: '14px 16px 10px', flexShrink: 0, background: 'rgba(250,250,250,0.7)', borderBottom: '1px solid var(--border)' }}>
@@ -206,7 +206,7 @@ export default function TasksPage({ employee }: Props) {
                           <circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/>
                           <circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>
                         </svg>
-                        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111', lineHeight: 1.4, textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.5 : 1 }}>
+                        <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)', lineHeight: 1.4, textDecoration: task.status === 'done' ? 'line-through' : 'none', opacity: task.status === 'done' ? 0.5 : 1 }}>
                           {task.title}
                         </div>
                         <button onClick={() => { if (confirm(`Delete "${task.title}"?`)) deleteTask(task.id).catch(err => console.error('Failed to delete task:', err)); }}
@@ -232,9 +232,9 @@ export default function TasksPage({ employee }: Props) {
                                task.priority === 'medium' ? { background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' } :
                                { background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' })
                           }}>{task.priority}</span>
-                          {task.recurrence && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#EFF6FF', color: '#2563EB', fontWeight: 600, textTransform: 'uppercase' }}>↻ {task.recurrence}</span>}
+                          {task.recurrence && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#EFF6FF', color: 'var(--accent)', fontWeight: 600, textTransform: 'uppercase' }}>↻ {task.recurrence}</span>}
                           <button onClick={e => { e.stopPropagation(); setExpandedTask(expandedTask === task.id ? null : task.id); setCommentText(''); }}
-                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: expandedTask === task.id ? '#111' : 'var(--bg)', border: '1px solid var(--border)', color: expandedTask === task.id ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}>
+                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: expandedTask === task.id ? 'var(--accent)' : 'var(--bg)', border: '1px solid var(--border)', color: expandedTask === task.id ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}>
                             💬{task.commentCount ? ` ${task.commentCount}` : ''}
                           </button>
                         </div>
@@ -262,7 +262,7 @@ export default function TasksPage({ employee }: Props) {
                               onKeyDown={e => { if (e.key === 'Enter') handleAddComment(task.id); }}
                               style={{ flex: 1, height: 28, padding: '0 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
                             />
-                            <button onClick={() => handleAddComment(task.id)} style={{ height: 28, padding: '0 10px', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Post</button>
+                            <button onClick={() => handleAddComment(task.id)} style={{ height: 28, padding: '0 10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Post</button>
                           </div>
                         </div>
                       )}
@@ -305,7 +305,7 @@ export default function TasksPage({ employee }: Props) {
                 <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="What needs to be done?" required autoFocus
                   style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                 />
               </div>
@@ -314,7 +314,7 @@ export default function TasksPage({ employee }: Props) {
                 <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="Optional details…" rows={3}
                   style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', resize: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                 />
               </div>
@@ -360,7 +360,7 @@ export default function TasksPage({ employee }: Props) {
                   Cancel
                 </button>
                 <button type="submit" disabled={saving || !form.title.trim()}
-                  style={{ flex: 1, height: 40, background: saving || !form.title.trim() ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving || !form.title.trim() ? 'not-allowed' : 'pointer' }}>
+                  style={{ flex: 1, height: 40, background: saving || !form.title.trim() ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving || !form.title.trim() ? 'not-allowed' : 'pointer' }}>
                   {saving ? 'Creating…' : 'Create Task'}
                 </button>
               </div>

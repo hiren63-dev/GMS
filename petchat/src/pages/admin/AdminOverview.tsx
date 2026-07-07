@@ -121,7 +121,7 @@ export default function AdminOverview({ allEmployees }: Props) {
                   onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
                 >
                   {w.label}
-                  <span style={{ width: 30, height: 18, borderRadius: 99, background: w.on ? '#111' : '#E9E9E7', position: 'relative', flexShrink: 0, transition: 'background 150ms', display: 'inline-block' }}>
+                  <span style={{ width: 30, height: 18, borderRadius: 99, background: w.on ? 'var(--accent)' : '#E9E9E7', position: 'relative', flexShrink: 0, transition: 'background 150ms', display: 'inline-block' }}>
                     <span style={{ position: 'absolute', top: 2, left: w.on ? 14 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 150ms', display: 'block' }} />
                   </span>
                 </button>
@@ -136,9 +136,9 @@ export default function AdminOverview({ allEmployees }: Props) {
         {departments.map(d => (
           <button key={d} onClick={() => setDeptFilter(d)}
             style={{ height: 30, padding: '0 14px', borderRadius: 99, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid', transition: 'all 150ms',
-              background: deptFilter === d ? '#111' : 'var(--surface)',
+              background: deptFilter === d ? 'var(--accent)' : 'var(--surface)',
               color: deptFilter === d ? '#fff' : 'var(--text-muted)',
-              borderColor: deptFilter === d ? '#111' : 'var(--border)',
+              borderColor: deptFilter === d ? 'var(--accent)' : 'var(--border)',
             }}>
             {d === 'all' ? 'All Departments' : d}
           </button>
@@ -162,7 +162,7 @@ export default function AdminOverview({ allEmployees }: Props) {
             <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Urgent</div>
             <div style={{ fontSize: 28, fontWeight: 600, color: urgentCount > 0 ? '#DC2626' : 'var(--text)', letterSpacing: '-0.02em' }}>{urgentCount}</div>
           </div>
-          <div style={{ background: '#111', borderRadius: 10, padding: '16px 18px' }}>
+          <div style={{ background: 'var(--accent)', borderRadius: 10, padding: '16px 18px' }}>
             <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Completed</div>
             <div style={{ fontSize: 28, fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' }}>{doneCount}</div>
           </div>
@@ -200,7 +200,7 @@ export default function AdminOverview({ allEmployees }: Props) {
                     <span style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 3, background: ACCENT_BAR[status] }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 11 }}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff' }}>{initials}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--surface)' }}>{initials}</div>
                         <span style={{ position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: STATUS_DOT[status], border: '2px solid var(--surface)' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>

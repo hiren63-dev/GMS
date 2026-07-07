@@ -178,9 +178,9 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
           </div>
         </div>
         <button onClick={runChecks} disabled={running}
-          style={{ height: 36, padding: '0 18px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: running ? 'not-allowed' : 'pointer', opacity: running ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
-          onMouseOver={e => { if (!running) (e.currentTarget as HTMLButtonElement).style.background = '#333'; }}
-          onMouseOut={e => { if (!running) (e.currentTarget as HTMLButtonElement).style.background = '#111'; }}
+          style={{ height: 36, padding: '0 18px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: running ? 'not-allowed' : 'pointer', opacity: running ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+          onMouseOver={e => { if (!running) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'; }}
+          onMouseOut={e => { if (!running) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'; }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: running ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           {running ? 'Running…' : 'Re-run checks'}
@@ -273,7 +273,7 @@ export default function AdminHealth({ employee, allEmployees }: Props) {
             <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>No audit events yet.</div>
           ) : auditLog.map((entry, i) => (
             <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 16px', borderBottom: i < auditLog.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
                 {entry.actorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

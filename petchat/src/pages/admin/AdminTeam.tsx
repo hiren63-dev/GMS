@@ -190,7 +190,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                     } finally {
                       setApproving(null);
                     }
-                  }} disabled={!!approving} style={{ height: 32, padding: '0 12px', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer' }}>
+                  }} disabled={!!approving} style={{ height: 32, padding: '0 12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: approving ? 'not-allowed' : 'pointer' }}>
                     {approving === p.id ? 'Approving…' : 'Approve & Add'}
                   </button>
                 </div>
@@ -214,9 +214,9 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
             </button>
           )}
           <button onClick={() => { setShowForm(true); resetForm(); }}
-            style={{ height: 36, padding: '0 16px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = '#333'}
-            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = '#111'}
+            style={{ height: 36, padding: '0 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'}
+            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Employee
@@ -243,12 +243,12 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Full Name *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Priya Sharma" style={inputStyle}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Email *</label>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="priya@company.com" style={inputStyle} disabled={!!editId}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Department</label>
@@ -265,7 +265,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Job Title</label>
               <input value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. Senior Engineer" style={inputStyle}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Shift Start</label>
@@ -287,7 +287,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                 {ALL_PERMISSIONS.map(p => {
                   const checked = form.permissions.includes(p.key);
                   return (
-                    <label key={p.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: checked ? 'rgba(37,99,235,0.06)' : 'var(--bg)', border: `1px solid ${checked ? '#93C5FD' : 'var(--border)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 120ms' }}>
+                    <label key={p.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: checked ? 'rgba(0,117,222,0.06)' : 'var(--bg)', border: `1px solid ${checked ? '#93C5FD' : 'var(--border)'}`, borderRadius: 8, cursor: 'pointer', transition: 'all 120ms' }}>
                       <input type="checkbox" checked={checked} onChange={() => {
                         setForm(f => ({
                           ...f,
@@ -319,7 +319,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 placeholder={editId ? 'Leave blank to keep current…' : 'Generate or type a password…'}
                 style={{ ...inputStyle, flex: 1, fontFamily: 'ui-monospace, monospace', letterSpacing: '0.04em' }}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--border)')}
               />
               <button type="button" onClick={handleGenPw}
@@ -356,7 +356,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleSubmit} disabled={saving || !form.name.trim() || !form.email.trim()}
-              style={{ flex: 1, height: 40, background: saving ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
+              style={{ flex: 1, height: 40, background: saving ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Employee'}
             </button>
             <button onClick={() => { setShowForm(false); resetForm(); }}
@@ -402,7 +402,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
               const isMe = e.id === employee.id;
               const showPw = revealPw.has(e.id);
               return (
-                <tr key={e.id} style={{ borderBottom: '1px solid var(--border)', background: selected.has(e.id) ? 'rgba(37,99,235,0.04)' : 'transparent', transition: 'background 120ms' }}
+                <tr key={e.id} style={{ borderBottom: '1px solid var(--border)', background: selected.has(e.id) ? 'rgba(0,117,222,0.04)' : 'transparent', transition: 'background 120ms' }}
                   onMouseOver={ev => { if (!selected.has(e.id)) (ev.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
                   onMouseOut={ev => { if (!selected.has(e.id)) (ev.currentTarget as HTMLElement).style.background = 'transparent'; }}>
                   <td style={{ padding: '12px 14px' }}>
@@ -410,7 +410,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                   </td>
                   <td style={{ padding: '12px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
                       <div>
                         <div style={{ fontWeight: 500, color: 'var(--text)' }}>{e.name}{isMe ? ' (You)' : ''}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{e.email}</div>
@@ -423,7 +423,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                   <td style={{ padding: '12px 14px' }}>
                     <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{e.role}</span>
                     {e.role === 'employee' && (e as any).permissions?.length > 0 && (
-                      <span title={(e as any).permissions.join(', ')} style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', background: '#EFF6FF', color: '#2563EB', borderRadius: 99, fontWeight: 600, cursor: 'default', border: '1px solid #BFDBFE' }}>
+                      <span title={(e as any).permissions.join(', ')} style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', background: '#EFF6FF', color: 'var(--accent)', borderRadius: 99, fontWeight: 600, cursor: 'default', border: '1px solid #BFDBFE' }}>
                         {(e as any).permissions.length} perm{(e as any).permissions.length > 1 ? 's' : ''}
                       </span>
                     )}
@@ -462,7 +462,7 @@ export default function AdminTeam({ employee, allEmployees }: Props) {
                   <td style={{ padding: '12px 14px' }}>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => handleEdit(e)}
-                        style={{ fontSize: 12, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Edit</button>
+                        style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Edit</button>
                       {!isMe && (
                         <button onClick={() => handleDelete(e.id, e.name)}
                           style={{ fontSize: 12, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Remove</button>

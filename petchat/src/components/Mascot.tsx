@@ -101,7 +101,7 @@ export default function Mascot({ onTap, message }: Props) {
           <ellipse cx="30" cy="86" rx="10" ry="7" fill="#F59E0B" />
           <ellipse cx="70" cy="86" rx="10" ry="7" fill="#F59E0B" />
           {/* Collar */}
-          <rect x="35" y="60" width="30" height="5" rx="2.5" fill="#3B82F6" />
+          <rect x="35" y="60" width="30" height="5" rx="2.5" fill="var(--accent)" />
           <circle cx="50" cy="62" r="2.5" fill="#FBBF24" />
         </svg>
       </button>

@@ -8,12 +8,12 @@ interface Props {
 
 function EmployeeCard({ emp, isCurrentUser }: { emp: Employee; isCurrentUser: boolean }) {
   const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const roleColor = emp.role === 'founder' ? { bg: '#F3E8FF', fg: '#7C3AED' } :
-    emp.role === 'admin' ? { bg: '#EFF6FF', fg: '#2563EB' } : { bg: '#F3F3F2', fg: '#555' };
+  const roleColor = emp.role === 'founder' ? { bg: 'rgba(33,49,131,0.08)', fg: '#213183' } :
+    emp.role === 'admin' ? { bg: '#EFF6FF', fg: 'var(--accent)' } : { bg: '#F3F3F2', fg: '#555' };
   return (
     <div style={{
       background: 'var(--surface)',
-      border: isCurrentUser ? '2px solid #2563EB' : '1px solid var(--border)',
+      border: isCurrentUser ? '2px solid var(--accent)' : '1px solid var(--border)',
       borderRadius: 10,
       padding: '12px 14px',
       display: 'flex',
@@ -23,7 +23,7 @@ function EmployeeCard({ emp, isCurrentUser }: { emp: Employee; isCurrentUser: bo
       maxWidth: 220,
       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
     }}>
-      <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
         {initials}
       </div>
       <div style={{ minWidth: 0 }}>
@@ -54,7 +54,7 @@ function OrgNode({ emp, reports, allEmployees, currentUserId, depth = 0 }: {
         onClick={() => directReports.length && setCollapsed(v => !v)}>
         <EmployeeCard emp={emp} isCurrentUser={emp.id === currentUserId} />
         {directReports.length > 0 && (
-          <span style={{ position: 'absolute', top: -8, right: -8, width: 18, height: 18, background: '#2563EB', color: '#fff', borderRadius: '50%', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'absolute', top: -8, right: -8, width: 18, height: 18, background: 'var(--accent)', color: '#fff', borderRadius: '50%', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {collapsed ? '+' : '−'}
           </span>
         )}
@@ -146,10 +146,10 @@ export default function OrgChartPage({ employee, allEmployees }: Props) {
       {/* Legend */}
       <div className="flex gap-4 mt-8 flex-wrap" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#7C3AED', marginRight: 4 }} />Founder
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#213183', marginRight: 4 }} />Founder
         </span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#2563EB', marginRight: 4 }} />Admin
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', marginRight: 4 }} />Admin
         </span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#555', marginRight: 4 }} />Employee

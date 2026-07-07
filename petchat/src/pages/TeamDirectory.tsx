@@ -26,7 +26,7 @@ function ProfileModal({ emp, onClose, onNavigate }: { emp: Employee; onClose: ()
         onClick={e => e.stopPropagation()}>
         {/* Avatar + name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 18, fontWeight: 700, flexShrink: 0 }}>
             {initials}
           </div>
           <div>
@@ -86,7 +86,7 @@ function ProfileModal({ emp, onClose, onNavigate }: { emp: Employee; onClose: ()
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <button onClick={() => { onNavigate('messages'); onClose(); }}
-            style={{ flex: 1, height: 36, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            style={{ flex: 1, height: 36, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
             💬 Message
           </button>
           <button onClick={() => { onNavigate('screentime', emp.id); onClose(); }}

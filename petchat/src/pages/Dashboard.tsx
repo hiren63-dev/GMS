@@ -160,7 +160,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
         <button
           onClick={handleClock}
           disabled={clockLoading}
-          style={{ height: 38, padding: '0 18px', background: isClockedIn ? '#FEF2F2' : '#111', color: isClockedIn ? '#DC2626' : '#fff', border: isClockedIn ? '1px solid #FECACA' : 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: clockLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+          style={{ height: 38, padding: '0 18px', background: isClockedIn ? '#FEF2F2' : 'var(--accent)', color: isClockedIn ? '#DC2626' : '#fff', border: isClockedIn ? '1px solid #FECACA' : 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: clockLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
         >
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: isClockedIn ? '#DC2626' : '#22C55E', flexShrink: 0 }} />
           {clockLoading ? '…' : isClockedIn ? `Clock Out · ${workHours}` : 'Clock In'}
@@ -176,10 +176,10 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
       {/* Pinned announcements */}
       {announcements.filter(a => a.pinned).slice(0, 1).map(a => (
         <div key={a.id} style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 16px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M3 11l18-5v12L3 14v-3z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M3 11l18-5v12L3 14v-3z"/></svg>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#1D4ED8', marginBottom: 2 }}>{a.title}</div>
-            <div style={{ fontSize: 12, color: '#3B82F6' }}>{a.body}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-pressed)', marginBottom: 2 }}>{a.title}</div>
+            <div style={{ fontSize: 12, color: 'var(--accent)' }}>{a.body}</div>
           </div>
         </div>
       ))}
@@ -215,8 +215,9 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
           <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Urgent</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: urgent > 0 ? '#DC2626' : 'var(--text)', letterSpacing: '-0.02em' }}>{urgent}</div>
         </div>
-        <div style={{ background: '#111', borderRadius: 10, padding: '16px 18px' }}>
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Team active</div>
+        {/* The one "night band" — the contract's single inverted indigo island */}
+        <div style={{ background: 'linear-gradient(135deg, #213183 0%, #17235e 100%)', borderRadius: 12, padding: '16px 18px' }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Team active</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' }}>{activeCount}</div>
         </div>
       </div>
@@ -262,7 +263,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
             ))}
             {tasks.filter(t => t.status !== 'done').length === 0 && (
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-                No pending tasks · <button onClick={() => onNavigate('tasks')} style={{ color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Add one →</button>
+                No pending tasks · <button onClick={() => onNavigate('tasks')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Add one →</button>
               </div>
             )}
           </div>
@@ -287,7 +288,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
                   onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)'}
                   onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
                 >
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials}</div>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv?.lastMsg || emp.department}</div>
@@ -351,7 +352,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
             const ringCls = { active: 'avatar-active', idle: 'avatar-idle', blocked: 'avatar-blocked', offline: 'avatar-offline' }[emp.status ?? 'offline'];
             return (
               <div key={emp.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div className={ringCls} style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 600 }}>
+                <div className={ringCls} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 11, fontWeight: 600 }}>
                   {initials}
                 </div>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.name.split(' ')[0]}</span>
@@ -374,7 +375,7 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={executeClock} style={{ flex: 1, height: 40, background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Clock out anyway</button>
-              <button onClick={() => { setShowLogoutWarning(false); onNavigate('tasks'); }} style={{ flex: 1, height: 40, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Finish tasks</button>
+              <button onClick={() => { setShowLogoutWarning(false); onNavigate('tasks'); }} style={{ flex: 1, height: 40, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Finish tasks</button>
             </div>
           </div>
         </div>

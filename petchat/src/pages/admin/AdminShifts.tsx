@@ -80,7 +80,7 @@ export default function AdminShifts({ allEmployees }: Props) {
                   <div key={emp.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -89,7 +89,7 @@ export default function AdminShifts({ allEmployees }: Props) {
                         </div>
                       </div>
                       <button onClick={() => isEditing ? setEditing(null) : handleEdit(emp)}
-                        style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                        style={{ fontSize: 13, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
                         {isEditing ? 'Cancel' : 'Edit'}
                       </button>
                     </div>
@@ -115,7 +115,7 @@ export default function AdminShifts({ allEmployees }: Props) {
                           {emp.name} works {form.shiftStart}–{form.shiftEnd} with ±{form.allowedLoginBuffer}min grace period
                         </div>
                         <button onClick={() => handleSave(emp)} disabled={saving}
-                          style={{ width: '100%', height: 40, background: saving ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                          style={{ width: '100%', height: 40, background: saving ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer' }}>
                           {saving ? 'Saving…' : 'Save Shift'}
                         </button>
                       </div>

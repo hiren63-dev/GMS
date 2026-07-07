@@ -346,7 +346,7 @@ export default function App() {
         <div style={{ width: 380, animation: 'fadeIn 220ms ease both' }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.06),0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-              <div style={{ width: 30, height: 30, background: '#111', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>Z</div>
+              <div style={{ width: 30, height: 30, background: 'var(--text)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>Z</div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>Zypit</span>
             </div>
 
@@ -362,8 +362,8 @@ export default function App() {
                       {savedProfiles.map(p => (
                         <button key={p.email} type="button"
                           onClick={() => { setLoginEmail(p.email); setLoginPass(''); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 6px', background: loginEmail === p.email ? '#F0F4FF' : 'var(--surface2)', border: `1px solid ${loginEmail === p.email ? '#2563EB' : 'var(--border)'}`, borderRadius: 99, cursor: 'pointer', transition: 'all 150ms' }}>
-                          <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{p.initials}</div>
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px 6px 6px', background: loginEmail === p.email ? '#F0F4FF' : 'var(--surface2)', border: `1px solid ${loginEmail === p.email ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 99, cursor: 'pointer', transition: 'all 150ms' }}>
+                          <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{p.initials}</div>
                           <div style={{ textAlign: 'left' }}>
                             <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', lineHeight: 1.3 }}>{p.name}</div>
                             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.department}</div>
@@ -389,7 +389,7 @@ export default function App() {
                       placeholder="you@company.com"
                       required
                       style={{ width: '100%', height: 42, padding: '0 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', transition: 'border-color 150ms' }}
-                      onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                      onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                       onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                     />
                   </div>
@@ -403,7 +403,7 @@ export default function App() {
                         placeholder="••••••••"
                         required
                         style={{ width: '100%', height: 42, padding: '0 42px 0 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', transition: 'border-color 150ms', boxSizing: 'border-box' }}
-                        onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                         onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                       />
                       <button type="button" onClick={() => setShowPass(v => !v)}
@@ -418,9 +418,9 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={loginLoading}
-                    style={{ width: '100%', height: 44, marginTop: 4, background: loginLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', cursor: loginLoading ? 'not-allowed' : 'pointer', transition: 'background 150ms' }}
-                    onMouseOver={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#333'; }}
-                    onMouseOut={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = '#111'; }}
+                    style={{ width: '100%', height: 44, marginTop: 4, background: loginLoading ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', cursor: loginLoading ? 'not-allowed' : 'pointer', transition: 'background 150ms' }}
+                    onMouseOver={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-pressed)'; }}
+                    onMouseOut={e => { if (!loginLoading) (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent)'; }}
                   >
                     {loginLoading ? 'Signing in…' : 'Sign in →'}
                   </button>
@@ -434,7 +434,7 @@ export default function App() {
                     Forgot password?
                   </button>
                   <button onClick={() => { setAuthPanel('signup'); setSignUpError(''); }}
-                    style={{ fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                    style={{ fontSize: 13, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
                     Create account →
                   </button>
                 </div>
@@ -454,16 +454,16 @@ export default function App() {
                     <input type="email" required placeholder="you@company.com" value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)}
                       style={{ width: '100%', height: 42, padding: '0 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                      onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                      onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
                     <button type="submit" disabled={forgotLoading}
-                      style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                      style={{ width: '100%', height: 42, background: forgotLoading ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
                       {forgotLoading ? 'Sending…' : 'Send reset link →'}
                     </button>
                   </form>
                 ) : forgotResult.error ? (
                   <div>
                     <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626' }}>{forgotResult.error}</div>
-                    <button onClick={() => setForgotResult(null)} style={{ marginTop: 10, fontSize: 13, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
+                    <button onClick={() => setForgotResult(null)} style={{ marginTop: 10, fontSize: 13, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
                   </div>
                 ) : (
                   <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '16px 18px' }}>
@@ -473,7 +473,7 @@ export default function App() {
                       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Click the link in the email to set a new password. Check your spam folder if you don't see it.</span>
                     </div>
                     <button onClick={() => { setAuthPanel('none'); setForgotResult(null); setLoginEmail(forgotEmail); }}
-                      style={{ marginTop: 4, width: '100%', height: 38, background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      style={{ marginTop: 4, width: '100%', height: 38, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
                       Back to sign in →
                     </button>
                   </div>
@@ -500,7 +500,7 @@ export default function App() {
                       <input type={f.type} required placeholder={f.placeholder} value={(signUpForm as any)[f.key]}
                         onChange={e => setSignUpForm(s => ({ ...s, [f.key]: e.target.value }))}
                         style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                        onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
                     </div>
                   ))}
                   <div>
@@ -510,7 +510,7 @@ export default function App() {
                         value={signUpForm.password}
                         onChange={e => setSignUpForm(s => ({ ...s, password: e.target.value }))}
                         style={{ width: '100%', height: 40, padding: '0 42px 0 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}
-                        onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
                       <button type="button" onClick={() => setShowSignUpPass(v => !v)}
                         style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-faint)', display: 'flex', alignItems: 'center' }}>
                         {showSignUpPass
@@ -528,7 +528,7 @@ export default function App() {
                     </select>
                   </div>
                   <button type="submit" disabled={signUpLoading}
-                    style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
+                    style={{ width: '100%', height: 42, marginTop: 2, background: signUpLoading ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: signUpLoading ? 'not-allowed' : 'pointer' }}>
                     {signUpLoading ? 'Creating account…' : 'Create Account →'}
                   </button>
                 </form>

@@ -161,7 +161,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
         <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Groups</span>
           <button onClick={() => setShowCreate(true)}
-            style={{ width: 26, height: 26, borderRadius: 6, background: '#111', color: '#fff', border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--accent)', color: '#fff', border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             +
           </button>
         </div>
@@ -175,7 +175,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
             <button key={g.id} onClick={() => { setSelected(g); setActiveTab('chat'); }}
               style={{
                 width: '100%', padding: '9px 10px', borderRadius: 8, border: 'none', textAlign: 'left',
-                background: selected?.id === g.id ? 'rgba(37,99,235,0.08)' : 'transparent',
+                background: selected?.id === g.id ? 'rgba(0,117,222,0.08)' : 'transparent',
                 cursor: 'pointer', marginBottom: 2,
               }}
               onMouseOver={e => { if (selected?.id !== g.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'; }}
@@ -210,7 +210,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{selected.name}</div>
-                <button onClick={() => setShowMembers(v => !v)} style={{ fontSize: 11, color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <button onClick={() => setShowMembers(v => !v)} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   {selected.memberIds.length} members
                 </button>
               </div>
@@ -265,7 +265,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                         {!mine && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{msg.senderName}</div>}
                         <div style={{
                           padding: '9px 13px', borderRadius: mine ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-                          background: mine ? '#111' : 'var(--surface)',
+                          background: mine ? 'var(--accent)' : 'var(--surface)',
                           border: mine ? 'none' : '1px solid var(--border)',
                           color: mine ? '#fff' : 'var(--text)',
                           fontSize: 13, lineHeight: 1.5,
@@ -276,7 +276,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                               <span style={{ fontSize: 12 }}>{msg.attachment.name}</span>
                               {msg.attachment.url && (
                                 <a href={msg.attachment.url} target="_blank" rel="noreferrer"
-                                  style={{ fontSize: 11, color: mine ? 'rgba(255,255,255,0.8)' : '#2563EB' }}>↓</a>
+                                  style={{ fontSize: 11, color: mine ? 'rgba(255,255,255,0.8)' : 'var(--accent)' }}>↓</a>
                               )}
                             </div>
                           ) : msg.content}
@@ -303,7 +303,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                     style={{ flex: 1, height: 36, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
                   />
                   <button type="submit" disabled={sending || uploading || !text.trim()}
-                    style={{ width: 36, height: 36, borderRadius: 8, background: '#111', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!text.trim() || sending) ? 0.4 : 1 }}>
+                    style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--accent)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (!text.trim() || sending) ? 0.4 : 1 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
                 </form>
@@ -317,7 +317,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
                 <button onClick={() => setShowNewTask(v => !v)}
-                  style={{ height: 32, padding: '0 14px', background: '#111', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  style={{ height: 32, padding: '0 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   New Task
                 </button>
@@ -332,7 +332,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                       style={{ height: 36, padding: '0 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)', outline: 'none' }}>
                       {['urgent','high','medium','low'].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
                     </select>
-                    <button type="submit" style={{ height: 36, padding: '0 14px', background: '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>Add</button>
+                    <button type="submit" style={{ height: 36, padding: '0 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>Add</button>
                     <button type="button" onClick={() => setShowNewTask(false)} style={{ height: 36, padding: '0 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
                   </form>
                 </div>
@@ -346,7 +346,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                       onDragOver={e => { e.preventDefault(); setOverCol(col.key); }}
                       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null); }}
                       onDrop={() => { if (dragId) { const t = tasks.find(t => t.id === dragId); if (t && t.status !== col.key) moveTask(t, col.key); } setDragId(null); setOverCol(null); }}
-                      style={{ background: isOver ? 'rgba(37,99,235,0.03)' : 'var(--surface)', border: `1px solid ${isOver ? '#2563EB' : 'var(--border)'}`, borderRadius: 10, display: 'flex', flexDirection: 'column', minHeight: 120, overflow: 'hidden' }}>
+                      style={{ background: isOver ? 'rgba(0,117,222,0.03)' : 'var(--surface)', border: `1px solid ${isOver ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 10, display: 'flex', flexDirection: 'column', minHeight: 120, overflow: 'hidden' }}>
                       <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 7, height: 7, borderRadius: '50%', background: col.dot }} />
                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{col.label}</span>
@@ -389,7 +389,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                       <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{msg.senderName} · {msg.attachment.size}</div>
                       {msg.attachment.url && (
                         <a href={msg.attachment.url} target="_blank" rel="noreferrer"
-                          style={{ fontSize: 11, color: '#2563EB', textDecoration: 'none', fontWeight: 500 }}>↓ Download</a>
+                          style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>↓ Download</a>
                       )}
                     </div>
                   ))}
@@ -411,13 +411,13 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>Name *</label>
                 <input required value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Product Team"
                   style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>Description</label>
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Optional description"
                   style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = '#2563EB')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')} onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Members</label>
@@ -426,9 +426,9 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                     <button key={e.id} type="button" onClick={() => toggleMember(e.id)}
                       style={{
                         padding: '4px 11px', borderRadius: 99, border: '1px solid', fontSize: 12, cursor: e.id === employee.id ? 'default' : 'pointer',
-                        background: newMembers.includes(e.id) ? '#111' : 'transparent',
+                        background: newMembers.includes(e.id) ? 'var(--accent)' : 'transparent',
                         color: newMembers.includes(e.id) ? '#fff' : 'var(--text-muted)',
-                        borderColor: newMembers.includes(e.id) ? '#111' : 'var(--border)',
+                        borderColor: newMembers.includes(e.id) ? 'var(--accent)' : 'var(--border)',
                         opacity: e.id === employee.id ? 0.6 : 1,
                       }}>
                       {e.name}{e.id === employee.id ? ' (you)' : ''}
@@ -440,7 +440,7 @@ export default function GroupsPage({ employee, allEmployees }: Props) {
                 <button type="button" onClick={() => setShowCreate(false)}
                   style={{ height: 38, padding: '0 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" disabled={creating}
-                  style={{ height: 38, padding: '0 20px', background: creating ? '#888' : '#111', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: creating ? 'not-allowed' : 'pointer' }}>
+                  style={{ height: 38, padding: '0 20px', background: creating ? '#888' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: creating ? 'not-allowed' : 'pointer' }}>
                   {creating ? 'Creating…' : 'Create Group'}
                 </button>
               </div>

@@ -151,7 +151,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
     const parts = content.split(regex);
     return <>{parts.map((p, i) =>
       p.startsWith('@') && names.includes(p.slice(1))
-        ? <span key={i} style={{ color: '#2563EB', fontWeight: 600, background: 'rgba(37,99,235,0.08)', borderRadius: 3, padding: '0 2px' }}>{p}</span>
+        ? <span key={i} style={{ color: 'var(--accent)', fontWeight: 600, background: 'rgba(0,117,222,0.08)', borderRadius: 3, padding: '0 2px' }}>{p}</span>
         : p
     )}</>;
   };
@@ -165,7 +165,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Messages</span>
             <button onClick={() => setShowNew(v => !v)}
-              style={{ width: 28, height: 28, borderRadius: 7, background: '#111', border: 'none', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
+              style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--accent)', border: 'none', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
           </div>
           {showNew && (
             <div>
@@ -180,7 +180,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                     onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'}
                     onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
                   >
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(emp.name)}</div>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(emp.name)}</div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
@@ -207,7 +207,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
               onMouseOver={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
               onMouseOut={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
             >
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(c.name)}</div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(c.name)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.department}</div>
@@ -223,14 +223,14 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
           <>
             {/* Thread header */}
             <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(selected.name)}</div>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(selected.name)}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{selected.name}</div>
                 <div style={{ fontSize: 11, color: statusOf(selected.status).color }}>● {statusOf(selected.status).label}</div>
               </div>
               <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" title="Start Google Meet"
                 style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', textDecoration: 'none', flexShrink: 0 }}
-                onMouseOver={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#2563EB'; (e.currentTarget as HTMLAnchorElement).style.borderColor = '#2563EB'; }}
+                onMouseOver={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--accent)'; }}
                 onMouseOut={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)'; }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -239,7 +239,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
 
             {/* Messages */}
             <div
-              style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 8, background: dropOver ? 'rgba(37,99,235,0.03)' : 'var(--bg)', transition: 'background 150ms' }}
+              style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 8, background: dropOver ? 'rgba(0,117,222,0.03)' : 'var(--bg)', transition: 'background 150ms' }}
               onDragOver={e => { e.preventDefault(); setDropOver(true); }}
               onDragLeave={() => setDropOver(false)}
               onDrop={e => { e.preventDefault(); setDropOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
@@ -281,7 +281,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                             <img src={att.url} alt={att.name} style={{ width: '100%', display: 'block', maxHeight: 200, objectFit: 'cover' }} />
                           </a>
                         ) : (
-                          <div style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
+                          <div style={{ padding: '9px 12px', borderRadius: 12, background: isMe ? 'var(--accent)' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 240 }}>
                             <span style={{ width: 30, height: 30, borderRadius: 7, background: isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: isMe ? '#fff' : 'var(--text)', flexShrink: 0 }}>{att.ext}</span>
                             <span style={{ minWidth: 0, flex: 1 }}>
                               <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: isMe ? '#fff' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
@@ -296,7 +296,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                         );
                       })()
                     ) : (
-                      <div style={{ padding: '9px 13px', borderRadius: 12, background: isMe ? '#111' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', color: isMe ? '#fff' : 'var(--text)', fontSize: 13, lineHeight: 1.5, borderBottomRightRadius: isMe ? 4 : 12, borderBottomLeftRadius: isMe ? 12 : 4 }}>
+                      <div style={{ padding: '9px 13px', borderRadius: 12, background: isMe ? 'var(--accent)' : 'var(--surface)', border: isMe ? 'none' : '1px solid var(--border)', color: isMe ? '#fff' : 'var(--text)', fontSize: 13, lineHeight: 1.5, borderBottomRightRadius: isMe ? 4 : 12, borderBottomLeftRadius: isMe ? 12 : 4 }}>
                         {renderContent(msg.content)}
                       </div>
                     )}
@@ -305,7 +305,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                         {reactionEntries.map(([emoji, uids]) => (
                           <button key={emoji} onClick={() => toggleReaction(msg.id, emoji, employee.id, uids)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, background: uids.includes(employee.id) ? '#EFF6FF' : 'var(--surface)', border: `1px solid ${uids.includes(employee.id) ? '#2563EB' : 'var(--border)'}`, cursor: 'pointer', fontSize: 12, color: uids.includes(employee.id) ? '#2563EB' : 'var(--text-muted)', fontFamily: 'inherit' }}>
+                            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, background: uids.includes(employee.id) ? '#EFF6FF' : 'var(--surface)', border: `1px solid ${uids.includes(employee.id) ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', fontSize: 12, color: uids.includes(employee.id) ? 'var(--accent)' : 'var(--text-muted)', fontFamily: 'inherit' }}>
                             {emoji} <span style={{ fontSize: 11 }}>{uids.length}</span>
                           </button>
                         ))}
@@ -328,7 +328,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                       onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'}
                       onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
                     >
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{initials(emp.name)}</div>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(emp.name)}</div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
@@ -341,7 +341,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
             <form onSubmit={handleSend} style={{ padding: '12px 14px', background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
               <input ref={fileRef} type="file" multiple onChange={e => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); e.target.value = ''; } }} style={{ display: 'none' }} />
               <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} title="Upload a file"
-                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: uploading ? '#2563EB' : 'var(--text-muted)', flexShrink: 0, cursor: uploading ? 'wait' : 'pointer' }}
+                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: uploading ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0, cursor: uploading ? 'wait' : 'pointer' }}
                 onMouseOver={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'; }}
                 onMouseOut={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
               >
@@ -350,7 +350,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
               <input type="text" value={text} onChange={e => handleTextChange(e.target.value)}
                 placeholder={`Message ${selected.name.split(' ')[0]}… (type @ to mention)`}
                 style={{ flex: 1, height: 40, padding: '0 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', minWidth: 0 }}
-                onFocus={e => (e.target.style.borderColor = '#2563EB')}
+                onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                 onBlur={e => { (e.target.style.borderColor = 'var(--border)'); setTimeout(() => setShowMentions(false), 150); }}
                 onKeyDown={e => {
                   if (e.key === 'Escape') { setShowMentions(false); return; }
@@ -359,7 +359,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                 disabled={sending}
               />
               <button type="submit" disabled={!text.trim() || sending}
-                style={{ width: 40, height: 40, borderRadius: 8, background: '#111', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.5 }}>
+                style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--accent)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.5 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </form>

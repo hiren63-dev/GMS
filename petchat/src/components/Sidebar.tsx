@@ -24,7 +24,7 @@ const NavBtn = ({ icon, label, active, onClick, badge }: {
     {icon}
     <span className="flex-1">{label}</span>
     {badge != null && badge > 0 && (
-      <span style={{ background: '#EF4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 600, padding: '1px 6px', minWidth: 18, textAlign: 'center' }}>
+      <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 600, padding: '1px 6px', minWidth: 18, textAlign: 'center' }}>
         {badge > 99 ? '99+' : badge}
       </span>
     )}
@@ -44,14 +44,14 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
   const isTeamLead = !isAdmin && perms.length > 0;
   const initials  = employee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-  const roleBadge = { founder: { bg: '#F3E8FF', fg: '#7C3AED' }, admin: { bg: '#EFF6FF', fg: '#2563EB' }, employee: { bg: '#F3F3F2', fg: '#555' } }[employee.role];
+  const roleBadge = { founder: { bg: 'rgba(33,49,131,0.08)', fg: '#213183' }, admin: { bg: 'rgba(0,117,222,0.08)', fg: 'var(--accent)' }, employee: { bg: 'rgba(var(--text-rgb),0.06)', fg: 'var(--text-muted)' } }[employee.role];
 
   return (
     <aside className="sidebar select-none">
       {/* Brand + role */}
       <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
-          <div style={{ width: 28, height: 28, background: '#111', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Z</div>
+          <div style={{ width: 28, height: 28, background: 'var(--text)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Z</div>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>Zypit</span>
         </div>
         <span style={{ display: 'inline-block', padding: '2px 8px', background: roleBadge.bg, borderRadius: 5, fontSize: 11, fontWeight: 500, color: roleBadge.fg }}>
@@ -156,7 +156,7 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
       {/* User footer */}
       <div style={{ flexShrink: 0, padding: '10px 10px 14px', borderTop: '1px solid var(--sidebar-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 8, marginBottom: 6 }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
             {initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>

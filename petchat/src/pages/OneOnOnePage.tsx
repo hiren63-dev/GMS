@@ -77,7 +77,7 @@ export default function OneOnOnePage({ employee, allEmployees }: Props) {
         <>
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
               {(selectedEmp?.name ?? '').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <div>
@@ -104,7 +104,7 @@ export default function OneOnOnePage({ employee, allEmployees }: Props) {
                 onClick={handleSave}
                 disabled={saving || !draft.trim()}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition"
-                style={{ background: '#111', color: '#fff', opacity: draft.trim() ? 1 : 0.5, cursor: draft.trim() ? 'pointer' : 'not-allowed', border: 'none' }}
+                style={{ background: 'var(--accent)', color: '#fff', opacity: draft.trim() ? 1 : 0.5, cursor: draft.trim() ? 'pointer' : 'not-allowed', border: 'none' }}
               >
                 {saving ? 'Saving…' : 'Save Note'}
               </button>
@@ -133,7 +133,7 @@ export default function OneOnOnePage({ employee, allEmployees }: Props) {
                       <div className="flex gap-2">
                         <button onClick={() => handleUpdate(note.id)}
                           className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                          style={{ background: '#111', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                          style={{ background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' }}>
                           Save
                         </button>
                         <button onClick={() => { setEditingId(null); setEditText(''); }}

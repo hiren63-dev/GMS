@@ -13,16 +13,17 @@ import { onAllTasksChange } from '../services/firebase';
 interface Props { employee: Employee; allEmployees: Employee[]; }
 
 const PRIO_RANK: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-const PRIO_DOT: Record<Priority, string> = { urgent: '#DC2626', high: '#C2410C', medium: '#CA8A04', low: '#9CA3AF' };
+// Sticker-palette status dots (decoration carries status, never structure)
+const PRIO_DOT: Record<Priority, string> = { urgent: '#dd5b00', high: '#ff64c8', medium: '#a39e98', low: '#62aef0' };
 
 const normTitle = (t: string) => t.trim().toLowerCase().replace(/\s+/g, ' ');
 const initialsOf = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 const fmtDue = (ts?: number) => ts ? new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
 
 function loadOf(count: number, urgent: number): { label: string; bg: string; fg: string } {
-  if (count === 0) return { label: 'Free', bg: '#DCFCE7', fg: '#16A34A' };
-  if (count >= 6 || urgent >= 2) return { label: 'Overloaded', bg: '#FEE2E2', fg: '#DC2626' };
-  return { label: 'Balanced', bg: '#EFF6FF', fg: '#2563EB' };
+  if (count === 0) return { label: 'Free', bg: 'rgba(26,174,57,0.10)', fg: '#1aae39' };
+  if (count >= 6 || urgent >= 2) return { label: 'Overloaded', bg: 'rgba(221,91,0,0.10)', fg: '#dd5b00' };
+  return { label: 'Balanced', bg: 'rgba(0,117,222,0.08)', fg: 'var(--accent)' };
 }
 
 export default function TeamBoard({ employee, allEmployees }: Props) {
@@ -63,7 +64,7 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
 
   const Stat = ({ n, label, tone }: { n: number; label: string; tone?: string }) => (
     <div className="card" style={{ padding: '12px 16px', minWidth: 120 }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: tone ?? 'var(--text)', letterSpacing: '-0.02em', fontFamily: "'Inter Display','Inter',sans-serif" }}>{n}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: tone ?? 'var(--text)', letterSpacing: '-0.02em' }}>{n}</div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
     </div>
   );
@@ -88,9 +89,9 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
       {/* Summary */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <Stat n={totalOpen} label="Open tasks" />
-        <Stat n={freeHands} label="Free hands" tone={freeHands ? '#16A34A' : undefined} />
-        <Stat n={overloaded} label="Overloaded" tone={overloaded ? '#DC2626' : undefined} />
-        <Stat n={overlapTitles.size} label="Possible overlaps" tone={overlapTitles.size ? '#C2410C' : undefined} />
+        <Stat n={freeHands} label="Free hands" tone={freeHands ? '#1aae39' : undefined} />
+        <Stat n={overloaded} label="Overloaded" tone={overloaded ? '#dd5b00' : undefined} />
+        <Stat n={overlapTitles.size} label="Possible overlaps" tone={overlapTitles.size ? '#dd5b00' : undefined} />
       </div>
 
       {/* Person columns */}
@@ -101,7 +102,7 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
             <div key={e.id} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {/* Person header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', color: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                   {initialsOf(e.name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -133,7 +134,7 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
                           <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.35 }}>
                             {t.title}
                             {isOverlap(t) && (
-                              <span title="Another teammate has a task with the same title" style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#C2410C', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap' }}>⚠ overlap</span>
+                              <span title="Another teammate has a task with the same title" style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#dd5b00', background: 'rgba(221,91,0,0.08)', border: '1px solid rgba(221,91,0,0.25)', borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap' }}>⚠ overlap</span>
                             )}
                           </div>
                           {t.description && (

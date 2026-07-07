@@ -112,8 +112,8 @@ export default function FounderView({ employee, allEmployees }: Props) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { icon: '🟢', label: 'Active Now',   value: activeToday,        color: '#16A34A' },
-          { icon: '👥', label: 'Total Team',   value: allEmployees.length, color: '#2563EB' },
-          { icon: '✅', label: 'Tasks Done',   value: tasksCompleted,      color: '#7C3AED' },
+          { icon: '👥', label: 'Total Team',   value: allEmployees.length, color: 'var(--accent)' },
+          { icon: '✅', label: 'Tasks Done',   value: tasksCompleted,      color: '#213183' },
           { icon: '📋', label: 'Clock-ins',    value: todayLogins,         color: '#C2410C' },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px' }}>
@@ -165,7 +165,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                     onMouseOut={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
                           {emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                         <div>
@@ -186,7 +186,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 12, color: 'var(--text)' }}>{doneTasks}/{totalTasks}</span>
                           <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 99, minWidth: 40 }}>
-                            <div style={{ height: '100%', background: doneTasks === totalTasks ? '#16A34A' : '#2563EB', borderRadius: 99, width: `${Math.round((doneTasks / totalTasks) * 100)}%`, transition: 'width 600ms' }} />
+                            <div style={{ height: '100%', background: doneTasks === totalTasks ? '#16A34A' : 'var(--accent)', borderRadius: 99, width: `${Math.round((doneTasks / totalTasks) * 100)}%`, transition: 'width 600ms' }} />
                           </div>
                         </div>
                       ) : <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>No tasks</span>}
@@ -200,7 +200,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                       <span style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 600,
                         ...(status === 'active' ? { background: '#F0FDF4', color: '#16A34A' } :
-                            status === 'done' ? { background: '#EFF6FF', color: '#2563EB' } :
+                            status === 'done' ? { background: '#EFF6FF', color: 'var(--accent)' } :
                             { background: '#FEF2F2', color: '#DC2626' })
                       }}>
                         {status === 'active' ? '● Active' : status === 'done' ? '✓ Done' : '✗ Absent'}
@@ -270,7 +270,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                   </div>
                   <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface2)' }}>
                     <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${avgPct}%`, background: '#7C3AED' }} />
+                      style={{ width: `${avgPct}%`, background: '#213183' }} />
                   </div>
                 </div>
 
@@ -302,7 +302,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                     ) : (
                       <div className="h-2 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface2)' }}>
                         <div className="h-full rounded-full transition-all"
-                          style={{ width: `${kr.target > 0 ? Math.min(100, (kr.current / kr.target) * 100) : 0}%`, background: '#7C3AED' }} />
+                          style={{ width: `${kr.target > 0 ? Math.min(100, (kr.current / kr.target) * 100) : 0}%`, background: '#213183' }} />
                       </div>
                     )}
                   </div>
@@ -385,7 +385,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                 <button onClick={() => setShowNewOKR(false)}
                   style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={handleCreateOKR}
-                  style={{ flex: 1, height: 40, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Create</button>
+                  style={{ flex: 1, height: 40, background: '#213183', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Create</button>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function FounderView({ employee, allEmployees }: Props) {
                 <button onClick={() => setKrModal(null)}
                   style={{ flex: 1, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={submitKR}
-                  style={{ flex: 1, height: 40, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Add</button>
+                  style={{ flex: 1, height: 40, background: '#213183', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Add</button>
               </div>
             </div>
           </div>

@@ -167,7 +167,7 @@ export default function ResourcesPage({ employee, allEmployees }: Props) {
           <div className="flex items-center gap-3">
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
               className="px-4 py-2 rounded-xl text-sm font-medium text-white transition"
-              style={{ background: uploading ? '#888' : '#111', cursor: uploading ? 'wait' : 'pointer' }}>
+              style={{ background: uploading ? '#888' : 'var(--accent)', cursor: uploading ? 'wait' : 'pointer' }}>
               {uploading ? '⏳ Uploading…' : '+ Upload File'}
             </button>
             {uploadError && <span style={{ fontSize: 12, color: '#DC2626' }}>{uploadError}</span>}
