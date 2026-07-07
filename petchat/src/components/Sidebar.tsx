@@ -52,9 +52,9 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
       <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
           <div style={{ width: 28, height: 28, background: 'var(--text)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Z</div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>Zypit</span>
+          <span className="hide-narrow" style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>Zypit</span>
         </div>
-        <span style={{ display: 'inline-block', padding: '2px 8px', background: roleBadge.bg, borderRadius: 5, fontSize: 11, fontWeight: 500, color: roleBadge.fg }}>
+        <span className="hide-narrow" style={{ display: 'inline-block', padding: '2px 8px', background: roleBadge.bg, borderRadius: 5, fontSize: 11, fontWeight: 500, color: roleBadge.fg }}>
           {employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}
         </span>
       </div>
@@ -101,7 +101,7 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
 
         {isTeamLead && (
           <>
-            <div style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Team Lead</div>
+            <div className="hide-narrow" style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Team Lead</div>
             {perms.includes('view_reports') && (
               <NavBtn active={currentPage === 'admin'} onClick={() => onNavigate('admin')} label="Overview" icon={
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -127,7 +127,7 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
 
         {isAdmin && (
           <>
-            <div style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Admin</div>
+            <div className="hide-narrow" style={{ margin: '8px 2px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-faint)', padding: '0 8px' }}>Admin</div>
             <NavBtn active={currentPage === 'admin'} onClick={() => onNavigate('admin')} label="Overview" icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             } />
@@ -159,7 +159,7 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
             {initials}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="hide-narrow" style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{employee.name}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{employee.department}</div>
           </div>
@@ -171,7 +171,7 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
           onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sign out
+          <span className="hide-narrow">Sign out</span>
         </button>
       </div>
     </aside>

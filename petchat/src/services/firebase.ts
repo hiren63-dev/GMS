@@ -196,22 +196,37 @@ export const getConversationPartners = async (userId: string, allEmployees: Empl
   return allEmployees.filter(e => partnerIds.has(e.id) && e.id !== userId);
 };
 
-/** Live conversation-partner list (real-time, fixes stale contact list). */
+/**
+ * WhatsApp-style contact list: EVERY teammate, not just past conversation
+ * partners — so there's never an empty "click + to start" dead end. People
+ * you've messaged before float to the top ordered by most-recent activity;
+ * everyone else follows alphabetically underneath.
+ */
 export const onConversationPartnersChange = (
   userId: string,
   allEmployees: Employee[],
-  cb: (partners: Employee[]) => void,
+  cb: (partners: (Employee & { lastMessageAt?: number })[]) => void,
 ) => {
   const q = query(collection(db, 'messages'), where('participants', 'array-contains', userId));
   return onSnapshot(q, s => {
-    const partnerIds = new Set<string>();
+    const lastAt = new Map<string, number>();
     s.docs.forEach(d => {
       const m = d.data() as any;
       if (m.isGroupChat) return;
-      if (m.senderId === userId) partnerIds.add(m.recipientId);
-      if (m.recipientId === userId) partnerIds.add(m.senderId);
+      const otherId = m.senderId === userId ? m.recipientId : m.recipientId === userId ? m.senderId : null;
+      if (!otherId) return;
+      if (!lastAt.has(otherId) || m.timestamp > lastAt.get(otherId)!) lastAt.set(otherId, m.timestamp);
     });
-    cb(allEmployees.filter(e => partnerIds.has(e.id) && e.id !== userId));
+    const decorated = allEmployees
+      .filter(e => e.id !== userId)
+      .map(e => ({ ...e, lastMessageAt: lastAt.get(e.id) }));
+    decorated.sort((a, b) => {
+      if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt - a.lastMessageAt;
+      if (a.lastMessageAt) return -1;
+      if (b.lastMessageAt) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    cb(decorated);
   });
 };
 
@@ -535,6 +550,11 @@ export const onGroupsChange = (employeeId: string, cb: (groups: Group[]) => void
     query(collection(db, 'groups'), where('memberIds', 'array-contains', employeeId)),
     s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }) as Group))
   );
+
+/** Every collaboration group company-wide (not scoped to one member) —
+ * powers the Org Chart's "who's working together" clusters. */
+export const onAllGroupsChange = (cb: (groups: Group[]) => void) =>
+  onSnapshot(collection(db, 'groups'), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }) as Group)));
 
 // ── Group Messages ────────────────────────────────────────────────────────
 export const sendGroupMessage = (msg: { groupId: string; senderId: string; senderName: string; content: string; attachment?: { name: string; size: string; ext: string; url?: string } }) =>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Employee, Task, Priority } from '../types';
 import { onAllTasksChange } from '../services/firebase';
+import { avatarColor } from '../lib/avatar';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Team Board — the shared "who is doing what" whiteboard.
@@ -94,15 +95,20 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
         <Stat n={overlapTitles.size} label="Possible overlaps" tone={overlapTitles.size ? '#dd5b00' : undefined} />
       </div>
 
-      {/* Person columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>
+      {/* Person columns — grid items stretch to full row height (default grid
+          behavior) so every card in a row shares the same bottom edge,
+          regardless of how many tasks each person has. The task list uses
+          flex:1 so its background/border fills that stretched height instead
+          of hugging just its own content. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
         {columns.map(({ e, mine, urgent, overdue }) => {
           const load = loadOf(mine.length, urgent);
+          const av = avatarColor(e.name);
           return (
             <div key={e.id} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {/* Person header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', color: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: av.bg, color: av.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                   {initialsOf(e.name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -117,24 +123,27 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
               </div>
 
               {overdue > 0 && (
-                <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 500 }}>⚠ {overdue} overdue</div>
+                <div style={{ fontSize: 11, color: '#dd5b00', fontWeight: 500 }}>{overdue} overdue</div>
               )}
 
-              {/* Tasks */}
+              {/* Tasks — flex:1 so the card's content area fills the full
+                  stretched row height, keeping every card's bottom edge level */}
               {mine.length === 0 ? (
-                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', padding: '8px 0' }}>🟢 Available — no active tasks.</div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 64, fontSize: 12.5, color: 'var(--text-faint)', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                  Available — no active tasks
+                </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {mine.map(t => {
                     const late = t.dueDate && t.dueDate < Date.now();
                     return (
-                      <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
                         <span title={t.priority} style={{ width: 7, height: 7, borderRadius: '50%', background: PRIO_DOT[t.priority], marginTop: 5, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.35 }}>
+                          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.4 }}>
                             {t.title}
                             {isOverlap(t) && (
-                              <span title="Another teammate has a task with the same title" style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#dd5b00', background: 'rgba(221,91,0,0.08)', border: '1px solid rgba(221,91,0,0.25)', borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap' }}>⚠ overlap</span>
+                              <span title="Another teammate has a task with the same title" style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: '#dd5b00', background: 'rgba(221,91,0,0.08)', border: '1px solid rgba(221,91,0,0.25)', borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap' }}>overlap</span>
                             )}
                           </div>
                           {t.description && (
@@ -142,8 +151,8 @@ export default function TeamBoard({ employee, allEmployees }: Props) {
                           )}
                         </div>
                         {t.dueDate && (
-                          <span style={{ fontSize: 11, color: late ? '#DC2626' : 'var(--text-faint)', fontWeight: late ? 600 : 400, flexShrink: 0, marginTop: 1 }}>
-                            {late ? '⚠ ' : ''}{fmtDue(t.dueDate)}
+                          <span style={{ fontSize: 11, color: late ? '#dd5b00' : 'var(--text-faint)', fontWeight: late ? 600 : 400, flexShrink: 0, marginTop: 1 }}>
+                            {late ? 'overdue' : fmtDue(t.dueDate)}
                           </span>
                         )}
                       </div>

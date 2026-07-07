@@ -388,10 +388,10 @@ export function assess(action: AgentAction, ctx: AgentContext): Assessment {
       if (!can(me, 'post_announcements')) {
         return { permitted: false, risky: false, denyReason: `Only admins (or people with the "post announcements" permission) can broadcast to the whole team.` };
       }
-      return { permitted: true, risky: true, confirmText: `📣 Announce to the whole team:\n"${action.body}"` };
+      return { permitted: true, risky: true, confirmText: `Review before it goes to the whole team:\n"${action.body}"` };
     }
     case 'delete_task':
-      return { permitted: true, risky: true, confirmText: `🗑️ Delete the task matching "${action.taskQuery}"? This can't be undone.` };
+      return { permitted: true, risky: true, confirmText: `Delete the task matching "${action.taskQuery}"? This can't be undone.` };
     case 'remember_nickname':
       return { permitted: true, risky: false };
     default:
@@ -466,13 +466,13 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       // Slot-filling: if they didn't say a priority, offer one-tap refinement
       // (WhatsApp-business style) instead of making them type again.
       const options: QuickOption[] | undefined = action.priority ? undefined : [
-        { label: '🔴 Urgent', act: { kind: 'set_priority', taskQuery: action.title, priority: 'urgent' } },
-        { label: '🟠 High', act: { kind: 'set_priority', taskQuery: action.title, priority: 'high' } },
-        { label: '✍️ Add details', prefill: `note for "${action.title}": ` },
+        { label: 'Urgent', act: { kind: 'set_priority', taskQuery: action.title, priority: 'urgent' } },
+        { label: 'High', act: { kind: 'set_priority', taskQuery: action.title, priority: 'high' } },
+        { label: 'Add details', prefill: `note for "${action.title}": ` },
       ];
       return {
         ok: true,
-        reply: `✅ Added "${action.title}" to ${who}${when}.${options ? ' Priority is medium — want to change it?' : ''}`,
+        reply: `Added "${action.title}" to ${who}${when}.${options ? ' Priority is medium — want to change it?' : ''}`,
         historyLabel: `Task “${action.title}” → ${target.id === me.id ? 'you' : target.name}`,
         undo: async () => { await deleteTask((ref as any).id); invalidateTasks(); },
         options,
@@ -487,8 +487,7 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       await updateTask(match.id, { priority: action.priority });
       invalidateTasks();
       audit(me, 'set_priority', match.title, action.priority);
-      const icon = action.priority === 'urgent' ? '🔴' : action.priority === 'high' ? '🟠' : '🔵';
-      return { ok: true, reply: `${icon} "${match.title}" is now ${action.priority} priority.`, historyLabel: `Priority ${action.priority} → “${match.title}”` };
+      return { ok: true, reply: `"${match.title}" is now ${action.priority} priority.`, historyLabel: `Priority ${action.priority} → “${match.title}”` };
     }
 
     case 'add_note': {
@@ -551,7 +550,7 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       audit(me, 'complete_task', match.title);
       return {
         ok: true,
-        reply: `✅ Marked "${match.title}" as done. Nice work.`,
+        reply: `Marked "${match.title}" as done. Nice work.`,
         historyLabel: `Completed “${match.title}”`,
         undo: async () => { await updateTask(match.id, { status: prevStatus, completedAt: 0 }); invalidateTasks(); },
       };
@@ -566,19 +565,36 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       await deleteTask(match.id);
       invalidateTasks();
       audit(me, 'delete_task', match.title);
-      return { ok: true, reply: `🗑️ Deleted "${match.title}".`, historyLabel: `Deleted “${match.title}”` };
+      return { ok: true, reply: `Deleted "${match.title}".`, historyLabel: `Deleted “${match.title}”` };
     }
 
     case 'list_my_tasks': {
       const tasks = await cachedTasks();
       const mine = tasks.filter(t => t.assigneeId === me.id && t.status !== 'done');
-      if (!mine.length) return { ok: true, reply: `You have no open tasks. 🎉` };
+      if (!mine.length) return { ok: true, reply: `You have no open tasks.` };
+      const now = Date.now();
       const order: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+      const overdueCount = mine.filter(t => t.dueDate && t.dueDate < now).length;
       const lines = mine
-        .sort((a, b) => (order[a.priority] ?? 2) - (order[b.priority] ?? 2))
+        .sort((a, b) => {
+          const aOverdue = a.dueDate && a.dueDate < now ? 0 : 1;
+          const bOverdue = b.dueDate && b.dueDate < now ? 0 : 1;
+          if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+          return (order[a.priority] ?? 2) - (order[b.priority] ?? 2);
+        })
         .slice(0, 10)
-        .map(t => `• ${t.title}${t.priority === 'urgent' ? ' 🔴' : t.status === 'in_progress' ? ' (in progress)' : ''}`);
-      return { ok: true, reply: `You have ${mine.length} open task${mine.length > 1 ? 's' : ''}:\n${lines.join('\n')}` };
+        .map(t => {
+          const isOverdue = t.dueDate && t.dueDate < now;
+          if (isOverdue) {
+            const days = Math.max(1, Math.floor((now - t.dueDate!) / 86400000));
+            return `• ${t.title} — OVERDUE (${days} day${days > 1 ? 's' : ''} late). Complete it today or your admin gets notified.`;
+          }
+          return `• ${t.title}${t.priority === 'urgent' ? ' (urgent)' : t.status === 'in_progress' ? ' (in progress)' : ''}`;
+        });
+      const header = overdueCount > 0
+        ? `You have ${mine.length} open task${mine.length > 1 ? 's' : ''} — ${overdueCount} overdue:`
+        : `You have ${mine.length} open task${mine.length > 1 ? 's' : ''}:`;
+      return { ok: true, reply: `${header}\n${lines.join('\n')}` };
     }
 
     case 'send_file': {
@@ -605,7 +621,7 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
         attachment: { name: file.name, size: file.size, ext: file.ext, url: file.url },
       });
       audit(me, 'send_file', file.name, `→ ${person.name}`);
-      return { ok: true, reply: `✅ Sent "${file.name}" to ${person.name}. It's in your Messages with them.`, historyLabel: `Sent “${file.name}” → ${person.name}` };
+      return { ok: true, reply: `Sent "${file.name}" to ${person.name}. It's in your Messages with them.`, historyLabel: `Sent “${file.name}” → ${person.name}` };
     }
 
     case 'find_file': {
@@ -632,7 +648,7 @@ async function executeInner(action: AgentAction, ctx: AgentContext): Promise<Age
       audit(me, 'announce', action.body.slice(0, 60));
       return {
         ok: true,
-        reply: `📣 Announced to the whole team: "${action.body}". It's live on Announcements.`,
+        reply: `Announced to the whole team: "${action.body}". It's live on Announcements.`,
         historyLabel: `Announced “${action.body.slice(0, 32)}${action.body.length > 32 ? '…' : ''}”`,
         undo: async () => { await deleteAnnouncement((ref as any).id); },
       };

@@ -5,6 +5,7 @@ import {
   getTodaysCheckIn, filterAnnouncements, onAnnouncementsChange,
   onMessagesChange,
 } from '../services/firebase';
+import { avatarColor, initialsOf } from '../lib/avatar';
 
 interface Props {
   employee: Employee;
@@ -148,6 +149,9 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
     const d = new Date(ts);
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
+  // A task from 3 days ago must never read the same as one due today —
+  // this distinction was previously missing entirely from the widget.
+  const overdueDays = (ts?: number) => ts && ts < Date.now() ? Math.max(1, Math.floor((Date.now() - ts) / 86400000)) : 0;
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '28px 32px', animation: 'fadeIn 200ms ease' }}>
@@ -250,17 +254,28 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
             >View all →</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {tasks.filter(t => t.status !== 'done').slice(0, 5).map(task => (
-              <div key={task.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, transition: 'border-color 150ms', cursor: 'default' }}
-                onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)'}
-                onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
-              >
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot(task.status), flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
-                <span className={`badge-${task.priority}`}>{task.priority}</span>
-                {task.dueDate && <span style={{ fontSize: 11, color: 'var(--text-faint)', flexShrink: 0 }}>{formatDue(task.dueDate)}</span>}
-              </div>
-            ))}
+            {tasks.filter(t => t.status !== 'done')
+              .sort((a, b) => (overdueDays(b.dueDate) > 0 ? 1 : 0) - (overdueDays(a.dueDate) > 0 ? 1 : 0))
+              .slice(0, 5).map(task => {
+              const late = overdueDays(task.dueDate);
+              return (
+                <div key={task.id} style={{ background: 'var(--surface)', border: late ? '1px solid rgba(221,91,0,0.35)' : '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, transition: 'border-color 150ms', cursor: 'default' }}
+                  onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = late ? 'rgba(221,91,0,0.5)' : 'var(--border-hover)'}
+                  onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = late ? 'rgba(221,91,0,0.35)' : 'var(--border)'}
+                >
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: late ? '#dd5b00' : statusDot(task.status), flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                  <span className={`badge-${task.priority}`}>{task.priority}</span>
+                  {late > 0 ? (
+                    <span title="Still incomplete — flagged to your admin if not done today" style={{ fontSize: 11, fontWeight: 600, color: '#dd5b00', background: 'rgba(221,91,0,0.10)', padding: '2px 8px', borderRadius: 99, flexShrink: 0 }}>
+                      Overdue {late}d
+                    </span>
+                  ) : task.dueDate && (
+                    <span style={{ fontSize: 11, color: 'var(--text-faint)', flexShrink: 0 }}>{formatDue(task.dueDate)}</span>
+                  )}
+                </div>
+              );
+            })}
             {tasks.filter(t => t.status !== 'done').length === 0 && (
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
                 No pending tasks · <button onClick={() => onNavigate('tasks')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Add one →</button>
@@ -340,30 +355,45 @@ export default function Dashboard({ employee, allEmployees, onNavigate }: Props)
         </div>
       </div>
 
-      {/* Team strip */}
-      <div style={{ marginTop: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Team Today</span>
-          <button onClick={() => onNavigate('team')} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>View all →</button>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-          {allEmployees.filter(e => e.id !== employee.id).slice(0, 10).map(emp => {
-            const initials = emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-            const ringCls = { active: 'avatar-active', idle: 'avatar-idle', blocked: 'avatar-blocked', offline: 'avatar-offline' }[emp.status ?? 'offline'];
-            return (
-              <div key={emp.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div className={ringCls} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--surface)', fontSize: 11, fontWeight: 600 }}>
-                  {initials}
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.name.split(' ')[0]}</span>
+      {/* Team Today — a tidy, aligned grid of teammates with a clear status
+          dot per person and an at-a-glance online count in the header. */}
+      {(() => {
+        const mates = allEmployees.filter(e => e.id !== employee.id);
+        const onlineCount = mates.filter(e => (e.status ?? 'offline') === 'active').length;
+        const statusColor: Record<string, string> = { active: '#1aae39', idle: '#dd5b00', blocked: '#EF4444', offline: '#a39e98' };
+        return (
+          <div style={{ marginTop: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Team Today</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{onlineCount} online · {mates.length} total</span>
               </div>
-            );
-          })}
-          {allEmployees.length <= 1 && (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No teammates yet.</p>
-          )}
-        </div>
-      </div>
+              <button onClick={() => onNavigate('team')} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>View all →</button>
+            </div>
+            {mates.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No teammates yet.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 16 }}>
+                {mates.slice(0, 12).map(emp => {
+                  const av = avatarColor(emp.name);
+                  const status = emp.status ?? 'offline';
+                  return (
+                    <div key={emp.id} title={`${emp.name} — ${status}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: av.bg, color: av.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600 }}>
+                          {initialsOf(emp.name)}
+                        </div>
+                        <span style={{ position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: '50%', background: statusColor[status], border: '2px solid var(--surface)' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500, maxWidth: 88, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name.split(' ')[0]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       {/* Modals */}
       {showLogoutWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowLogoutWarning(false)}>

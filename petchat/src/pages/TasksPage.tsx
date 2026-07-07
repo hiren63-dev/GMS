@@ -99,7 +99,7 @@ export default function TasksPage({ employee }: Props) {
       .catch(err => console.error('Failed to update task:', err));
     if (status === 'done' && task.status !== 'done') {
       logTaskDone(employee.id, employee.name, task.title);
-      toast(`Task completed: ${task.title} 🎉`);
+      toast(`Task completed: ${task.title}`);
       // Auto-recreate recurring tasks
       if (task.recurrence) {
         const next = new Date();

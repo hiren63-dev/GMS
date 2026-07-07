@@ -370,3 +370,15 @@ select { cursor: pointer; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Mobile / narrow screens ──
+   Collapse the sidebar to a compact icon rail so the content gets the width.
+   Nav labels and secondary text hide; icons stay tappable (44px targets). A
+   full hamburger drawer is a larger follow-up — this keeps every screen usable
+   on a phone today. */
+@media (max-width: 820px) {
+  .sidebar { width: 56px; }
+  .sidebar .flex-1 { display: none; }        /* nav-btn labels */
+  .hide-narrow { display: none !important; } /* brand word, role badge, section headers, user name */
+  .nav-btn { justify-content: center; gap: 0; padding: 0; height: 40px; }
+}

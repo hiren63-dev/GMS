@@ -31,6 +31,7 @@ import OneOnOnePage from './pages/OneOnOnePage';
 import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInModal';
 import TimeTracker from './components/TimeTracker';
 import ChatDock from './components/ChatDock';
+import { InstallPrompt, UpdateBanner } from './components/SystemPrompts';
 
 import './index.css';
 
@@ -545,6 +546,8 @@ export default function App() {
             </button>
           </div>
         </div>
+        <UpdateBanner />
+        <InstallPrompt />
       </div>
     );
   }
@@ -639,6 +642,9 @@ export default function App() {
       )}
 
       <ChatDock employee={currentEmployee} employees={employees} />
+
+      <UpdateBanner />
+      <InstallPrompt />
 
       <Mascot
         onTap={() => {

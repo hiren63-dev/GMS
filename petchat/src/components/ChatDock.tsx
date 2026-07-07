@@ -47,7 +47,7 @@ export default function ChatDock({ employee, employees }: Props) {
   const [greeted, setGreeted] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [pending, setPending] = useState<{ action: AgentAction; text: string; count: number } | null>(null);
+  const [pending, setPending] = useState<{ action: AgentAction; text: string; count: number; manual?: boolean } | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -89,9 +89,11 @@ export default function ChatDock({ employee, employees }: Props) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [msgs, busy, pending]);
 
-  // 3-2-1 countdown → auto-execute for confirmed risky actions
+  // 3-2-1 countdown → auto-execute for confirmed risky actions. Skipped for
+  // "manual" actions (e.g. announcements) — a company-wide broadcast should
+  // never auto-fire just because someone looked away for 3 seconds.
   useEffect(() => {
-    if (!pending) return;
+    if (!pending || pending.manual) return;
     if (pending.count <= 0) { void commit(pending.action); setPending(null); return; }
     const t = window.setTimeout(() => setPending(p => (p ? { ...p, count: p.count - 1 } : p)), 1000);
     return () => window.clearTimeout(t);
@@ -125,7 +127,7 @@ export default function ChatDock({ employee, employees }: Props) {
     setMsgs(m => [...m.slice(-(MAX_MSGS - 1)), { id: nextId(), role: 'user', text: opt.label }]);
     const gate = assess(opt.act, ctx);
     if (!gate.permitted) { pushBot({ ok: false, reply: gate.denyReason ?? 'You cannot do that.' }); return; }
-    if (gate.risky) { setPending({ action: opt.act, text: gate.confirmText ?? 'Confirm this action?', count: 3 }); return; }
+    if (gate.risky) { setPending({ action: opt.act, text: gate.confirmText ?? 'Confirm this action?', count: 3, manual: opt.act.kind === 'announce' }); return; }
     await commit(opt.act);
   };
 
@@ -141,7 +143,7 @@ export default function ChatDock({ employee, employees }: Props) {
       const gate = assess(action, ctx);
       setBusy(false);
       if (!gate.permitted) { pushBot({ ok: false, reply: gate.denyReason ?? 'You cannot do that.' }); return; }
-      if (gate.risky) { setPending({ action, text: gate.confirmText ?? 'Confirm this action?', count: 3 }); return; }
+      if (gate.risky) { setPending({ action, text: gate.confirmText ?? 'Confirm this action?', count: 3, manual: action.kind === 'announce' }); return; }
       await commit(action);
     } catch (e: any) {
       setBusy(false);
@@ -323,25 +325,31 @@ export default function ChatDock({ employee, employees }: Props) {
               </div>
             ))}
 
-            {/* Risky-action confirm with 3-2-1 countdown + visible time drain */}
+            {/* Risky-action confirm. Manual actions (announcements) sit until
+                the user decides — no countdown, no auto-fire, no time drain;
+                that pressure has no place in front of a whole-team broadcast. */}
             {pending && (
               <div className="bd-msg bd-msg-bot" style={{ alignSelf: 'flex-start', maxWidth: '92%', position: 'relative', overflow: 'hidden', background: 'var(--surface,#fff)', border: '1px solid #FCD34D', borderRadius: 12, padding: 16, boxShadow: 'var(--card-shadow)' }}>
                 <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{pending.text}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button onClick={() => { const a = pending.action; setPending(null); void commit(a); }} className="bd-press"
                     style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: 'var(--bd-accent)', color: '#fff', fontWeight: 650, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Confirm ({pending.count})
+                    {pending.manual ? 'Approve' : `Confirm (${pending.count})`}
                   </button>
                   <button onClick={() => { setPending(null); setMsgs(m => [...m, { id: nextId(), role: 'bot', ok: true, text: 'Okay, cancelled — nothing changed.' }]); }} className="bd-press"
                     style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--border,#E9E9E7)', background: 'var(--surface2,#F7F7F6)', color: 'var(--text,#111)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Cancel
+                    {pending.manual ? 'Disapprove' : 'Cancel'}
                   </button>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-faint,#BBB)', marginTop: 8, textAlign: 'center' }}>Auto-confirms in {pending.count}s · Cancel to stop</div>
-                {/* Draining time bar — remounts (keyed) each time a pending action appears */}
-                <div key={pending.text} aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, background: 'var(--bd-ring)' }}>
-                  <div className="bd-drain" style={{ height: '100%', borderRadius: 99, background: 'var(--bd-accent)' }} />
-                </div>
+                {!pending.manual && (
+                  <>
+                    <div style={{ fontSize: 11, color: 'var(--text-faint,#BBB)', marginTop: 8, textAlign: 'center' }}>Auto-confirms in {pending.count}s · Cancel to stop</div>
+                    {/* Draining time bar — remounts (keyed) each time a pending action appears */}
+                    <div key={pending.text} aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, background: 'var(--bd-ring)' }}>
+                      <div className="bd-drain" style={{ height: '100%', borderRadius: 99, background: 'var(--bd-accent)' }} />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
 import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile, toggleReaction } from '../services/firebase';
+import { avatarColor } from '../lib/avatar';
 
 const EMOJIS = ['👍','❤️','😂','😮','🎉'];
 
@@ -10,16 +11,16 @@ interface Props {
   targetEmployeeId?: string;
 }
 
+type Contact = Employee & { lastMessageAt?: number };
+
 export default function MessagesPage({ employee, allEmployees, targetEmployeeId }: Props) {
-  const [contacts, setContacts]   = useState<Employee[]>([]);
-  const [selected, setSelected]   = useState<Employee | null>(null);
+  const [contacts, setContacts]   = useState<Contact[]>([]);
+  const [selected, setSelected]   = useState<Contact | null>(null);
   const [messages, setMessages]   = useState<Message[]>([]);
   const [text, setText]           = useState('');
   const [sending, setSending]     = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [searchNew, setSearchNew] = useState('');
   const [convSearch, setConvSearch] = useState('');
-  const [showNew, setShowNew]     = useState(false);
   const [dropOver, setDropOver]   = useState(false);
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -84,7 +85,6 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
       senderId: employee.id, senderName: employee.name, recipientId: selected.id, content: msg, isGroupChat: false,
       ...(mentionedIds.length ? { mentions: mentionedIds } : {}),
     });
-    if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
     setSending(false);
   };
 
@@ -101,7 +101,6 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
         content: `📎 ${file.name}`,
         attachment: { name: file.name, size: `${sizeMB} MB`, ext, url },
       });
-      if (!contacts.find(c => c.id === selected.id)) setContacts(prev => [selected, ...prev]);
     } catch {
       // If storage upload fails (e.g. unauthenticated user), fall back to metadata-only
       const sizeMB = (file.size / 1024 / 1024).toFixed(1);
@@ -115,16 +114,6 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
       setUploading(false);
     }
   };
-
-  const handleNewChat = (emp: Employee) => {
-    if (!contacts.find(c => c.id === emp.id)) setContacts(prev => [emp, ...prev]);
-    setSelected(emp); setShowNew(false); setSearchNew('');
-  };
-
-  const newResults = allEmployees.filter(e =>
-    e.id !== employee.id &&
-    (searchNew === '' || e.name.toLowerCase().includes(searchNew.toLowerCase()))
-  );
 
   const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const fmtTime  = (ts: number) => new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -159,61 +148,39 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
   return (
     <div style={{ height: '100%', display: 'flex', overflow: 'hidden', animation: 'fadeIn 200ms ease' }}>
 
-      {/* Conversation list */}
-      <div style={{ width: 260, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
+      {/* Contact list — every teammate, WhatsApp-style. Active conversations
+          float to the top by recency; everyone else is one click away below,
+          no separate "start a chat" step. */}
+      <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
         <div style={{ padding: '16px 12px 10px', borderBottom: '1px solid var(--sidebar-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Messages</span>
-            <button onClick={() => setShowNew(v => !v)}
-              style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--accent)', border: 'none', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}>+</button>
-          </div>
-          {showNew && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px', marginBottom: 6 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" value={searchNew} onChange={e => setSearchNew(e.target.value)} placeholder="Search teammates…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} autoFocus />
-              </div>
-              <div style={{ maxHeight: 200, overflowY: 'auto', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 4 }}>
-                {newResults.map(emp => (
-                  <button key={emp.id} onClick={() => handleNewChat(emp)}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', border: 'none', background: 'transparent', borderRadius: 7, cursor: 'pointer', textAlign: 'left' }}
-                    onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'}
-                    onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
-                  >
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(emp.name)}</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px', marginTop: showNew ? 6 : 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>Messages</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '7px 10px' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" value={convSearch} onChange={e => setConvSearch(e.target.value)} placeholder="Search conversations…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} />
+            <input type="text" value={convSearch} onChange={e => setConvSearch(e.target.value)} placeholder="Search people…" style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', outline: 'none' }} />
           </div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
           {visibleContacts.length === 0 ? (
-            <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-              {convSearch ? 'No matches.' : <>No conversations.<br />Click + to start one.</>}
-            </div>
-          ) : visibleContacts.map(c => (
-            <div key={c.id} onClick={() => setSelected(c)}
-              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px', borderRadius: 8, cursor: 'pointer', background: selected?.id === c.id ? 'var(--bg)' : 'transparent', marginBottom: 1, transition: 'background 120ms' }}
-              onMouseOver={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
-              onMouseOut={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(c.name)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.department}</div>
+            <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>No matches.</div>
+          ) : visibleContacts.map(c => {
+            const av = avatarColor(c.name);
+            return (
+              <div key={c.id} onClick={() => setSelected(c)}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px', borderRadius: 8, cursor: 'pointer', background: selected?.id === c.id ? 'var(--bg)' : 'transparent', marginBottom: 1, transition: 'background 120ms' }}
+                onMouseOver={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'var(--bg)'; }}
+                onMouseOut={e => { if (selected?.id !== c.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: av.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: av.fg, flexShrink: 0 }}>{initials(c.name)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.lastMessageAt ? fmtTime(c.lastMessageAt) : c.department}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -223,7 +190,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
           <>
             {/* Thread header */}
             <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10, flexShrink: 0 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(selected.name)}</div>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: avatarColor(selected.name).bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: avatarColor(selected.name).fg, flexShrink: 0 }}>{initials(selected.name)}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>{selected.name}</div>
                 <div style={{ fontSize: 11, color: statusOf(selected.status).color }}>● {statusOf(selected.status).label}</div>
@@ -328,7 +295,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
                       onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg)'}
                       onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
                     >
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'var(--surface)', flexShrink: 0 }}>{initials(emp.name)}</div>
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: avatarColor(emp.name).bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: avatarColor(emp.name).fg, flexShrink: 0 }}>{initials(emp.name)}</div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{emp.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{emp.department}</div>
