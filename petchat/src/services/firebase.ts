@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Employee, Task, Group, Message, LoginLog, CheckInResponse, Announcement, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
+import type { Employee, Task, Group, Message, LoginLog, CheckInResponse, Announcement, Broadcast, Objective, ActivityEntry, Shift, Integration, ResourceFile, TaskComment, AnnouncementReply, OneOnOneNote, AuditEntry, PendingAccount } from '../types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -380,6 +380,22 @@ export const filterAnnouncements = (items: Announcement[], employee: Employee): 
     a.audience.includes(employee.department) ||
     a.audience.includes(employee.id)
   );
+
+// ── Broadcasts (transient pop-up alerts to everyone) ──────────────────────────
+export const sendBroadcast = (b: Omit<Broadcast, 'id' | 'createdAt'>) => {
+  const data = Object.fromEntries(
+    Object.entries({ ...b, createdAt: Date.now() }).filter(([, v]) => v !== undefined)
+  );
+  return addDoc(collection(db, 'broadcasts'), data);
+};
+
+export const onBroadcastsChange = (cb: (items: Broadcast[]) => void) =>
+  snapList<Broadcast>(query(collection(db, 'broadcasts'), orderBy('createdAt', 'desc')), cb);
+
+export const isBroadcastForMe = (b: Broadcast, employee: Employee): boolean =>
+  b.audience.includes('all') ||
+  b.audience.includes(employee.department) ||
+  b.audience.includes(employee.id);
 
 // ── OKRs ──────────────────────────────────────────────────────────────────
 export const createObjective = (o: Omit<Objective, 'id'>) =>

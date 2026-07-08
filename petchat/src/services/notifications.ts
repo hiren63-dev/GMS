@@ -16,6 +16,7 @@ export type AppNotifKind =
   | 'announcement'  // company announcement
   | 'checkin'       // daily first-open prompt
   | 'motivation'    // motivational nudge
+  | 'alert'         // admin broadcast alert
   | 'info';         // generic
 
 export interface NotifAction {
@@ -42,6 +43,7 @@ const ICONS: Record<AppNotifKind, string> = {
   announcement: '📢',
   checkin:      '☀️',
   motivation:   '✨',
+  alert:        '🚨',
   info:         '🔔',
 };
 export const notifIcon = (k: AppNotifKind): string => ICONS[k] ?? '🔔';

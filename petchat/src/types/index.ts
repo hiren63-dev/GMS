@@ -172,6 +172,21 @@ export interface Announcement {
   expiresAt?: number;
 }
 
+// ── Broadcast ─────────────────────────────────────────
+// A transient pop-up alert an admin/founder pushes to everyone (or a segment).
+// Unlike an Announcement, it isn't a persistent post — it just fires a
+// bottom-right notification on every recipient's screen.
+export interface Broadcast {
+  id: string;
+  title: string;
+  body?: string;
+  kind: 'alert' | 'motivation' | 'info';
+  audience: AudienceTarget[];   // ['all'] or departments or employee IDs
+  authorId: string;
+  authorName: string;
+  createdAt: number;
+}
+
 // ── OKRs (Founder only) ───────────────────────────────
 export interface KeyResult {
   id: string;

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange, onIncomingMessagesFull, onUserTasksChange, onAnnouncementsChange, filterAnnouncements } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange, onIncomingMessagesFull, onUserTasksChange, onAnnouncementsChange, filterAnnouncements, onBroadcastsChange, isBroadcastForMe } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import type { Department, Role } from './types';
+import type { Department, Role, Task } from './types';
 import { db, auth } from './services/firebase';
 import type { Employee } from './types';
 import type { Page } from './components/Sidebar';
@@ -34,6 +34,7 @@ import ChatDock from './components/ChatDock';
 import { InstallPrompt, UpdateBanner } from './components/SystemPrompts';
 import NotificationCenter from './components/NotificationCenter';
 import { pushNotification, ensureNotifyPermission, randomMotivation } from './services/notifications';
+import { computeReminders } from './services/reminders';
 
 import './index.css';
 
@@ -210,9 +211,46 @@ export default function App() {
       annPrimed = true;
     });
 
-    return () => { unsubTasks(); unsubMsg(); unsubAnn(); };
+    // Admin broadcasts — instant pop-up alerts to everyone. Prime on first
+    // snapshot; then pop new ones addressed to me (but not my own).
+    const knownBcIds = new Set<string>();
+    let bcPrimed = false;
+    const unsubBc = onBroadcastsChange(items => {
+      for (const b of items) {
+        if (!bcPrimed) {
+          knownBcIds.add(b.id);
+        } else if (!knownBcIds.has(b.id)) {
+          knownBcIds.add(b.id);
+          if (b.authorId === me.id) continue;      // don't buzz the sender
+          if (!isBroadcastForMe(b, me)) continue;  // audience filter
+          pushNotification({
+            kind: b.kind, title: b.title, body: b.body,
+            autoCloseMs: b.kind === 'alert' ? null : 4000, // alerts stay until dismissed
+          });
+        }
+      }
+      bcPrimed = true;
+    });
+
+    return () => { unsubTasks(); unsubMsg(); unsubAnn(); unsubBc(); };
     // messageTargetId/currentPage read via closure refresh on their own deps below
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEmployee?.id]);
+
+  // Work reminders — deadline-approaching, before-clock-out, and periodic
+  // "how's it going?" nudges. Runs on a timer while the app is open.
+  useEffect(() => {
+    if (!currentEmployee) return;
+    const me = currentEmployee;
+    let myTasks: Task[] = [];
+    const unsub = onUserTasksChange(me.id, ts => { myTasks = ts; });
+    const tick = () => {
+      const nudges = computeReminders(me, myTasks, { checkedIn: checkinDoneToday(me.id) });
+      for (const n of nudges) pushNotification(n);
+    };
+    const first = setTimeout(tick, 15_000);          // first sweep shortly after load
+    const iv = setInterval(tick, 5 * 60 * 1000);     // then every 5 minutes
+    return () => { unsub(); clearTimeout(first); clearInterval(iv); };
   }, [currentEmployee?.id]);
 
   // Live unread badge: count incoming 1:1 messages newer than the last time the

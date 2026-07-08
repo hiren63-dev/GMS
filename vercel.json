@@ -1,13 +1,8 @@
 {
-  "outputDirectory": "GMS-deploy",
+  "buildCommand": "npm --prefix petchat install && npm --prefix petchat run build",
+  "outputDirectory": "petchat/dist",
   "cleanUrls": true,
-  "routes": [
-    { "src": "/manifest.json", "dest": "/manifest.json" },
-    { "src": "/sw.js", "dest": "/sw.js" },
-    { "src": "/icon.svg", "dest": "/icon.svg" },
-    { "src": "/icon-192.png", "dest": "/icon-192.png" },
-    { "src": "/icon-512.png", "dest": "/icon-512.png" },
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

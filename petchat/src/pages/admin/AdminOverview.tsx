@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Employee, Task, LoginLog } from '../../types';
 import { onAllTasksChange, onLoginLogsChange, todayKey } from '../../services/firebase';
+import BroadcastComposer from '../../components/BroadcastComposer';
 
 interface Props {
   employee: Employee;
@@ -43,7 +44,8 @@ const STATUS_LABEL: Record<string, string> = {
   todo: 'To do', in_progress: 'In progress', blocked: 'Blocked', done: 'Done',
 };
 
-export default function AdminOverview({ allEmployees }: Props) {
+export default function AdminOverview({ employee, allEmployees }: Props) {
+  const canBroadcast = employee.role === 'admin' || employee.role === 'founder' || !!employee.permissions?.includes('post_announcements');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [logs, setLogs]   = useState<LoginLog[]>([]);
   const [widgetStats, setWidgetStats]       = useState(true);
@@ -130,6 +132,11 @@ export default function AdminOverview({ allEmployees }: Props) {
           )}
         </div>
       </div>
+
+      {/* Broadcast composer — push an instant pop-up to the team */}
+      {canBroadcast && (
+        <BroadcastComposer employee={employee} departments={departments.filter(d => d !== 'all')} />
+      )}
 
       {/* Department filter tabs */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
