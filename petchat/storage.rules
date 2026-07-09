@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Firebase Storage rules for Zypit CRM.
+// Internal tool: any signed-in user can read/write shared files (message
+// attachments, resources). Mirrors the Firestore rules' trust model.
+// Deploy with:  firebase deploy --only storage
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -31,7 +31,7 @@ import OneOnOnePage from './pages/OneOnOnePage';
 import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInModal';
 import TimeTracker from './components/TimeTracker';
 import ChatDock from './components/ChatDock';
-import { InstallPrompt, UpdateBanner } from './components/SystemPrompts';
+import { InstallPrompt, UpdateBanner, NotificationPrompt } from './components/SystemPrompts';
 import NotificationCenter from './components/NotificationCenter';
 import { pushNotification, ensureNotifyPermission, randomMotivation } from './services/notifications';
 import { computeReminders } from './services/reminders';
@@ -798,6 +798,7 @@ export default function App() {
 
       <UpdateBanner />
       <InstallPrompt />
+      <NotificationPrompt />
 
       <Mascot
         onTap={() => {

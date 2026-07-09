@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
 import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile, toggleReaction } from '../services/firebase';
 import { avatarColor } from '../lib/avatar';
+import { toast } from '../utils/toast';
 
 const EMOJIS = ['👍','❤️','😂','😮','🎉'];
 
@@ -101,15 +102,17 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
         content: `📎 ${file.name}`,
         attachment: { name: file.name, size: `${sizeMB} MB`, ext, url },
       });
-    } catch {
-      // If storage upload fails (e.g. unauthenticated user), fall back to metadata-only
-      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-      const ext = file.name.split('.').pop()?.toUpperCase() ?? 'FILE';
-      await sendMessage({
-        senderId: employee.id, senderName: employee.name, recipientId: selected.id, isGroupChat: false,
-        content: `📎 ${file.name}`,
-        attachment: { name: file.name, size: `${sizeMB} MB`, ext },
-      });
+    } catch (err: any) {
+      // Upload to Firebase Storage failed — don't send a broken, unopenable
+      // attachment. Surface the real reason so it can be fixed (usually Storage
+      // not enabled, or Storage rules blocking the write).
+      console.error('[messages] file upload failed:', err?.code, err?.message ?? err);
+      const reason = err?.code === 'storage/unauthorized'
+        ? 'file sharing is blocked by Storage rules'
+        : err?.code === 'storage/unknown' || err?.code === 'storage/retry-limit-exceeded'
+          ? 'file storage is not set up yet'
+          : 'the upload failed';
+      toast(`Couldn't send “${file.name}” — ${reason}.`);
     } finally {
       setUploading(false);
     }

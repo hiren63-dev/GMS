@@ -79,6 +79,54 @@ export function InstallPrompt() {
   );
 }
 
+// ── Notification permission prompt ───────────────────────────────────────────
+// Browsers ignore Notification.requestPermission() unless it's triggered by a
+// real user gesture (a click). Asking silently in a useEffect leaves permission
+// stuck on "default", so OS pop-ups never fire when you're on another tab. This
+// banner makes the ask a button click, so permission actually gets granted.
+export function NotificationPrompt() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (typeof Notification === 'undefined') return;        // unsupported
+    if (Notification.permission !== 'default') return;      // already granted/denied
+    if (localStorage.getItem('notifPromptDismissed') === '1') return;
+    const t = setTimeout(() => setShow(true), 2500);        // let the app settle first
+    return () => clearTimeout(t);
+  }, []);
+
+  const enable = async () => {
+    try { await Notification.requestPermission(); } catch { /* ignore */ }
+    setShow(false); // whatever they chose, don't nag again this session
+  };
+  const dismiss = () => { setShow(false); localStorage.setItem('notifPromptDismissed', '1'); };
+
+  if (!show) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', left: '50%', bottom: 20, transform: 'translateX(-50%)', zIndex: 1250,
+      width: 'min(420px, calc(100vw - 32px))', background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: 16, boxShadow: 'var(--shadow-elevated)', display: 'flex', gap: 12, alignItems: 'flex-start',
+      animation: 'toastIn 200ms ease',
+    }}>
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Turn on notifications</div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.45 }}>
+          Get pop-up alerts for new messages, tasks and reminders — even when you’re on another tab.
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button onClick={enable} style={{ height: 34, padding: '0 16px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Enable</button>
+          <button onClick={dismiss} style={{ height: 34, padding: '0 14px', background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Not now</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Update banner ──────────────────────────────────────────────────────────
 const currentBundle = (): string | null => {
   const el = document.querySelector('script[src*="/assets/index-"]') as HTMLScriptElement | null;
