@@ -35,20 +35,76 @@
       "notes": "Likes it relaxed and respectful. A 'Got it, boss 👍' style lands well. Keep it light and quick, never robotic."
     },
     {
-      "match": ["Ananya", "Ananya Sharma", "Nyu"],
+      "match": ["Ananya"],
       "displayName": "Ananya",
       "tone": "warm",
       "addressAs": null,
       "language": "English",
-      "notes": "Detail-oriented. Appreciates a clear, calm confirmation and a gentle heads-up if something looks off."
+      "notes": "Handles creator DMs/outreach for campaigns and campaign management in the dashboards, plus admin tasks. Reports to Hiren and Srilakshman. Appreciates a clear, calm confirmation and a gentle heads-up if something looks off."
     },
     {
-      "match": ["Sri", "Sri Lakshman", "Lucky"],
-      "displayName": "Sri",
-      "tone": "playful",
+      "match": ["Srilakshman", "Lachu", "SL", "Lakshman"],
+      "displayName": "Srilakshman",
+      "tone": "warm",
       "addressAs": null,
       "language": "English",
-      "notes": "Designer, upbeat. A little warmth and an emoji is welcome. Celebrate wins ('nice one!')."
+      "notes": "CFO. Handles creator payouts; coordinates with Hiren and Ananya on campaign management."
+    },
+    {
+      "match": ["Vasanthan"],
+      "displayName": "Vasanthan",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Growth Head. Marketing, scripting, Obula promotions, and design (carousels) — Dhanya and Samruthi work under him. Also does small marketing tasks with Hiren."
+    },
+    {
+      "match": ["Ehan"],
+      "displayName": "Ehan",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Head of Tech."
+    },
+    {
+      "match": ["Akshaye"],
+      "displayName": "Akshaye",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Tech team."
+    },
+    {
+      "match": ["Athul"],
+      "displayName": "Athul",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Tech team."
+    },
+    {
+      "match": ["Jeslin"],
+      "displayName": "Jeslin",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Intern, tech — basic tasks."
+    },
+    {
+      "match": ["Sandy"],
+      "displayName": "Sandy",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Tech team."
+    },
+    {
+      "match": ["Shamil"],
+      "displayName": "Shamil",
+      "tone": "warm",
+      "addressAs": null,
+      "language": "English",
+      "notes": "Editing and design, primarily editing."
     }
   ]
 }
