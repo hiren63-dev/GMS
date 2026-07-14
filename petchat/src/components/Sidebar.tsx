@@ -1,7 +1,7 @@
 import type { Employee } from '../types';
 
 type Page =
-  | 'dashboard' | 'founder' | 'team' | 'team-board' | 'messages' | 'tasks' | 'groups'
+  | 'dashboard' | 'founder' | 'notify' | 'team' | 'team-board' | 'messages' | 'tasks' | 'groups'
   | 'time' | 'announcements' | 'resources' | 'screentime'
   | 'org-chart' | 'one-on-one'
   | 'admin' | 'admin-team' | 'admin-tasks' | 'admin-shifts' | 'admin-integrations' | 'admin-health';
@@ -64,6 +64,11 @@ export default function Sidebar({ currentPage, onNavigate, employee, onSignOut, 
         {isFounder && (
           <NavBtn active={currentPage === 'founder'} onClick={() => onNavigate('founder')} label="Dashboard" icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 13h2l3 7 4-16 3 9h6"/></svg>
+          } />
+        )}
+        {isFounder && (
+          <NavBtn active={currentPage === 'notify'} onClick={() => onNavigate('notify')} label="Notify" icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           } />
         )}
         {!isFounder && (

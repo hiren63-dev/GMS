@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange, onIncomingMessagesFull, onUserTasksChange, onAnnouncementsChange, filterAnnouncements, onBroadcastsChange, isBroadcastForMe } from './services/firebase';
+import { onEmployeesChange, loginAdmin, loginAnon, logoutAdmin, onAuthChange, createEmployeeWithAuth, logActivity, logLogin, onIncomingMessagesChange, onIncomingMessagesFull, onUserTasksChange, onAnnouncementsChange, filterAnnouncements, onBroadcastsChange, isBroadcastForMe, onAllGroupsChange } from './services/firebase';
 import { getDocs, getDoc, doc, collection, query, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import type { Department, Role, Task } from './types';
+import type { Department, Role, Task, Group, Broadcast } from './types';
 import { db, auth } from './services/firebase';
 import type { Employee } from './types';
 import type { Page } from './components/Sidebar';
@@ -26,6 +26,7 @@ import AdminTasks from './pages/admin/AdminTasks';
 import AdminShifts from './pages/admin/AdminShifts';
 import IntegrationHub from './pages/admin/IntegrationHub';
 import AdminHealth from './pages/admin/AdminHealth';
+import NotifyPage from './pages/NotifyPage';
 import OrgChartPage from './pages/OrgChartPage';
 import OneOnOnePage from './pages/OneOnOnePage';
 import DailyCheckInModal, { checkinDoneToday } from './components/DailyCheckInModal';
@@ -48,6 +49,7 @@ export default function App() {
   const [darkMode, setDarkMode]               = useState(() => localStorage.getItem('theme') === 'dark');
   const [mascotMsg, setMascotMsg]             = useState('');
   const [showCheckin, setShowCheckin]         = useState(false);
+  const [allGroups, setAllGroups]             = useState<Group[]>([]);
 
   // Profile picker — cached profiles for 1-click login
   type SavedProfile = { name: string; email: string; initials: string; department: string; lastLogin: number };
@@ -211,28 +213,45 @@ export default function App() {
       annPrimed = true;
     });
 
-    // Admin broadcasts — instant pop-up alerts to everyone. Prime on first
-    // snapshot; then pop new ones addressed to me (but not my own).
-    const knownBcIds = new Set<string>();
+    // Admin/founder broadcasts — instant (or scheduled) pop-up alerts to
+    // everyone, a department, specific people, or a working group. Prime on
+    // first snapshot so pre-existing *immediate* ones don't replay as new;
+    // pre-existing *scheduled* ones stay pending and still fire once due.
+    const handledBcIds = new Set<string>();
     let bcPrimed = false;
-    const unsubBc = onBroadcastsChange(items => {
-      for (const b of items) {
-        if (!bcPrimed) {
-          knownBcIds.add(b.id);
-        } else if (!knownBcIds.has(b.id)) {
-          knownBcIds.add(b.id);
-          if (b.authorId === me.id) continue;      // don't buzz the sender
-          if (!isBroadcastForMe(b, me)) continue;  // audience filter
-          pushNotification({
-            kind: b.kind, title: b.title, body: b.body,
-            autoCloseMs: b.kind === 'alert' ? null : 4000, // alerts stay until dismissed
-          });
-        }
-      }
-      bcPrimed = true;
-    });
+    let latestBc: Broadcast[] = [];
 
-    return () => { unsubTasks(); unsubMsg(); unsubAnn(); unsubBc(); };
+    const evaluateBroadcasts = () => {
+      const now = Date.now();
+      for (const b of latestBc) {
+        if (handledBcIds.has(b.id)) continue;
+        if (b.cancelled) { handledBcIds.add(b.id); continue; }
+        if (b.scheduledFor && b.scheduledFor > now) continue; // still pending — re-check on the next tick
+        handledBcIds.add(b.id);
+        if (b.authorId === me.id) continue;                        // don't buzz the sender
+        if (!isBroadcastForMe(b, me, allGroupsRef.current)) continue; // audience filter
+        pushNotification({
+          kind: b.kind, title: b.title, body: b.body,
+          autoCloseMs: b.kind === 'alert' ? null : 4000, // alerts stay until dismissed
+        });
+      }
+    };
+
+    const unsubBc = onBroadcastsChange(items => {
+      latestBc = items;
+      if (!bcPrimed) {
+        for (const b of items) {
+          if (!b.scheduledFor || b.scheduledFor <= Date.now()) handledBcIds.add(b.id);
+        }
+        bcPrimed = true;
+      }
+      evaluateBroadcasts();
+    });
+    // Sweep every 20s so scheduled broadcasts fire once their time arrives,
+    // even though the Firestore doc itself hasn't changed since it was created.
+    const bcTick = setInterval(evaluateBroadcasts, 20_000);
+
+    return () => { unsubTasks(); unsubMsg(); unsubAnn(); unsubBc(); clearInterval(bcTick); };
     // messageTargetId/currentPage read via closure refresh on their own deps below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEmployee?.id]);
@@ -262,6 +281,15 @@ export default function App() {
       setUnreadCount(msgs.filter(m => m.timestamp > seenAt).length);
     });
   }, [currentEmployee?.id]);
+
+  // Company-wide working groups — needed to resolve group-targeted broadcasts
+  // (see below) regardless of whether the viewer is a member of that group.
+  useEffect(() => {
+    if (!currentEmployee) { setAllGroups([]); return; }
+    return onAllGroupsChange(setAllGroups);
+  }, [currentEmployee?.id]);
+  const allGroupsRef = useRef<Group[]>([]);
+  useEffect(() => { allGroupsRef.current = allGroups; }, [allGroups]);
 
   useEffect(() => {
     const handleToast = (e: any) => {
@@ -733,6 +761,9 @@ export default function App() {
           )}
           {currentPage === 'founder' && currentEmployee.role === 'founder' && (
             <FounderView employee={currentEmployee} allEmployees={employees} />
+          )}
+          {currentPage === 'notify' && currentEmployee.role === 'founder' && (
+            <NotifyPage employee={currentEmployee} allEmployees={employees} allGroups={allGroups} />
           )}
           {currentPage === 'team' && (
             <TeamDirectory employee={currentEmployee} allEmployees={employees} onNavigate={navigate} />

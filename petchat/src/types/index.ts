@@ -182,9 +182,12 @@ export interface Broadcast {
   body?: string;
   kind: 'alert' | 'motivation' | 'info';
   audience: AudienceTarget[];   // ['all'] or departments or employee IDs
+  groupIds?: string[];          // working groups targeted (resolved against Group.memberIds at delivery, so membership changes are picked up live)
   authorId: string;
   authorName: string;
   createdAt: number;
+  scheduledFor?: number;        // epoch ms — if set and in the future, held until that time instead of firing immediately
+  cancelled?: boolean;          // scheduled send withdrawn before it went out
 }
 
 // ── OKRs (Founder only) ───────────────────────────────

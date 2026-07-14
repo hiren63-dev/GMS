@@ -392,10 +392,15 @@ export const sendBroadcast = (b: Omit<Broadcast, 'id' | 'createdAt'>) => {
 export const onBroadcastsChange = (cb: (items: Broadcast[]) => void) =>
   snapList<Broadcast>(query(collection(db, 'broadcasts'), orderBy('createdAt', 'desc')), cb);
 
-export const isBroadcastForMe = (b: Broadcast, employee: Employee): boolean =>
+export const isBroadcastForMe = (b: Broadcast, employee: Employee, groups: Group[] = []): boolean =>
   b.audience.includes('all') ||
   b.audience.includes(employee.department) ||
-  b.audience.includes(employee.id);
+  b.audience.includes(employee.id) ||
+  (b.groupIds ?? []).some(gid => groups.find(g => g.id === gid)?.memberIds.includes(employee.id));
+
+/** Withdraw a not-yet-fired scheduled broadcast. No-op once it has already gone out. */
+export const cancelScheduledBroadcast = (id: string) =>
+  updateDoc(doc(db, 'broadcasts', id), { cancelled: true } as any);
 
 // ── OKRs ──────────────────────────────────────────────────────────────────
 export const createObjective = (o: Omit<Objective, 'id'>) =>
