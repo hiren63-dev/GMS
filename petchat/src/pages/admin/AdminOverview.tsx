@@ -135,7 +135,7 @@ export default function AdminOverview({ employee, allEmployees }: Props) {
 
       {/* Broadcast composer — push an instant pop-up to the team */}
       {canBroadcast && (
-        <BroadcastComposer employee={employee} departments={departments.filter(d => d !== 'all')} />
+        <BroadcastComposer employee={employee} departments={departments.filter(d => d !== 'all')} allEmployees={allEmployees} />
       )}
 
       {/* Department filter tabs */}

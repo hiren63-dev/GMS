@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import type { Employee, Broadcast, AudienceTarget } from '../types';
 import { sendBroadcast } from '../services/firebase';
+import { sendPush } from '../services/push';
 import { toast } from '../utils/toast';
 
 interface Props {
   employee: Employee;
   /** Departments available as audience segments (from the roster). */
   departments: string[];
+  /** Full roster — needed to resolve "everyone"/department into actual recipient ids for Web Push. */
+  allEmployees: Employee[];
 }
 
 const KINDS: { value: Broadcast['kind']; label: string; icon: string }[] = [
@@ -21,7 +24,7 @@ const KINDS: { value: Broadcast['kind']; label: string; icon: string }[] = [
  * it into a bottom-right notification. Not a persistent post — use Announcements
  * for those.
  */
-export default function BroadcastComposer({ employee, departments }: Props) {
+export default function BroadcastComposer({ employee, departments, allEmployees }: Props) {
   const [open, setOpen]     = useState(false);
   const [title, setTitle]   = useState('');
   const [body, setBody]     = useState('');
@@ -45,6 +48,10 @@ export default function BroadcastComposer({ employee, departments }: Props) {
         authorId: employee.id,
         authorName: employee.name,
       });
+      // Real Web Push — reaches recipients even with no tab/app open at all.
+      const targetIds = (audience === 'all' ? allEmployees : allEmployees.filter(e => e.department === audience))
+        .map(e => e.id).filter(id => id !== employee.id);
+      sendPush(targetIds, { title: t, body: body.trim() || undefined, tag: 'broadcast', url: '/' });
       toast('📢 Broadcast sent to ' + (audience === 'all' ? 'everyone' : audience));
       reset();
       setOpen(false);

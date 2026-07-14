@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { subscribeToPush } from '../services/push';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Two lightweight, self-contained system prompts rendered at the app root:
@@ -84,7 +85,7 @@ export function InstallPrompt() {
 // real user gesture (a click). Asking silently in a useEffect leaves permission
 // stuck on "default", so OS pop-ups never fire when you're on another tab. This
 // banner makes the ask a button click, so permission actually gets granted.
-export function NotificationPrompt() {
+export function NotificationPrompt({ employeeId }: { employeeId?: string } = {}) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -96,7 +97,10 @@ export function NotificationPrompt() {
   }, []);
 
   const enable = async () => {
-    try { await Notification.requestPermission(); } catch { /* ignore */ }
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted' && employeeId) subscribeToPush(employeeId);
+    } catch { /* ignore */ }
     setShow(false); // whatever they chose, don't nag again this session
   };
   const dismiss = () => { setShow(false); localStorage.setItem('notifPromptDismissed', '1'); };

@@ -35,6 +35,7 @@ import ChatDock from './components/ChatDock';
 import { InstallPrompt, UpdateBanner, NotificationPrompt } from './components/SystemPrompts';
 import NotificationCenter from './components/NotificationCenter';
 import { pushNotification, ensureNotifyPermission, randomMotivation } from './services/notifications';
+import { subscribeToPush } from './services/push';
 import { computeReminders } from './services/reminders';
 
 import './index.css';
@@ -132,9 +133,14 @@ export default function App() {
   }, [currentEmployee?.id]);
 
   // Ask for OS-notification permission once we have a signed-in user (login is a
-  // user gesture, so the browser prompt is allowed here).
+  // user gesture, so the browser prompt is allowed here). Also re-subscribes
+  // to Web Push on every login for anyone who already granted permission in a
+  // previous session (first-time grants are subscribed from NotificationPrompt
+  // instead, right at the click that actually grants permission).
   useEffect(() => {
-    if (currentEmployee) ensureNotifyPermission();
+    if (!currentEmployee) return;
+    const id = currentEmployee.id;
+    ensureNotifyPermission().then(granted => { if (granted) subscribeToPush(id); });
   }, [currentEmployee?.id]);
 
   // Live pop-up notifications: new tasks, due tasks, new messages, announcements.
@@ -829,7 +835,7 @@ export default function App() {
 
       <UpdateBanner />
       <InstallPrompt />
-      <NotificationPrompt />
+      <NotificationPrompt employeeId={currentEmployee.id} />
 
       <Mascot
         onTap={() => {

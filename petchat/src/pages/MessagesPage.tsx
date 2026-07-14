@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Employee, Message } from '../types';
 import { sendMessage, onMessagesChange, onConversationPartnersChange, uploadFile, toggleReaction } from '../services/firebase';
+import { sendPush } from '../services/push';
 import { avatarColor } from '../lib/avatar';
 import { toast } from '../utils/toast';
 
@@ -86,6 +87,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
       senderId: employee.id, senderName: employee.name, recipientId: selected.id, content: msg, isGroupChat: false,
       ...(mentionedIds.length ? { mentions: mentionedIds } : {}),
     });
+    sendPush([selected.id], { title: employee.name, body: msg.slice(0, 140), tag: 'message', url: '/' });
     setSending(false);
   };
 
@@ -102,6 +104,7 @@ export default function MessagesPage({ employee, allEmployees, targetEmployeeId 
         content: `📎 ${file.name}`,
         attachment: { name: file.name, size: `${sizeMB} MB`, ext, url },
       });
+      sendPush([selected.id], { title: employee.name, body: `📎 ${file.name}`, tag: 'message', url: '/' });
     } catch (err: any) {
       // Upload to Firebase Storage failed — don't send a broken, unopenable
       // attachment. Surface the real reason so it can be fixed (usually Storage

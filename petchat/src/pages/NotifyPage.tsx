@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Employee, Group, Broadcast, AudienceTarget } from '../types';
 import { sendBroadcast, onBroadcastsChange, cancelScheduledBroadcast } from '../services/firebase';
+import { sendPush } from '../services/push';
 import { toast } from '../utils/toast';
 
 interface Props {
@@ -137,6 +138,17 @@ export default function NotifyPage({ employee, allEmployees, allGroups }: Props)
         authorName: employee.name,
         scheduledFor,
       });
+      if (!scheduledFor) {
+        // Real Web Push — reaches recipients even with no tab/app open at all.
+        // (Scheduled sends still rely on the open-tab broadcast listener in
+        // App.tsx, same as before, since there's no server-side scheduler yet.)
+        const targetIds = mode === 'everyone'
+          ? allEmployees.map(e => e.id)
+          : mode === 'people'
+          ? [...peopleIds]
+          : [...groupIds].flatMap(gid => allGroups.find(g => g.id === gid)?.memberIds ?? []);
+        sendPush(targetIds.filter(id => id !== employee.id), { title: t, body: body.trim() || undefined, tag: 'notify', url: '/' });
+      }
       toast(scheduledFor
         ? `🔔 Notification scheduled for ${new Date(scheduledFor).toLocaleString()}`
         : '🔔 Notification sent');

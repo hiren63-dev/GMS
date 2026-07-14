@@ -1,0 +1,7 @@
+{
+  "name": "gms-api",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
